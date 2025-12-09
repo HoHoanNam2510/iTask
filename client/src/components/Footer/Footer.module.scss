@@ -1,0 +1,151 @@
+.footerContainer {
+  /* Giữ nguyên code cũ */
+  background-color: var(--white);
+  border-top: 1px solid var(--border-color);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 70px;
+  flex-shrink: 0;
+
+  /* QUAN TRỌNG: Để nút con absolute căn theo cha này */
+  position: relative;
+  z-index: 10;
+  transition: transform 0.3s ease;
+}
+
+/* --- Cập nhật class này để CĂN GIỮA --- */
+.collapseBtn {
+  position: absolute;
+  top: -16px; /* Nằm ngay trên mép footer */
+
+  /* Căn giữa */
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* Kích thước đồng bộ với nút Restore */
+  width: 48px;
+  height: 20px; /* Thấp hơn nút Restore một chút vì nó nằm trên Footer */
+
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-light);
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
+  z-index: 0;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--primary);
+    background-color: var(--primary-bg);
+    top: -20px;
+    height: 24px;
+  }
+}
+
+/* --- Status Section (Bên trái) --- */
+.statusSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 200px;
+}
+
+.progressInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.6rem;
+  color: var(--text-light);
+}
+
+.iconSuccess {
+  /* SỬA: Dùng luôn màu primary cho đồng bộ */
+  color: var(--primary);
+}
+
+.progressBarContainer {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-hover);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  /* SỬA: Thanh tiến độ màu xanh lá */
+  background-color: var(--primary);
+  border-radius: 10px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Navigation Section (Bên phải) --- */
+.navSection {
+  display: flex;
+  gap: 8px;
+}
+
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  min-width: 70px;
+}
+
+.navLabel {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* Hover State */
+.navItem:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-light);
+}
+
+/* Active State (Đang ở trang đó) */
+.navItem.active {
+  /* SỬA: Icon active màu xanh lá */
+  color: var(--primary);
+  /* SỬA: Nền active màu xanh lá nhạt (Primary BG) */
+  background-color: var(--primary-bg);
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 640px) {
+  .statusSection {
+    display: none;
+  }
+
+  .footerContainer {
+    justify-content: space-around;
+    padding: 0.5rem;
+  }
+
+  .navSection {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .navItem {
+    flex: 1;
+  }
+}

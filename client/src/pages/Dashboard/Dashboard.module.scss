@@ -1,0 +1,300 @@
+/* src/pages/Dashboard/Dashboard.module.scss */
+
+// --- Không cần khai báo lại biến màu, dùng trực tiếp var(--...) từ GlobalStyles ---
+
+.wrapper {
+  // Thay đổi: Tăng padding trái phải (4rem) để thoáng hơn
+  padding: 2.4rem 4rem;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--bg-hover); // Dùng màu xám nhạt của global làm nền
+  font-family: 'Barlow', sans-serif;
+
+  // Responsive: Giảm padding trên mobile
+  @media (max-width: 768px) {
+    padding: 1.6rem;
+  }
+}
+
+// --- Header ---
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 3.2rem;
+
+  .title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.4rem;
+  }
+
+  .subtitle {
+    font-size: 1.4rem;
+    color: var(--text-light);
+  }
+
+  .currentDate {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--primary); // Dùng màu xanh chủ đạo
+    // Dùng biến RGB để tạo độ trong suốt cho nền
+    background-color: rgba(var(--primary-rgb), 0.1);
+    padding: 0.8rem 1.6rem;
+    border-radius: 0.8rem;
+  }
+}
+
+// --- Layout Grid ---
+.gridContainer {
+  display: grid;
+  grid-template-columns: 2fr 1fr; // Chia 2 phần trái, 1 phần phải
+  gap: 2.4rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr; // Mobile/Tablet: 1 cột
+  }
+}
+
+.leftColumn,
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+}
+
+// --- Common Card Styles ---
+.card {
+  background-color: var(--white);
+  border-radius: 1.6rem;
+  padding: 2.4rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+
+  .cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .cardTitle {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+}
+
+// --- Stats Card ---
+.statsCard {
+  .chartRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .statInfo {
+    .bigNumber {
+      display: block;
+      font-size: 4.8rem;
+      font-weight: 800;
+      color: var(--primary); // Xanh chủ đạo
+      line-height: 1;
+    }
+    .statLabel {
+      font-size: 1.4rem;
+      color: var(--text-light);
+    }
+  }
+
+  .chartContainer {
+    width: 160px;
+    height: 120px;
+  }
+}
+
+// --- Focus Card ---
+.focusCard {
+  flex: 1;
+
+  .badge {
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 0.4rem 1.2rem;
+    border-radius: 2rem;
+
+    &.high {
+      background-color: #fee2e2; // Màu đỏ nhạt (giữ nguyên hoặc định nghĩa global sau)
+      color: var(--danger);
+    }
+  }
+
+  .taskList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .taskItem {
+    display: flex;
+    align-items: center;
+    padding: 1.2rem 1.6rem;
+    background-color: var(--bg-hover); // Nền xám nhạt mặc định
+    border: 1px solid transparent;
+    border-radius: 1.2rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: var(--primary-bg); // Nền xanh cực nhạt khi hover
+      border-color: rgba(var(--primary-rgb), 0.3);
+
+      .actionBtn {
+        background-color: var(--primary);
+        color: var(--white);
+        border-color: var(--primary);
+      }
+    }
+
+    .checkIcon {
+      // Thay đổi: Tăng khoảng cách giữa Icon tròn và nội dung text
+      margin-right: 1.6rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+
+      .iconSuccess {
+        color: var(--primary);
+      }
+    }
+
+    .taskContent {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+
+      .taskName {
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: var(--text-main);
+      }
+
+      .taskTag {
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        margin-top: 0.2rem;
+        font-weight: 600;
+
+        &.high {
+          color: var(--danger);
+        }
+        &.medium {
+          color: #f59e0b;
+        } // Vàng cam
+        &.low {
+          color: var(--text-light);
+        }
+      }
+    }
+
+    .actionBtn {
+      font-size: 1.3rem;
+      font-weight: 600;
+      padding: 0.6rem 1.6rem;
+      border-radius: 0.8rem;
+      border: 1px solid var(--border-color);
+      background-color: var(--white);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+  }
+}
+
+// --- Upcoming Card (Right Column) ---
+.upcomingCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .moreIcon {
+    color: var(--text-light);
+    cursor: pointer;
+  }
+
+  .upcomingList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .upcomingItem {
+    display: flex;
+    align-items: center;
+
+    .dateBox {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 5rem;
+      height: 5rem;
+
+      // Dùng màu nền xanh nhạt chủ đạo thay vì màu xanh dương cũ
+      background-color: var(--primary-bg);
+      border-radius: 1.2rem;
+      margin-right: 1.6rem;
+      color: var(--primary);
+
+      .day {
+        font-size: 1.8rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .month {
+        font-size: 1rem;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+    }
+
+    .info {
+      .upName {
+        display: block;
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 0.2rem;
+      }
+      .meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 1.2rem;
+        color: var(--text-light);
+      }
+    }
+  }
+
+  .viewCalendarBtn {
+    margin-top: 2.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    padding: 1.2rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 1.2rem;
+    color: var(--text-light);
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background-color: var(--primary-bg);
+    }
+  }
+}

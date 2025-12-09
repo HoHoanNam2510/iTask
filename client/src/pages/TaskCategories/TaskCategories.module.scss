@@ -1,0 +1,311 @@
+/* src/pages/TaskCategories/TaskCategories.module.scss */
+
+// --- Wrapper & Header (Giống Dashboard để đồng bộ) ---
+.wrapper {
+  padding: 2.4rem 4rem;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--bg-hover); // Nền xám nhạt
+  font-family: 'Barlow', sans-serif;
+
+  @media (max-width: 768px) {
+    padding: 1.6rem;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 3.2rem;
+
+  .title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.4rem;
+  }
+
+  .subtitle {
+    font-size: 1.4rem;
+    color: var(--text-light);
+  }
+
+  .addBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem 2rem;
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1.4rem;
+    transition: background-color 0.2s;
+    font-family: inherit;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+  }
+}
+
+// --- Grid Card System ---
+.gridContainer {
+  display: grid;
+  // Responsive tự động: min 280px mỗi cột, tự lấp đầy không gian
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2.4rem;
+}
+
+.card {
+  background-color: var(--white);
+  border-radius: 1.6rem;
+  padding: 2.4rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    transform: translateY(-4px); // Hiệu ứng nổi lên khi hover
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+
+  .cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.6rem;
+
+    .iconBox {
+      width: 4.8rem;
+      height: 4.8rem;
+      border-radius: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      // Màu background & icon sẽ được set inline style trong component
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.8rem;
+      opacity: 0; // Ẩn nút edit/delete mặc định cho gọn
+      transition: opacity 0.2s;
+    }
+  }
+
+  // Hiện nút action khi hover vào card
+  &:hover .actions {
+    opacity: 1;
+  }
+
+  .actionBtn {
+    width: 3.2rem;
+    height: 3.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    background-color: var(--white);
+    border-radius: 0.8rem;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background-color: var(--bg-hover);
+      color: var(--primary);
+    }
+
+    &.delete:hover {
+      background-color: #fee2e2;
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+  }
+
+  .catName {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.8rem;
+  }
+
+  .catDesc {
+    font-size: 1.4rem;
+    color: var(--text-light);
+    margin-bottom: 2rem;
+    flex: 1; // Đẩy footer xuống đáy
+    line-height: 1.5;
+  }
+
+  .catFooter {
+    padding-top: 1.6rem;
+    border-top: 1px dashed var(--border-color);
+
+    .taskBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.3rem;
+      color: var(--text-main);
+      font-weight: 500;
+      background-color: var(--bg-hover);
+      padding: 0.6rem 1.2rem;
+      border-radius: 2rem;
+    }
+  }
+}
+
+// --- Modal / Popup Styles ---
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4); // Nền tối mờ
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px); // Hiệu ứng blur nền sau
+}
+
+.modalContent {
+  background-color: var(--white);
+  width: 100%;
+  max-width: 450px;
+  border-radius: 1.6rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-out;
+
+  .modalHeader {
+    padding: 2rem 2.4rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h3 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      &:hover {
+        color: var(--danger);
+      }
+    }
+  }
+
+  .modalBody {
+    padding: 2.4rem;
+
+    .formGroup {
+      margin-bottom: 2rem;
+
+      label {
+        display: block;
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 0.8rem;
+      }
+
+      input {
+        width: 100%;
+        padding: 1.2rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.8rem;
+        font-size: 1.4rem;
+        outline: none;
+        font-family: inherit;
+
+        &:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+        }
+      }
+    }
+
+    .colorPicker {
+      display: flex;
+      gap: 1.2rem;
+
+      .colorCircle {
+        width: 3.2rem;
+        height: 3.2rem;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.2s;
+
+        &:hover {
+          transform: scale(1.1);
+        }
+
+        &.active {
+          border-color: var(--text-main); // Viền đen khi được chọn
+          transform: scale(1.1);
+        }
+      }
+    }
+  }
+
+  .modalFooter {
+    padding: 1.6rem 2.4rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.2rem;
+
+    button {
+      padding: 1rem 2rem;
+      border-radius: 0.8rem;
+      font-size: 1.4rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btnCancel {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-light);
+      &:hover {
+        background-color: var(--bg-hover);
+      }
+    }
+
+    .btnSave {
+      background-color: var(--primary);
+      color: var(--white);
+      border: none;
+      &:hover {
+        background-color: var(--primary-dark);
+      }
+    }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

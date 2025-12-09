@@ -1,0 +1,222 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.5rem;
+  height: 70px;
+  background-color: var(--white);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02),
+    0 2px 4px -1px rgba(0, 0, 0, 0.02);
+}
+
+/* --- LEFT: Logo --- */
+.left {
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+}
+
+.logo a {
+  font-weight: 800;
+  font-size: 2rem;
+  /* SỬA: Màu chủ đạo */
+  color: var(--primary);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- CENTER: Search Bar --- */
+.center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  padding: 4px 6px 4px 16px;
+  transition: all 0.2s ease;
+
+  &:focus-within {
+    background-color: var(--white);
+    /* SỬA: Viền xanh lá */
+    border-color: var(--primary);
+    /* SỬA: Box shadow xanh lá nhạt dùng biến RGB */
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  }
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 1.4rem;
+  color: var(--text-main);
+  padding: 6px 0;
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+}
+
+.searchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* SỬA: Nút xanh lá */
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    /* SỬA: Hover đậm hơn */
+    background: var(--primary-dark);
+  }
+}
+
+/* --- RIGHT: Icons & Date --- */
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  color: var(--text-light);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover,
+  &.active {
+    background-color: var(--bg-hover);
+    /* SỬA: Icon active màu xanh lá */
+    color: var(--primary);
+  }
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--danger);
+  color: var(--white);
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--white);
+}
+
+/* Dropdown Menu */
+.dropdown {
+  position: absolute;
+  top: 120%;
+  right: 0;
+  width: 280px;
+  background: var(--white);
+  border: 1px solid var(--bg-hover);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 50;
+  animation: slideDown 0.2s ease-out;
+  transform-origin: top right;
+}
+
+.dropdownItem {
+  padding: 10px 12px;
+  font-size: 1.4rem;
+  color: var(--text-main);
+  border-radius: 8px;
+  transition: background 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--bg-hover);
+    /* SỬA: Hover text màu xanh lá */
+    color: var(--primary);
+  }
+}
+
+.dateText {
+  margin-left: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-light);
+  font-size: 1.6rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 1rem;
+    gap: 0.5rem;
+  }
+
+  .logo a span {
+    display: none;
+  }
+
+  .dateText {
+    display: none;
+  }
+
+  .searchBar {
+    max-width: 100%;
+  }
+}

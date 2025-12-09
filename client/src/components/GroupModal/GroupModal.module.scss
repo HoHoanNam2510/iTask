@@ -1,0 +1,188 @@
+/* src/components/Modals/GroupModal.module.scss */
+
+// Lớp phủ mờ toàn màn hình
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); // Màu đen mờ
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; // Đảm bảo nổi lên trên cùng
+  animation: fadeIn 0.2s ease-out;
+}
+
+// Hộp thoại chính
+.modal {
+  background: white;
+  width: 90%;
+  max-width: 450px;
+  border-radius: 1.6rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+// Header chứa nút đóng
+.header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.2rem;
+
+  .closeBtn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      color: #ef4444; // Màu đỏ khi hover nút đóng
+    }
+  }
+}
+
+// Tabs chuyển đổi (Join / Create)
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 2rem;
+}
+
+.tab {
+  flex: 1;
+  padding: 1.2rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--primary);
+  }
+
+  &.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+}
+
+// Phần nội dung Form
+.content {
+  padding: 2.4rem;
+
+  h3 {
+    font-size: 2rem;
+    color: #1e293b;
+    margin-bottom: 0.8rem;
+    font-weight: 700;
+  }
+
+  p {
+    font-size: 1.4rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+  }
+}
+
+// Input Styles
+.inputGroup {
+  margin-bottom: 2rem;
+}
+
+.label {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 0.8rem;
+}
+
+.input {
+  width: 100%;
+  padding: 1rem 1.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.8rem;
+  font-size: 1.5rem;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 72, 187, 120), 0.1); // Fallback màu xanh nếu chưa có biến RGB
+  }
+}
+
+// Action Buttons
+.actions {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 1rem;
+
+  button {
+    flex: 1;
+    padding: 1rem;
+    border-radius: 0.8rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  .cancelBtn {
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+  }
+
+  .submitBtn {
+    background: var(--primary);
+    color: white;
+    border: none;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+// Keyframes Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

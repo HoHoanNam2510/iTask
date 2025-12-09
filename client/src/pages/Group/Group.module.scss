@@ -1,0 +1,240 @@
+// src/pages/Group/Group.module.scss
+
+.wrapper {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  /* [FIX 1] Thêm padding đáy lớn để tránh bị dính sát mép khi tắt Footer */
+  /* Nếu Footer cao ~70px, ta để padding ~80-100px là an toàn */
+  padding-bottom: 100px;
+}
+
+// --- Header Section ---
+.header {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .info {
+    h1 {
+      margin: 0;
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+
+      span {
+        font-size: 1.4rem;
+        color: var(--text-light);
+        font-weight: 400;
+        margin-left: 8px;
+      }
+    }
+
+    p {
+      color: var(--text-light);
+      margin-top: 6px;
+      font-size: 1.6rem;
+    }
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .members {
+      display: flex;
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: var(--bg-hover);
+        color: var(--text-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+        border: 2px solid var(--white);
+        margin-left: -8px;
+
+        &:first-child {
+          margin-left: 0;
+        }
+      }
+    }
+
+    .invite-btn {
+      padding: 8px 16px;
+      background-color: var(--primary);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover {
+        background-color: var(--primary-dark);
+      }
+    }
+  }
+}
+
+// --- Stats Section ---
+.stats-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  flex: 1;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+
+  .label {
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    color: var(--text-light);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+}
+
+// --- Board Section ---
+.board-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  /* Nếu muốn Board luôn nằm gọn trong màn hình thì dùng height, 
+     nhưng với yêu cầu của bạn là scroll trong cột, ta để auto */
+  align-items: start;
+}
+
+.column {
+  background-color: var(--bg-hover);
+  padding: 16px;
+  border-radius: 12px;
+  /* [FIX 2] Quy định chiều cao */
+  min-height: 300px; /* Chiều cao tối thiểu khi ít task */
+
+  /* Flex để quản lý phần Header và phần List task */
+  display: flex;
+  flex-direction: column;
+
+  /* [FIX 3] Giới hạn chiều cao tối đa của cả cột để không bị tràn màn hình quá nhiều */
+  max-height: calc(100vh - 250px);
+
+  h3 {
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-main);
+
+    /* Quan trọng: Header không được co lại */
+    flex-shrink: 0;
+
+    .count {
+      background: var(--border-color);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 1.2rem;
+      color: var(--text-light);
+    }
+  }
+}
+
+/* [NEW CLASS] Class này bọc lấy danh sách các Task Card */
+.taskList {
+  /* Cho phép giãn nở */
+  flex: 1;
+
+  /* [FIX 2] Kích hoạt thanh trượt khi nội dung dài */
+  overflow-y: auto;
+  padding-right: 4px; /* Chừa chỗ cho scrollbar không đè nội dung */
+  margin-top: 4px;
+
+  /* --- Custom Scrollbar (Green Theme) --- */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* Màu xám nhạt */
+    border-radius: 4px;
+
+    &:hover {
+      background-color: var(--primary); /* Hover vào ra màu xanh lá */
+    }
+  }
+}
+
+.task-card {
+  background: var(--white);
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
+  cursor: grab;
+  border-left: 4px solid transparent;
+  transition: all 0.2s;
+
+  /* Đảm bảo card cuối cùng không bị dính sát đáy khi scroll */
+  &:last-child {
+    margin-bottom: 4px;
+  }
+
+  &:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .task-title {
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    font-size: 1.5rem;
+    color: var(--text-main);
+  }
+
+  .task-meta {
+    font-size: 1.2rem;
+    color: var(--text-light);
+  }
+
+  &.todo {
+    border-left-color: var(--text-light);
+  }
+  &.inprogress {
+    border-left-color: var(--primary);
+    background-color: var(--primary-bg);
+  }
+  &.done {
+    border-left-color: var(--primary-dark);
+    opacity: 0.8;
+    text-decoration: line-through;
+  }
+}

@@ -1,0 +1,632 @@
+/* src/pages/Calendar/Calendar.module.scss */
+
+// --- 1. CALENDAR CONTAINER & HEADER ---
+.calendarContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 0 20px;
+  background-color: var(--white);
+  overflow: hidden;
+  font-family: 'Barlow', sans-serif;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.headerTitle h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  text-transform: capitalize;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.navButtons {
+  display: flex;
+  gap: 10px;
+
+  button {
+    background: var(--bg-hover);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-main);
+    transition: background 0.2s;
+
+    &:hover {
+      background: var(--border-color);
+    }
+  }
+}
+
+// --- 2. GRID LAYOUT (TUẦN & NGÀY) ---
+.weekDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+  padding-right: 6px; // Bù trừ cho scrollbar bên dưới
+}
+
+.weekDayCell {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-light);
+  font-size: 1.4rem;
+  text-transform: uppercase;
+}
+
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(100px, 1fr); // Chiều cao tối thiểu mỗi ô
+  gap: 1px;
+  background-color: var(--border-color); // Tạo đường kẻ grid
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  flex: 1;
+  overflow-y: auto;
+
+  // Custom Scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 20px;
+  }
+}
+
+.dayCell {
+  background-color: var(--white);
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.2s;
+  min-height: 100%;
+
+  &:hover {
+    background-color: var(--bg-hover);
+  }
+
+  &.disabled {
+    background-color: #f8fafc;
+    .dateNumber {
+      color: #cbd5e1;
+    }
+  }
+
+  &.today {
+    background-color: var(--primary-bg);
+    .dateNumber {
+      background-color: var(--primary);
+      color: var(--white);
+    }
+  }
+}
+
+.dateNumber {
+  font-weight: 600;
+  font-size: 1.4rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+}
+
+// --- 3. TASK PREVIEW (DOTS TRONG LỊCH) ---
+.taskPreviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.taskDot {
+  font-size: 1.3rem;
+  background-color: #e2e8f0; // Mặc định xám
+  color: var(--text-main);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  border-left: 3px solid var(--primary); // Điểm nhấn màu xanh
+}
+
+.moreTasks {
+  font-size: 1rem;
+  color: var(--text-light);
+  padding-left: 4px;
+  font-weight: 500;
+}
+
+// --- 4. MODAL OVERLAY ---
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: var(--white);
+  width: 750px;
+  max-width: 95vw;
+  /* Giới hạn chiều cao modal, chừa khoảng trống trên dưới */
+  height: 85vh;
+  max-height: 800px;
+
+  border-radius: 16px; /* Bo góc ở đây */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* --- FIX LỖI SCROLLBAR --- */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Cắt bỏ mọi thứ lòi ra ngoài (bao gồm góc vuông thanh cuộn) */
+  padding: 0; /* Bỏ padding ở cha, chuyển vào con */
+}
+
+// --- 5. LIST VIEW & FORM HEADER ---
+/* Header chung cho cả List View và Form View */
+.modalHeader,
+.formHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  /* Padding chuyển vào đây để cách lề */
+  padding: 24px 32px;
+  background-color: var(--white);
+  border-bottom: 1px solid var(--bg-hover);
+  flex-shrink: 0; /* Header luôn cố định, không bị co lại khi scroll */
+
+  h3 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  /* Nút đóng X */
+  button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    transition: all 0.2s;
+    &:hover {
+      background-color: var(--bg-hover);
+      color: var(--danger);
+    }
+  }
+}
+
+/* Style riêng cho Form Header (có gạch chân cam) */
+.formHeader {
+  h3 {
+    border-bottom: none; /* Bỏ gạch chân cũ để tránh conflict */
+    position: relative;
+
+    /* Gạch chân màu cam trang trí */
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 40px;
+      height: 3px;
+      background-color: var(--primary);
+      border-radius: 2px;
+    }
+  }
+
+  .goBackBtn {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-light);
+    cursor: pointer;
+    &:hover {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+  }
+}
+
+/* --- 6. SCROLLABLE BODY AREA --- */
+/* Class mới: Wrapper bao quanh nội dung để scroll */
+.modalBody,
+.formBody {
+  flex: 1; /* Chiếm hết chiều cao còn lại */
+  overflow-y: auto; /* Scroll nằm ở đây */
+  padding: 24px 32px; /* Padding nội dung */
+
+  /* Custom Scrollbar cho đẹp hơn */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin-bottom: 10px; /* Tránh dính sát đáy */
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+    border: 2px solid var(--white); /* Tạo khoảng hở với content */
+  }
+}
+
+/* --- CONTENT STYLES (Giữ nguyên logic cũ) --- */
+
+/* List View Specific */
+.listViewHeader {
+  padding: 0 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 1.4rem;
+  color: var(--text-light);
+
+  .addNewBtn {
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.3rem;
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+  }
+}
+
+.taskList {
+  padding: 0 32px;
+  list-style: none;
+  margin: 0;
+}
+
+.taskItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background-color: var(--white);
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .deleteBtn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    &:hover {
+      background-color: #fee2e2;
+      color: var(--danger);
+    }
+  }
+}
+
+.emptyText {
+  text-align: center;
+  color: var(--text-light);
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Form View Specific */
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formRow {
+  display: flex;
+  gap: 30px;
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+.leftColumn {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.rightColumn {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* --- FORM INPUT STYLES (UPDATED) --- */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  /* 1. Style chung cho tất cả các loại input */
+  input[type='text'],
+  input[type='date'],
+  select,
+  textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1.4rem;
+    font-family: 'Barlow', sans-serif; /* Đảm bảo font đồng bộ */
+    color: var(--text-main);
+    background-color: var(--white);
+    outline: none;
+    transition: all 0.2s ease-in-out;
+    appearance: none; /* Quan trọng: Xóa style mặc định của OS */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    /* Placeholder color */
+    &::placeholder {
+      color: #94a3b8;
+    }
+
+    /* Focus State */
+    &:focus {
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    }
+  }
+
+  /* 2. Style riêng cho Textarea */
+  textarea {
+    resize: none;
+    height: 140px;
+    line-height: 1.5;
+  }
+
+  /* 3. Style riêng cho Select (Custom Arrow) */
+  select {
+    cursor: pointer;
+    padding-right: 40px; /* Chừa chỗ cho mũi tên */
+
+    /* Dùng SVG encoded base64 để làm mũi tên màu xám hiện đại */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+
+    /* Khi option rỗng (placeholder giả) */
+    &:invalid {
+      color: #94a3b8;
+    }
+  }
+
+  /* 4. Style riêng cho Input Date */
+  input[type='date'] {
+    cursor: text;
+    position: relative;
+
+    /* Icon lịch của trình duyệt (Chrome/Edge/Safari) */
+    &::-webkit-calendar-picker-indicator {
+      background: transparent;
+      bottom: 0;
+      color: transparent;
+      cursor: pointer;
+      height: auto;
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: auto;
+      z-index: 1; /* Phủ icon tàng hình lên toàn bộ input để bấm đâu cũng mở lịch */
+    }
+
+    /* Thêm icon lịch custom ở bên phải (như design) */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+  }
+}
+
+.dateDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: var(--text-main);
+  font-weight: 500;
+  font-size: 1.4rem;
+}
+
+.priorityGroup {
+  display: flex;
+  gap: 24px;
+  margin-top: 4px;
+
+  .priorityOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 1.4rem;
+    color: var(--text-light);
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    &.active {
+      color: var(--text-main);
+      font-weight: 500;
+      .checkbox {
+        border-color: var(--primary);
+        background-color: var(--primary);
+      }
+    }
+  }
+}
+
+.uploadBox {
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  height: 100%;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  cursor: pointer;
+  background-color: #f8fafc;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--primary);
+    background-color: var(--primary-bg);
+    .uploadIcon {
+      color: var(--primary);
+    }
+  }
+
+  .uploadIcon {
+    color: #cbd5e1;
+    margin-bottom: 12px;
+    transition: color 0.2s;
+  }
+
+  p {
+    font-size: 1.3rem;
+    color: var(--text-light);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  .browseBtn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-main);
+    pointer-events: none;
+  }
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.doneBtn {
+  /* Margin top để cách các input bên trên */
+  margin-top: 0;
+  background-color: #4fb488; // Dùng màu xanh chủ đạo cho đồng bộ (hoặc cam tùy bạn)
+  color: var(--white);
+  border: none;
+  padding: 12px 40px;
+  border-radius: 8px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.2s;
+
+  /* Đảm bảo nút không bị dính đáy khi scroll */
+  margin-bottom: 10px;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

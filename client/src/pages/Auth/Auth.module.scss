@@ -1,0 +1,258 @@
+// --- Layout Chính (Split Screen) ---
+.wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--white);
+  overflow: hidden;
+}
+
+// Cột trái: Form (Chiếm 50%)
+.leftColumn {
+  flex: 1; // Chiếm 1 phần không gian
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem;
+  background-color: var(--white);
+  position: relative;
+  z-index: 1;
+
+  // Trên mobile thì quay về 100%
+  @media (max-width: 768px) {
+    width: 100%;
+    flex: none;
+    padding: 2rem;
+  }
+}
+
+// Cột phải: Hình ảnh (Chiếm 50%)
+.rightColumn {
+  flex: 1; // Cũng chiếm 1 phần không gian (tức là bằng cột trái = 50%)
+  display: none; // Ẩn trên mobile
+  position: relative; // Để căn chỉnh ảnh bên trong
+  overflow: hidden; // Cắt bỏ phần thừa của ảnh nếu nó to hơn khung 50%
+
+  @media (min-width: 768px) {
+    display: flex; // Dùng flex để căn giữa ảnh (nếu cần)
+    justify-content: center;
+    align-items: center;
+  }
+
+  // Class này áp dụng cho thẻ <img>
+  .authImage {
+    width: 100%; // Rộng bằng khung cha (50% màn hình)
+    height: 100%; // Cao bằng khung cha (100vh)
+
+    // --- KEY MAGIC ---
+    // Giữ nguyên tỷ lệ gốc, phóng to để lấp đầy khung, cắt bớt phần thừa
+    object-fit: cover;
+
+    // Luôn lấy tâm điểm của ảnh (căn giữa)
+    object-position: center;
+
+    display: block;
+
+    // border-left: 3px solid var(--primary-dark);
+
+    border-top-left-radius: 30px;
+    border-bottom-left-radius: 30px;
+  }
+}
+
+// --- Các phần dưới giữ nguyên không đổi ---
+.formCard {
+  width: 100%;
+  max-width: 420px;
+}
+
+.title {
+  color: var(--text-main);
+  font-size: 3.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  color: var(--text-light);
+  font-size: 1.6rem;
+  margin-bottom: 4rem;
+}
+
+// Input Group
+.inputGroup {
+  margin-bottom: 2.4rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.8rem;
+  font-weight: 500;
+  color: var(--text-main);
+  font-size: 1.4rem;
+}
+
+.input {
+  width: 100%;
+  padding: 1.2rem 1.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.8rem;
+  font-size: 1.4rem;
+  outline: none;
+  transition: all 0.2s ease;
+  color: var(--text-main);
+  font-family: 'Barlow', sans-serif;
+
+  &::placeholder {
+    color: #94a3b8;
+  }
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.1);
+  }
+}
+
+// Options
+.formOptions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+  font-size: 1.4rem;
+
+  .rememberMe {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-light);
+
+    input {
+      margin-right: 0.8rem;
+      width: 1.6rem;
+      height: 1.6rem;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+  }
+
+  .forgotPassword {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+      color: var(--primary-dark);
+      text-decoration: underline;
+    }
+  }
+}
+
+// Button Login
+.submitBtn {
+  width: 100%;
+  padding: 1.4rem;
+  background-color: var(--primary);
+  color: var(--white);
+  border: none;
+  border-radius: 0.8rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-family: 'Barlow', sans-serif;
+
+  &:hover {
+    background-color: var(--primary-dark);
+  }
+}
+
+// Divider
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 3rem 0;
+  color: var(--text-light);
+  font-size: 1.4rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  span {
+    padding: 0 1.5rem;
+  }
+}
+
+// Social Buttons
+.socialButtons {
+  display: flex;
+  gap: 1.6rem;
+  margin-bottom: 3rem;
+}
+
+.socialBtn {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.8rem;
+  background-color: var(--white);
+  cursor: pointer;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--text-main);
+  transition: background-color 0.2s;
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--bg-hover);
+  }
+
+  img,
+  svg {
+    margin-right: 1rem;
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+// Footer
+.footerText {
+  text-align: center;
+  font-size: 1.4rem;
+  color: var(--text-light);
+
+  .link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 0.5rem;
+
+    &:hover {
+      color: var(--primary-dark);
+    }
+  }
+}
+
+.termsText {
+  font-size: 1.4rem;
+  color: var(--text-main);
+
+  a {
+    color: var(--text-main);
+    text-decoration: underline;
+    font-weight: 600;
+    margin-left: 0.4rem;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--primary);
+    }
+  }
+}

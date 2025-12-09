@@ -1,0 +1,43 @@
+@import 'normalize.css';
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+:root {
+  /* --- PALETTE XANH LÁ (GREEN THEME) --- */
+  --primary: #40a578; /* Màu chủ đạo */
+  --primary-rgb: 64, 165, 120; /* Dùng để pha độ trong suốt rgba */
+
+  --primary-dark: #2d7a58; /* Màu đậm hơn (dùng cho hover button) */
+  --primary-light: #68c79a; /* Màu sáng hơn (dùng cho gradient) */
+  --primary-bg: #effcf5; /* Màu nền cực nhạt (dùng cho trạng thái active/selected) */
+
+  /* --- NEUTRALS (Màu trung tính giữ nguyên hoặc chuẩn hóa) --- */
+  --text-main: #334155;
+  --text-light: #64748b;
+  --bg-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+
+  /* --- SEMANTIC --- */
+  --danger: #ef4444;
+  --white: #ffffff;
+}
+
+html {
+  font-size: 62.5%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-size: 1.6rem;
+  font-family: 'Barlow', sans-serif;
+  color: var(--text-main);
+}
+
+a {
+  text-decoration: none;
+  color: var(--text-main);
+}

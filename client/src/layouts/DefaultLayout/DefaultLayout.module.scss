@@ -1,0 +1,75 @@
+/* src/layouts/DefaultLayout/DefaultLayout.module.scss */
+
+.main {
+  color: black;
+}
+
+/* Nút nhỏ nổi ở đáy màn hình để mở lại Footer */
+.restoreFooterBtn {
+  position: absolute;
+  bottom: 0;
+
+  /* --- CÔNG THỨC CĂN GIỮA (Bắt buộc phải có 2 dòng này) --- */
+  left: 50%;
+  transform: translateX(-50%);
+  /* -------------------------------------------------------- */
+
+  /* Kích thước & Hình dáng y hệt nút Collapse ở Footer */
+  width: 48px;
+  height: 24px;
+
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0; /* Bo tròn góc trên */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  color: var(--text-light);
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--primary);
+    background-color: var(--primary-bg);
+    height: 32px; /* Hiệu ứng trồi lên cao hơn khi hover */
+    padding-bottom: 4px; /* Giữ icon cân đối khi nút cao lên */
+  }
+}
+
+/* --- [MỚI] Nút mở lại Sidebar (Nằm bên trái) --- */
+.restoreSidebarBtn {
+  position: absolute;
+  left: 0;
+  /* Căn giữa theo chiều dọc */
+  top: 50%;
+  transform: translateY(-50%);
+
+  /* Hình dáng dọc */
+  width: 24px;
+  height: 48px;
+
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-left: none; /* Bỏ viền trái để dính vào mép */
+  border-radius: 0 12px 12px 0; /* Bo tròn 2 góc bên phải */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50; /* Cao hơn content để bấm được */
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+  color: var(--text-light);
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--primary);
+    background-color: var(--primary-bg);
+    width: 32px; /* Trồi ra khi hover */
+    padding-left: 4px;
+  }
+}
