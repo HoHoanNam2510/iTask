@@ -26,36 +26,32 @@ const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!email || !password) {
-      alert('Vui lòng nhập đầy đủ email và mật khẩu!');
-      return;
-    }
-
     try {
-      setIsLoading(true);
-
+      // Gọi API Login
       const res = await axios.post('http://localhost:5000/api/auth/login', {
-        email: email,
-        password: password,
+        email,
+        password,
       });
 
       if (res.data.success) {
-        // [QUAN TRỌNG] 3. Sử dụng hàm login của Context thay vì set localStorage thủ công
-        // Hàm này sẽ tự động lưu token, user vào localStorage và cập nhật state cho Sidebar
-        login(res.data.token, res.data.user);
+        // 👇👇👇 THÊM ĐOẠN NÀY 👇👇👇
 
-        alert('Đăng nhập thành công!');
-        navigate('/'); // Chuyển hướng về Dashboard
+        // 1. Lưu Token vào LocalStorage (Để F5 không bị mất login)
+        localStorage.setItem('token', res.data.token);
+
+        // 2. Lưu thông tin User (để hiển thị tên/avatar lên Header)
+        // Phải chuyển object thành string mới lưu được vào localStorage
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+
+        alert('Đăng nhập thành công! Chào mừng quay lại.');
+
+        // 3. Chuyển hướng về trang chủ (Dashboard)
+        navigate('/');
+        // 👆👆👆 HẾT PHẦN THÊM 👆👆👆
       }
     } catch (error: any) {
       console.error('Login Error:', error);
-      const message =
-        error.response?.data?.message ||
-        'Đăng nhập thất bại. Vui lòng thử lại!';
-      alert(message);
-    } finally {
-      setIsLoading(false);
+      alert(error.response?.data?.message || 'Đăng nhập thất bại');
     }
   };
 
