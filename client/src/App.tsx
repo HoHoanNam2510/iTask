@@ -7,76 +7,75 @@ import {
 import { publicRoutes, privateRoutes } from './routes';
 import DefaultLayout from './layouts/DefaultLayout';
 import React, { Fragment } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext'; // Import mới
 
-// Hàm giả lập kiểm tra đăng nhập
-const checkAuth = () => {
-  // Kiểm tra xem trong localStorage có flag 'isLoggedIn' không
-  return localStorage.getItem('isLoggedIn') === 'true';
+// Component bảo vệ Routes dùng Context
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return <div>Loading...</div>;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-// Component bảo vệ: Nếu chưa login thì chuyển hướng về /login
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuth = checkAuth();
-  return isAuth ? <>{children}</> : <Navigate to="/login" replace />;
+// Tách Routes ra component con để dùng được useAuth
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* PUBLIC ROUTES */}
+      {publicRoutes.map((route, index) => {
+        const Page = route.component;
+        let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
+        if (route.layout) Layout = route.layout;
+        else if (route.layout === null) Layout = Fragment;
+
+        return (
+          <Route
+            key={index}
+            path={route.path}
+            element={
+              <Layout>
+                <Page />
+              </Layout>
+            }
+          />
+        );
+      })}
+
+      {/* PRIVATE ROUTES */}
+      {privateRoutes.map((route, index) => {
+        const Page = route.component;
+        let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
+        if (route.layout) Layout = route.layout;
+        else if (route.layout === null) Layout = Fragment;
+
+        return (
+          <Route
+            key={index}
+            path={route.path}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Page />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        );
+      })}
+    </Routes>
+  );
 };
 
 const App = () => {
   return (
-    <Router>
-      <div className="app">
-        <Routes>
-          {/* 1. XỬ LÝ PUBLIC ROUTES (Login, Register...) */}
-          {publicRoutes.map((route, index) => {
-            const Page = route.component;
-
-            let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
-            if (route.layout) {
-              Layout = route.layout;
-            } else if (route.layout === null) {
-              Layout = Fragment;
-            }
-
-            return (
-              <Route
-                key={index}
-                path={route.path}
-                element={
-                  <Layout>
-                    <Page />
-                  </Layout>
-                }
-              />
-            );
-          })}
-
-          {/* 2. XỬ LÝ PRIVATE ROUTES (Dashboard, Calendar...) - Cần bọc ProtectedRoute */}
-          {privateRoutes.map((route, index) => {
-            const Page = route.component;
-
-            let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
-            if (route.layout) {
-              Layout = route.layout;
-            } else if (route.layout === null) {
-              Layout = Fragment;
-            }
-
-            return (
-              <Route
-                key={index}
-                path={route.path}
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Page />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-            );
-          })}
-        </Routes>
-      </div>
-    </Router>
+    // Bọc AuthProvider ở ngoài cùng
+    <AuthProvider>
+      <Router>
+        <div className="app">
+          <AppRoutes />
+        </div>
+      </Router>
+    </AuthProvider>
   );
 };
 

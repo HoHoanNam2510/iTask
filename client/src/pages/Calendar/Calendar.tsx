@@ -39,6 +39,12 @@ export interface ITaskResponse {
   category?: string;
 }
 
+// Interface cho Category
+interface ICategory {
+  _id: string;
+  name: string;
+}
+
 // Mock Categories (Sau này sẽ gọi API lấy list này)
 const MOCK_CATEGORIES = [
   { id: 'cat_1', name: 'Design' },
@@ -52,6 +58,7 @@ const Calendar: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Mặc định chọn hôm nay
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<'list' | 'form'>('list');
+  const [categories, setCategories] = useState<ICategory[]>([]); // State mới
 
   // State lưu danh sách task
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
@@ -95,6 +102,32 @@ const Calendar: React.FC = () => {
   // Gọi fetchTasks khi component mount
   useEffect(() => {
     fetchTasks();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+
+        // 1. Lấy Task
+        const tasksRes = await axios.get('http://localhost:5000/api/tasks', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setTasks(tasksRes.data.tasks || []);
+
+        // 2. Lấy Categories (MỚI)
+        const catsRes = await axios.get(
+          'http://localhost:5000/api/categories',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        setCategories(catsRes.data.categories || []);
+      } catch (error) {
+        console.error('Lỗi tải dữ liệu:', error);
+      }
+    };
+    fetchData();
   }, []);
 
   // --- LOGIC LỊCH ---
@@ -323,22 +356,17 @@ const Calendar: React.FC = () => {
             <div className={styles.formGroup}>
               <label>Category</label>
               <select
-                className={styles.selectInput} // Bạn cần thêm class này vào css hoặc dùng tạm input style
+                className={styles.selectInput}
                 value={formData.categoryId}
                 onChange={(e) =>
                   setFormData({ ...formData, categoryId: e.target.value })
                 }
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  outline: 'none',
-                }}
+                // ...style
               >
                 <option value="">Select Category</option>
-                {MOCK_CATEGORIES.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
+                {/* Render từ State thật */}
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>
                     {cat.name}
                   </option>
                 ))}

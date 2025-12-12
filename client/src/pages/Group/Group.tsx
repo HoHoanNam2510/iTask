@@ -1,133 +1,88 @@
-/* src/pages/Group/Group.tsx */
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import axios from 'axios';
 import classNames from 'classnames/bind';
 import styles from './Group.module.scss';
-import { Users, Calendar, CheckSquare } from 'lucide-react'; // Có thể import thêm icon nếu cần trang trí
+// import { Users, Calendar, CheckSquare } from 'lucide-react';
 
 const cx = classNames.bind(styles);
 
-// --- TYPE DEFINITIONS ---
-type TaskStatus = 'To Do' | 'In Progress' | 'Done';
+// --- TYPE DEFINITIONS (Khớp với Backend Schema) ---
 
-interface Task {
-  id: number;
-  title: string;
-  status: TaskStatus;
-  assignee: string; // Tên người được giao
+// 1. Định nghĩa User cơ bản (vì assignee và members trả về object user)
+interface UserBasic {
+  _id: string;
+  username: string;
+  avatar?: string;
+  email?: string;
 }
 
+// 2. Định nghĩa Task khớp với API
+interface Task {
+  _id: string; // MongoDB dùng _id (string) thay vì id (number)
+  title: string;
+  status: 'todo' | 'in_progress' | 'completed'; // Enum từ Backend
+  assignee: UserBasic; // Backend populate object user
+}
+
+// 3. Định nghĩa Group khớp với API
 interface GroupData {
-  id: string;
+  _id: string;
   title: string;
   description: string;
-  members: string[]; // Tạm thời để string tên, sau này là Object User
+  members: UserBasic[];
   tasks: Task[];
+  inviteCode?: string;
 }
 
-// --- MOCK DATA (QUAN TRỌNG: ID PHẢI KHỚP VỚI SIDEBAR) ---
-// Sidebar đang dùng: 'dev-team', 'marketing', 'study'
-const MOCK_DB: Record<string, GroupData> = {
-  'dev-team': {
-    id: 'dev-team',
-    title: 'Dev Team Frontend', // Khớp tên với Sidebar
-    description: 'Xây dựng giao diện ReactJS cho dự án iTask.',
-    members: ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve'], // 5 members
-    tasks: [
-      {
-        id: 101,
-        title: 'Dựng Layout Sidebar',
-        status: 'Done',
-        assignee: 'Alice',
-      },
-      {
-        id: 102,
-        title: 'Config Redux Toolkit',
-        status: 'In Progress',
-        assignee: 'Bob',
-      },
-      {
-        id: 103,
-        title: 'Tích hợp API Login',
-        status: 'To Do',
-        assignee: 'Charlie',
-      },
-    ],
-  },
-  marketing: {
-    id: 'marketing',
-    title: 'Marketing Campaign', // Khớp tên với Sidebar
-    description: 'Chiến dịch quảng cáo ra mắt sản phẩm Mùa Hè.',
-    members: [
-      'Sarah',
-      'Mike',
-      'John',
-      'Anna',
-      'Tom',
-      'Jerry',
-      'Kenvin',
-      'Lacy',
-    ], // 8 members
-    tasks: [
-      {
-        id: 201,
-        title: 'Viết Content Facebook',
-        status: 'Done',
-        assignee: 'Sarah',
-      },
-      {
-        id: 202,
-        title: 'Thiết kế Banner',
-        status: 'In Progress',
-        assignee: 'Mike',
-      },
-      { id: 203, title: 'Booking KOLs', status: 'To Do', assignee: 'John' },
-      { id: 204, title: 'Chạy Ads Google', status: 'To Do', assignee: 'Anna' },
-    ],
-  },
-  study: {
-    id: 'study',
-    title: 'English Class', // Khớp tên với Sidebar
-    description: 'Lớp học giao tiếp tiếng Anh buổi tối (3-5-7).',
-    members: ['Teacher John', 'Student A', 'Student B', 'Student C'],
-    tasks: [
-      {
-        id: 301,
-        title: 'Làm bài tập Unit 5',
-        status: 'To Do',
-        assignee: 'Student A',
-      },
-      {
-        id: 302,
-        title: 'Chuẩn bị bài thuyết trình',
-        status: 'In Progress',
-        assignee: 'Student B',
-      },
-    ],
-  },
-};
-
 const Group: React.FC = () => {
-  // 1. Lấy ID từ URL (được thay đổi khi click Sidebar)
+  // groupId lấy từ URL bây giờ phải là _id của MongoDB (ví dụ: 65b123...)
   const { groupId } = useParams<{ groupId: string }>();
 
   const [data, setData] = useState<GroupData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 2. useEffect lắng nghe sự thay đổi của groupId
+  // --- CALL API ---
   useEffect(() => {
     if (!groupId) return;
 
-    setLoading(true);
-    // Giả lập call API (delay nhẹ để thấy hiệu ứng loading khi chuyển trang)
-    setTimeout(() => {
-      const groupInfo = MOCK_DB[groupId];
-      setData(groupInfo || null); // Nếu không tìm thấy ID thì set null
-      setLoading(false);
-    }, 300);
-  }, [groupId]); // <-- Quan trọng: Chạy lại khi groupId thay đổi
+    const fetchGroupData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        // Gọi API Backend
+        const res = await axios.get(
+          `http://localhost:5000/api/groups/${groupId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-  // --- Render Loading State ---
+        if (res.data.success) {
+          const apiData = res.data.data;
+          // Map dữ liệu từ API vào State
+          setData({
+            _id: apiData.id,
+            title: apiData.title,
+            description: apiData.description,
+            members: apiData.members,
+            tasks: apiData.tasks,
+            inviteCode: apiData.inviteCode,
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi tải group:', error);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroupData();
+  }, [groupId]);
+
+  // --- RENDER HELPERS ---
+
   if (loading) {
     return (
       <div className={cx('wrapper')}>
@@ -138,20 +93,19 @@ const Group: React.FC = () => {
     );
   }
 
-  // --- Render Not Found State ---
   if (!data) {
     return (
       <div className={cx('wrapper')}>
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <h2>Không tìm thấy nhóm này</h2>
-          <p>Vui lòng chọn nhóm khác từ menu bên trái.</p>
+          <p>Vui lòng kiểm tra lại đường dẫn hoặc chọn nhóm khác.</p>
         </div>
       </div>
     );
   }
 
-  // Helper filter task
-  const getTasksByStatus = (status: TaskStatus) =>
+  // Filter task theo status của Backend ('todo', 'in_progress', 'completed')
+  const getTasksByStatus = (status: string) =>
     data.tasks.filter((t) => t.status === status);
 
   return (
@@ -159,19 +113,28 @@ const Group: React.FC = () => {
       {/* Header */}
       <header className={cx('header')}>
         <div className={cx('info')}>
-          <h1>
-            {data.title}
-            {/* Ẩn ID đi cho đẹp hoặc để nhỏ thôi */}
-            {/* <span>#{data.id}</span> */}
-          </h1>
+          <h1>{data.title}</h1>
           <p>{data.description}</p>
         </div>
         <div className={cx('actions')}>
           <div className={cx('members')}>
-            {/* Hiển thị tối đa 4 avatar, còn lại hiện số + */}
-            {data.members.slice(0, 4).map((m, i) => (
-              <div key={i} className={cx('avatar')} title={m}>
-                {m.charAt(0)}
+            {/* Hiển thị Avatar thành viên */}
+            {data.members.slice(0, 4).map((m) => (
+              <div key={m._id} className={cx('avatar')} title={m.username}>
+                {m.avatar ? (
+                  <img
+                    src={m.avatar}
+                    alt={m.username}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  m.username.charAt(0).toUpperCase()
+                )}
               </div>
             ))}
             {data.members.length > 4 && (
@@ -183,7 +146,12 @@ const Group: React.FC = () => {
               </div>
             )}
           </div>
-          <button className={cx('invite-btn')}>+ Invite</button>
+          <button
+            className={cx('invite-btn')}
+            onClick={() => alert(`Mã mời nhóm: ${data.inviteCode}`)}
+          >
+            + Invite
+          </button>
         </div>
       </header>
 
@@ -192,25 +160,27 @@ const Group: React.FC = () => {
         <StatCard label="Total Tasks" value={data.tasks.length} />
         <StatCard
           label="In Progress"
-          value={getTasksByStatus('In Progress').length}
+          value={getTasksByStatus('in_progress').length}
         />
-        <StatCard label="Done" value={getTasksByStatus('Done').length} />
+        <StatCard label="Done" value={getTasksByStatus('completed').length} />
       </div>
 
       {/* Kanban Board */}
       <div className={cx('board-container')}>
-        <TaskColumn title="To Do" tasks={getTasksByStatus('To Do')} />
+        {/* Truyền đúng key status của backend vào hàm filter */}
+        <TaskColumn title="To Do" tasks={getTasksByStatus('todo')} />
         <TaskColumn
           title="In Progress"
-          tasks={getTasksByStatus('In Progress')}
+          tasks={getTasksByStatus('in_progress')}
         />
-        <TaskColumn title="Done" tasks={getTasksByStatus('Done')} />
+        <TaskColumn title="Done" tasks={getTasksByStatus('completed')} />
       </div>
     </div>
   );
 };
 
-// Sub-components giữ nguyên
+// --- SUB COMPONENTS ---
+
 const StatCard = ({ label, value }: { label: string; value: number }) => (
   <div className={cx('stat-card')}>
     <div className={cx('label')}>{label}</div>
@@ -224,20 +194,22 @@ const TaskColumn = ({ title, tasks }: { title: string; tasks: Task[] }) => (
       {title} <span className={cx('count')}>{tasks.length}</span>
     </h3>
 
-    {/* [THÊM] Thêm class taskList vào đây để nhận style scroll */}
     <div className={cx('taskList')}>
       {tasks.length > 0 ? (
         tasks.map((task) => (
           <div
-            key={task.id}
+            key={task._id}
             className={cx('task-card', {
-              todo: task.status === 'To Do',
-              inprogress: task.status === 'In Progress',
-              done: task.status === 'Done',
+              todo: task.status === 'todo',
+              inprogress: task.status === 'in_progress',
+              done: task.status === 'completed',
             })}
           >
             <div className={cx('task-title')}>{task.title}</div>
-            <div className={cx('task-meta')}>Assignee: {task.assignee}</div>
+            {/* Hiển thị tên người được assign (task.assignee là object) */}
+            <div className={cx('task-meta')}>
+              Assignee: {task.assignee ? task.assignee.username : 'Unassigned'}
+            </div>
           </div>
         ))
       ) : (
