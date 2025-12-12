@@ -5,7 +5,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
 import axios from 'axios';
 
-// [MỚI] 1. Import AuthContext
+// Import Context
 import { useAuth } from '~/context/AuthContext';
 
 import images from '~/assets/images';
@@ -17,7 +17,7 @@ const cx = classNames.bind(styles);
 const Login: React.FC = () => {
   const navigate = useNavigate();
 
-  // [MỚI] 2. Lấy hàm login từ Context
+  // Lấy hàm login từ Context
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -27,36 +27,36 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Gọi API Login
+      setIsLoading(true); // Nên set loading true khi bắt đầu gọi
+
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         email,
         password,
       });
 
       if (res.data.success) {
-        // 👇👇👇 THÊM ĐOẠN NÀY 👇👇👇
-
-        // 1. Lưu Token vào LocalStorage (Để F5 không bị mất login)
-        localStorage.setItem('token', res.data.token);
-
-        // 2. Lưu thông tin User (để hiển thị tên/avatar lên Header)
-        // Phải chuyển object thành string mới lưu được vào localStorage
-        localStorage.setItem('user', JSON.stringify(res.data.user));
+        // -----------------------------------------------------------
+        // ✅ SỬA LẠI: Gọi hàm login() của Context thay vì set localStorage thủ công
+        // Hàm này sẽ tự động:
+        // 1. Lưu localStorage
+        // 2. Cập nhật State để Sidebar/Dashboard đổi giao diện NGAY LẬP TỨC
+        // -----------------------------------------------------------
+        login(res.data.token, res.data.user);
 
         alert('Đăng nhập thành công! Chào mừng quay lại.');
-
-        // 3. Chuyển hướng về trang chủ (Dashboard)
         navigate('/');
-        // 👆👆👆 HẾT PHẦN THÊM 👆👆👆
       }
     } catch (error: any) {
       console.error('Login Error:', error);
       alert(error.response?.data?.message || 'Đăng nhập thất bại');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className={cx('wrapper')}>
+      {/* ... Phần giao diện giữ nguyên không đổi ... */}
       <div className={cx('leftColumn')}>
         <div className={cx('formCard')}>
           <h1 className={cx('title')}>Welcome back!</h1>
@@ -65,7 +65,6 @@ const Login: React.FC = () => {
           </p>
 
           <form onSubmit={handleLogin}>
-            {/* Email Input */}
             <div className={cx('inputGroup')}>
               <label className={cx('label')}>Email address</label>
               <input
@@ -77,7 +76,6 @@ const Login: React.FC = () => {
               />
             </div>
 
-            {/* Password Input */}
             <div className={cx('inputGroup')}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <label className={cx('label')}>Password</label>
