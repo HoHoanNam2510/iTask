@@ -1,7 +1,6 @@
 import React from 'react';
 
 // Pages
-import Cart from '~/pages/Cart';
 import Help from '~/pages/Help/Help';
 import Group from '~/pages/Group/Group';
 import MyTask from '~/pages/MyTask/MyTask';
@@ -14,29 +13,21 @@ import TaskCategories from '~/pages/TaskCategories/TaskCategories';
 import AuthLayout from '~/layouts/AuthLayout';
 import DefaultLayout from '~/layouts/DefaultLayout';
 
-// Giả định bạn sẽ tạo trang này để xem chi tiết 1 nhóm
-// Nếu chưa có, bạn có thể tạo file rỗng để không bị lỗi import
-// import GroupDetail from '~/pages/Group/GroupDetail';
-
-// Tạm thời dùng Dashboard làm placeholder cho GroupDetail để code không lỗi
-// const GroupDetail = Dashboard;
-
 type RouteType = {
   path: string;
   component: React.FC;
   layout?: React.FC<{ children: React.ReactNode }> | null;
 };
 
-// 1. PUBLIC ROUTES
+// 1. PUBLIC ROUTES (Ai cũng xem được)
 const publicRoutes: RouteType[] = [
   { path: '/login', component: Login, layout: AuthLayout },
   { path: '/register', component: Register, layout: AuthLayout },
-  { path: '/cart', component: Cart, layout: DefaultLayout },
+  { path: '/', component: Dashboard, layout: DefaultLayout }, // <--- ĐÃ CHUYỂN DASHBOARD VỀ ĐÂY
 ];
 
-// 2. PRIVATE ROUTES
+// 2. PRIVATE ROUTES (Chưa login sẽ bị đá về trang Login)
 const privateRoutes: RouteType[] = [
-  { path: '/', component: Dashboard, layout: DefaultLayout },
   { path: '/help', component: Help, layout: DefaultLayout },
   { path: '/calendar', component: Calendar, layout: DefaultLayout },
   { path: '/my-task', component: MyTask, layout: DefaultLayout },

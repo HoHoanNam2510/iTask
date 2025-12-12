@@ -1,42 +1,94 @@
 import { Request, Response } from 'express';
 import Task from '../models/Task';
 
+// [GET] /api/tasks
+export const getTasks = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user._id;
+
+    // Lấy tất cả task mà user là người tạo HOẶC được gán
+    // Sắp xếp theo ngày tạo mới nhất (sort -1)
+    const tasks = await Task.find({
+      $or: [{ creator: userId }, { assignee: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .populate('category', 'name color') // Nếu muốn lấy chi tiết category
+      .populate('group', 'name'); // Nếu muốn lấy chi tiết group
+
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      tasks: tasks,
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Server Error fetching tasks' });
+  }
+};
+
 // [POST] /api/tasks
 export const createTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  try {
-    // 1. Lấy dữ liệu text từ form
-    const { title, description, date, priority, status, groupId, categoryId } =
-      req.body;
+  console.log('👉 Đã nhận được request tạo Task!', req.body);
 
-    // 2. Lấy đường dẫn file ảnh (nếu có upload)
-    let imageUrl = '';
-    if (req.file) {
-      // Lưu đường dẫn tương đối để frontend dễ gọi
-      // VD: uploads/image-123123.png
-      imageUrl = req.file.path.replace(/\\/g, '/'); // Fix lỗi đường dẫn ngược trên Windows
+  // Thay đổi kiểu return để tránh lỗi TS
+  try {
+    // 1. Kiểm tra Auth trước (Quan trọng!)
+    const creatorId = (req as any).user?._id;
+    if (!creatorId) {
+      res
+        .status(401)
+        .json({ success: false, message: 'Unauthorized: User not found' });
+      return;
     }
 
-    // 3. Xử lý logic Assignee & Group (như đã bàn ở bài trước)
-    // Giả sử userId lấy từ middleware auth (req.user.id)
-    const creatorId = (req as any).user?._id;
+    // 2. Lấy dữ liệu
+    // Lưu ý: Frontend cần gửi key 'date' hoặc 'dueDate' đều được xử lý
+    const {
+      title,
+      description,
+      date,
+      dueDate,
+      priority,
+      status,
+      groupId,
+      categoryId,
+    } = req.body;
 
-    // Nếu tạo trong Group thì GroupId sẽ có giá trị, nếu không thì null
+    // Kiểm tra field bắt buộc: Title và Date
+    const finalDate = date || dueDate; // Ưu tiên cái nào có dữ liệu
+    if (!title || !finalDate) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Title and Date are required' });
+      return;
+    }
+
+    // 3. Xử lý ảnh
+    let imageUrl = '';
+    if (req.file) {
+      imageUrl = req.file.path.replace(/\\/g, '/');
+    }
+
+    // 4. Xử lý Logic Group/Assignee
     const group = groupId ? groupId : null;
-
-    // Nếu là Personal Task (group == null) -> assignee là chính mình
-    // Nếu là Group Task -> assignee lấy từ form hoặc mặc định là mình
     const assignee = req.body.assignee ? req.body.assignee : creatorId;
 
-    // 4. Tạo Task mới
+    // 5. Xử lý Priority (Chuyển về chữ thường để khớp với Enum của Model)
+    // Nếu không gửi lên thì mặc định là 'moderate'
+    const finalPriority = priority ? priority.toLowerCase() : 'moderate';
+
+    // 6. Tạo Task
     const newTask = new Task({
       title,
       description,
-      image: imageUrl, // Lưu url ảnh vào đây
-      dueDate: new Date(date),
-      priority,
+      image: imageUrl,
+      dueDate: new Date(finalDate), // Đảm bảo format Date
+      priority: finalPriority,
       status: status || 'todo',
       creator: creatorId,
       assignee: assignee,
@@ -51,8 +103,15 @@ export const createTask = async (
       message: 'Task created successfully',
       task: newTask,
     });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('Create Task Error:', error); // Log lỗi ra terminal để debug
+
+    // Bắt lỗi Validation của Mongoose để trả về frontend dễ hiểu hơn
+    if (error.name === 'ValidationError') {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };

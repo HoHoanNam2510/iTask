@@ -1,6 +1,5 @@
-/* src/components/Layout/Sidebar/Sidebar.tsx */
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
   LayoutDashboard,
@@ -12,12 +11,13 @@ import {
   HelpCircle,
   LogOut,
   PlusCircle,
-  Hash,
-  ChevronLeft, // [MỚI] Import icon mũi tên trái để làm nút đóng
+  ChevronLeft,
+  LogIn,
+  Lock,
 } from 'lucide-react';
 import styles from './Sidebar.module.scss';
+import { useAuth } from '~/context/AuthContext';
 import GroupModal from '~/components/GroupModal/GroupModal';
-
 const cx = classNames.bind(styles);
 
 interface SidebarProps {
@@ -42,26 +42,46 @@ const MOCK_GROUPS: Group[] = [
   { id: 'study', name: 'English Class', memberCount: 12 },
 ];
 
-const Sidebar = ({ user, onToggle }: SidebarProps) => {
-  // Destructuring thêm onToggle
+const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
   const location = useLocation();
+  const navigate = useNavigate();
 
+  // 2. Lấy state từ Context
+  const { isAuthenticated, user, logout } = useAuth();
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+
+  // 3. Định nghĩa menu: Thêm cờ 'public'
   const menuItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/vital-task', label: 'Vital Task', icon: Zap },
-    { path: '/my-task', label: 'My Task', icon: CheckSquare },
-    { path: '/task-categories', label: 'Task Categories', icon: List },
-    { path: '/calendar', label: 'Calendar', icon: Calendar },
-    { path: '/settings', label: 'Settings', icon: Settings },
-    { path: '/help', label: 'Help', icon: HelpCircle },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard, public: true },
+    { path: '/vital-task', label: 'Vital Task', icon: Zap, public: false },
+    { path: '/my-task', label: 'My Task', icon: CheckSquare, public: false },
+    {
+      path: '/task-categories',
+      label: 'Task Categories',
+      icon: List,
+      public: false,
+    },
+    { path: '/calendar', label: 'Calendar', icon: Calendar, public: false },
+    { path: '/settings', label: 'Settings', icon: Settings, public: false },
+    { path: '/help', label: 'Help', icon: HelpCircle, public: false },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
-  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  // Hàm xử lý khi click vào menu item
+  const handleItemClick = (e: React.MouseEvent, item: any) => {
+    // Nếu chưa login và item KHÔNG public -> Chặn luôn
+    if (!isAuthenticated && !item.public) {
+      e.preventDefault();
+      alert('Vui lòng đăng nhập để sử dụng tính năng này!');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className={cx('sidebar')}>
-      {/* --- [MỚI] Nút Collapse nằm góc trên phải --- */}
       <button
         className={cx('collapseBtn')}
         onClick={onToggle}
@@ -70,74 +90,89 @@ const Sidebar = ({ user, onToggle }: SidebarProps) => {
         <ChevronLeft size={20} />
       </button>
 
-      {/* User Profile Section */}
+      {/* User Profile */}
       <div className={cx('profile')}>
-        {/* ... Code cũ giữ nguyên ... */}
         <div className={cx('avatar')}>
-          {user?.avatar ? (
+          {isAuthenticated && user?.avatar ? (
             <img src={user.avatar} alt={user.name} />
           ) : (
             <div className={cx('avatar-placeholder')}>
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {isAuthenticated ? user?.name?.charAt(0).toUpperCase() : 'G'}
             </div>
           )}
         </div>
-        <h3 className={cx('name')}>{user?.name || 'Guest User'}</h3>
-        <p className={cx('email')}>{user?.email || 'guest@example.com'}</p>
+        <h3 className={cx('name')}>{isAuthenticated ? user?.name : 'Khách'}</h3>
+        <p className={cx('email')}>
+          {isAuthenticated ? user?.email : 'Chưa đăng nhập'}
+        </p>
       </div>
 
       {/* Navigation Menu */}
       <nav className={cx('menu')}>
-        {/* ... Code cũ giữ nguyên ... */}
         {menuItems.map((item) => {
           const Icon = item.icon;
+          // Logic kiểm tra để disable
+          const isDisabled = !isAuthenticated && !item.public;
+
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={cx('menu-item', { active: isActive(item.path) })}
+              onClick={(e) => handleItemClick(e, item)}
+              className={cx('menu-item', {
+                active: location.pathname === item.path,
+                // Thêm class disabled để CSS làm mờ đi
+                disabled: isDisabled,
+              })}
+              style={isDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
               <Icon size={20} />
               <span>{item.label}</span>
+              {/* Hiện icon ổ khóa nếu bị khóa */}
+              {isDisabled && <Lock size={14} style={{ marginLeft: 'auto' }} />}
             </Link>
           );
         })}
 
-        <div className={cx('group-section')}>
-          {/* ... Code cũ giữ nguyên ... */}
-          <div className={cx('group-label')}>
-            <span>GROUPS</span>
-            <span className={cx('badge')}>{MOCK_GROUPS.length}</span>
-          </div>
-
-          {MOCK_GROUPS.map((group) => (
-            <Link
-              key={group.id}
-              to={`/groups/${group.id}`}
-              className={cx('menu-item', 'group-item', {
-                active: isActive(`/groups/${group.id}`),
-              })}
+        {/* Group Section - Chỉ hiện khi đã login */}
+        {isAuthenticated && (
+          <div className={cx('group-section')}>
+            <div className={cx('group-label')}>
+              <span>GROUPS</span>
+              {/* ... */}
+            </div>
+            {/* ... Render Groups ... */}
+            <button
+              className={cx('add-group-btn')}
+              onClick={() => setIsGroupModalOpen(true)}
             >
-              <Hash size={18} className={cx('group-icon')} />
-              <span className={cx('group-name')}>{group.name}</span>
-            </Link>
-          ))}
-
-          <button
-            className={cx('add-group-btn')}
-            onClick={() => setIsGroupModalOpen(true)}
-          >
-            <PlusCircle size={18} />
-            <span>Join or Create Group</span>
-          </button>
-        </div>
+              <PlusCircle size={18} />
+              <span>Join or Create Group</span>
+            </button>
+          </div>
+        )}
       </nav>
 
-      {/* Logout Button */}
-      <button className={cx('logout')}>
-        <LogOut size={20} />
-        <span>Logout</span>
-      </button>
+      {/* Nút Login / Logout thay đổi tùy trạng thái */}
+      {isAuthenticated ? (
+        <button className={cx('logout')} onClick={handleLogout}>
+          <LogOut size={20} />
+          <span>Logout</span>
+        </button>
+      ) : (
+        <Link
+          to="/login"
+          className={cx('logout')}
+          style={{
+            justifyContent: 'center',
+            background: 'white',
+            color: 'var(--primary)',
+          }}
+        >
+          <LogIn size={20} />
+          <span style={{ fontWeight: 'bold' }}>Login Now</span>
+        </Link>
+      )}
 
       <GroupModal
         isOpen={isGroupModalOpen}

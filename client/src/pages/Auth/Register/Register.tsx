@@ -1,36 +1,61 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
+import axios from 'axios'; // Import Axios
 
 import images from '~/assets/images';
 import styles from '../Auth.module.scss';
 
-// Vẫn dùng chung ảnh nền lá cây để tạo sự đồng bộ,
-// hoặc bạn có thể đổi ảnh khác nếu muốn
 const registerBg = images.general.todolist;
-
 const cx = classNames.bind(styles);
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
+  // 1. State cho form đăng ký
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 2. Hàm xử lý Đăng ký thật
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Giả lập đăng ký thành công -> chuyển về trang login
-    // Hoặc có thể tự động login luôn tùy logic của bạn
-    navigate('/login');
+
+    if (!name || !email || !password) {
+      alert('Vui lòng điền đầy đủ thông tin!');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      // Gọi API Register (Giả định route là /api/auth/register)
+      const res = await axios.post('http://localhost:5000/api/auth/register', {
+        name,
+        email,
+        password,
+      });
+
+      if (res.data.success) {
+        alert('Đăng ký thành công! Vui lòng đăng nhập.');
+        navigate('/login'); // Chuyển về trang login
+      }
+    } catch (error: any) {
+      console.error('Register Error:', error);
+      const message = error.response?.data?.message || 'Đăng ký thất bại.';
+      alert(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className={cx('wrapper')}>
-      {/* CỘT TRÁI: FORM */}
       <div className={cx('leftColumn')}>
         <div className={cx('formCard')}>
-          {/* Title */}
           <h1 className={cx('title')}>Get Started Now</h1>
-          {/* Trang Register trong ảnh không có subtitle nên mình bỏ qua */}
 
           <form onSubmit={handleRegister} style={{ marginTop: '3rem' }}>
             {/* Name Field */}
@@ -40,6 +65,8 @@ const Register: React.FC = () => {
                 type="text"
                 placeholder="Enter your name"
                 className={cx('input')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
 
@@ -50,6 +77,8 @@ const Register: React.FC = () => {
                 type="email"
                 placeholder="Enter your email"
                 className={cx('input')}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -60,11 +89,11 @@ const Register: React.FC = () => {
                 type="password"
                 placeholder="Enter your password"
                 className={cx('input')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
-            {/* Terms Checkbox */}
-            {/* Tái sử dụng class formOptions nhưng chỉnh style inline một chút để căn trái */}
             <div
               className={cx('formOptions')}
               style={{ justifyContent: 'flex-start' }}
@@ -72,38 +101,35 @@ const Register: React.FC = () => {
               <label className={cx('rememberMe')}>
                 <input type="checkbox" required />
                 <span className={cx('termsText')}>
-                  I agree to the
-                  <Link to="/terms">terms & policy</Link>
+                  I agree to the <Link to="/terms">terms & policy</Link>
                 </span>
               </label>
             </div>
 
-            {/* Submit Button */}
-            <button type="submit" className={cx('submitBtn')}>
-              Signup
+            <button
+              type="submit"
+              className={cx('submitBtn')}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing up...' : 'Signup'}
             </button>
           </form>
 
-          {/* Divider */}
           <div className={cx('divider')}>
             <span>Or</span>
           </div>
 
-          {/* Social Buttons */}
           <div className={cx('socialButtons')}>
             <button className={cx('socialBtn')}>
-              <FcGoogle />
-              Sign in with Google
+              <FcGoogle /> Sign in with Google
             </button>
             <button className={cx('socialBtn')}>
-              <FaFacebook style={{ color: '#1877F2' }} />
-              Sign in with Facebook
+              <FaFacebook style={{ color: '#1877F2' }} /> Sign in with Facebook
             </button>
           </div>
 
-          {/* Footer - Link về Login */}
           <p className={cx('footerText')}>
-            Have an account?
+            Have an account?{' '}
             <Link to="/login" className={cx('link')}>
               Sign In
             </Link>
@@ -111,12 +137,10 @@ const Register: React.FC = () => {
         </div>
       </div>
 
-      {/* CỘT PHẢI: HÌNH ẢNH */}
       <div className={cx('rightColumn')}>
-        {/* Quay lại dùng thẻ img để trình duyệt tự tính tỷ lệ */}
         <img
           src={registerBg}
-          alt="Login Background"
+          alt="Register Background"
           className={cx('authImage')}
         />
       </div>
