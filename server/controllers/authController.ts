@@ -5,26 +5,52 @@ import User from '../models/User';
 
 // Đăng ký
 export const register = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { username, email, password } = req.body;
+  // 👇 LOG CHECK 1: Xem hàm này có được gọi không
+  console.log('✅ Đã vào Controller Register!');
 
-    // Check email tồn tại
+  try {
+    const { name, username, email, password } = req.body;
+
+    // Mapping: Nếu frontend gửi 'name', ta gán nó vào 'username' của Backend
+    const finalUsername = username || name;
+
+    // Log kiểm tra dữ liệu
+    console.log('📦 Dữ liệu nhận được:', { finalUsername, email, password });
+
+    if (!finalUsername || !email || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin (name, email, password)',
+      });
+      return;
+    }
+
+    // Check trùng email
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(400).json({ success: false, message: 'Email đã tồn tại' });
       return;
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = new User({ username, email, password: hashedPassword });
+    const newUser = new User({
+      username: finalUsername, // Map vào đúng trường username trong User.ts
+      email,
+      password: hashedPassword,
+    });
+
     await newUser.save();
 
+    console.log('🎉 Đăng ký thành công!');
     res.status(201).json({ success: true, message: 'Đăng ký thành công' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+  } catch (error: any) {
+    // 👇 LOG CHECK 2: Nếu lỗi, nó PHẢI hiện ở đây
+    console.error('❌ LỖI TRONG CATCH:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
 
@@ -49,7 +75,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (!process.env.JWT_SECRET) throw new Error('Chưa cấu hình JWT_SECRET');
+    if (!process.env.JWT_SECRET) {
+      throw new Error('Chưa cấu hình JWT_SECRET trong file .env');
+    }
 
     // Tạo token
     const token = jwt.sign(
@@ -69,6 +97,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    // ✅ LOG LỖI RA TERMINAL
+    console.error('❌ LOGIN ERROR:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi đăng nhập' });
   }
 };
