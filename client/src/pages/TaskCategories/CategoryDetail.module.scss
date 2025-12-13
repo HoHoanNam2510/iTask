@@ -1,0 +1,235 @@
+/* CategoryDetail.module.scss */
+
+.wrapper {
+  padding: 2.4rem 4rem;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--bg-hover); /* Dùng màu nền xám nhạt từ Global */
+  font-family: 'Barlow', sans-serif;
+
+  @media (max-width: 768px) {
+    padding: 1.6rem;
+  }
+}
+
+// --- Nút Quay lại ---
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-light); /* Màu chữ nhạt */
+  font-size: 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  transition: all 0.2s;
+  padding: 0;
+  font-family: inherit;
+
+  &:hover {
+    color: var(--primary); /* Hover chuyển màu xanh chủ đạo */
+    transform: translateX(-4px);
+  }
+}
+
+// --- Header ---
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 3.2rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 3px solid transparent; /* Màu border sẽ set inline */
+
+  .headerInfo {
+    .title {
+      font-size: 3.2rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.8rem;
+      line-height: 1.2;
+    }
+
+    .description {
+      font-size: 1.6rem;
+      color: var(--text-light);
+      max-width: 600px;
+      line-height: 1.5;
+    }
+  }
+
+  .addBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem 2rem;
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: 1rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    box-shadow: 0 4px 6px rgba(var(--primary-rgb), 0.2);
+    font-family: inherit;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+  }
+}
+
+// --- Danh sách Task ---
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 6rem 0;
+  color: var(--text-light);
+
+  p {
+    font-size: 1.6rem;
+    margin-top: 1rem;
+    font-style: italic;
+  }
+}
+
+// --- Task Item (Card từng task) ---
+.taskItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--white);
+  padding: 1.6rem 2.4rem;
+  border-radius: 1.6rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-light);
+  }
+
+  // Cột Trái: Checkbox + Tên
+  .taskLeft {
+    display: flex;
+    align-items: center;
+    gap: 1.6rem;
+
+    .statusCheckbox {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: transparent;
+      transition: all 0.2s;
+      flex-shrink: 0;
+
+      &.completed {
+        background-color: var(--primary);
+        border-color: var(--primary);
+        color: var(--white);
+      }
+    }
+
+    .taskContent {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      .taskTitle {
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: var(--text-main);
+        transition: color 0.2s;
+
+        &.completed {
+          text-decoration: line-through;
+          color: var(--text-light);
+        }
+      }
+    }
+  }
+
+  // Cột Phải: Meta info
+  .taskRight {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+
+    .metaInfo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.3rem;
+      color: var(--text-light);
+      background-color: var(--bg-hover);
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.8rem;
+      font-weight: 500;
+    }
+
+    .priorityBadge {
+      font-size: 1.2rem;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: 0.6rem;
+      text-transform: capitalize;
+      display: flex;
+      align-items: center;
+
+      // Các màu priority cụ thể (có thể thêm vào global sau này nếu muốn)
+      &.low {
+        background-color: #d1fae5;
+        color: #059669;
+      }
+      &.moderate {
+        background-color: #fef3c7;
+        color: #d97706;
+      }
+      &.extreme {
+        background-color: #fee2e2; // Đỏ nhạt
+        color: var(--danger); // Dùng biến danger từ global
+      }
+    }
+  }
+}
+
+// Responsive cho Mobile
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.6rem;
+
+    .addBtn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .taskItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.6rem;
+
+    .taskRight {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+}

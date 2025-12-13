@@ -2,20 +2,22 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import classNames from 'classnames/bind';
 import { Plus, Edit2, Trash2, X, FolderKanban, LayoutGrid } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import styles from './TaskCategories.module.scss';
 
 const cx = classNames.bind(styles);
 
 // Interface khớp với Backend
 interface Category {
-  _id: string; // MongoDB dùng _id
+  _id: string;
   name: string;
   description: string;
   color: string;
-  taskCount?: number; // Backend chưa trả về cái này, tạm thời để optional (hoặc update backend sau)
+  taskCount?: number; // Backend đã trả về cái này rồi!
 }
 
 const TaskCategories = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -114,6 +116,11 @@ const TaskCategories = () => {
     }
   };
 
+  // Hàm xử lý khi click vào card
+  const handleCardClick = (id: string) => {
+    navigate(`/task-categories/${id}`);
+  };
+
   return (
     <div className={cx('wrapper')}>
       {/* Header */}
@@ -134,7 +141,12 @@ const TaskCategories = () => {
       ) : (
         <div className={cx('gridContainer')}>
           {categories.map((cat) => (
-            <div key={cat._id} className={cx('card')}>
+            <div
+              key={cat._id}
+              className={cx('card')}
+              onClick={() => handleCardClick(cat._id)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className={cx('cardHeader')}>
                 <div
                   className={cx('iconBox')}
@@ -146,15 +158,24 @@ const TaskCategories = () => {
                   <FolderKanban size={24} />
                 </div>
                 <div className={cx('actions')}>
+                  {/* --- SỬA NÚT EDIT --- */}
                   <button
                     className={cx('actionBtn')}
-                    onClick={() => handleOpenEdit(cat)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // <--- CHẶN SỰ KIỆN LAN TRUYỀN
+                      handleOpenEdit(cat);
+                    }}
                   >
                     <Edit2 size={16} />
                   </button>
+
+                  {/* --- SỬA NÚT DELETE --- */}
                   <button
                     className={cx('actionBtn', 'delete')}
-                    onClick={() => handleDelete(cat._id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // <--- CHẶN SỰ KIỆN LAN TRUYỀN
+                      handleDelete(cat._id);
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -169,7 +190,7 @@ const TaskCategories = () => {
               <div className={cx('catFooter')}>
                 <div className={cx('taskBadge')}>
                   <LayoutGrid size={14} />
-                  {/* Tạm thời hiển thị 0 task, sau này cần API đếm task theo category */}
+                  {/* Bây giờ biến này đã có giá trị từ Backend */}
                   <span>{cat.taskCount || 0} tasks</span>
                 </div>
               </div>

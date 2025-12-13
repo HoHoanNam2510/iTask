@@ -8,6 +8,7 @@ import { Login, Register } from '~/pages/Auth';
 import Calendar from '~/pages/Calendar/Calendar';
 import Dashboard from '~/pages/Dashboard/Dashboard';
 import TaskCategories from '~/pages/TaskCategories/TaskCategories';
+import CategoryDetail from '~/pages/TaskCategories/CategoryDetail';
 
 // Layouts
 import AuthLayout from '~/layouts/AuthLayout';
@@ -34,6 +35,11 @@ const privateRoutes: RouteType[] = [
   {
     path: '/task-categories',
     component: TaskCategories,
+    layout: DefaultLayout,
+  },
+  {
+    path: '/task-categories/:id',
+    component: CategoryDetail,
     layout: DefaultLayout,
   },
   { path: '/groups/:groupId', component: Group, layout: DefaultLayout },
