@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Task from '../models/Task';
 
 // [GET] /api/tasks
@@ -97,6 +98,10 @@ export const createTask = async (
     });
 
     await newTask.save();
+
+    console.log(`✅ Đã lưu Task "${newTask.title}" với ID: ${newTask._id}`);
+    console.log(`📂 Vào Database: ${mongoose.connection.name}`);
+    console.log(`📚 Vào Collection: ${newTask.collection.name}`);
 
     res.status(201).json({
       success: true,
