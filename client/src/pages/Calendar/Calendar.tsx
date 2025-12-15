@@ -14,21 +14,17 @@ import {
   isToday,
 } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  X,
+  Edit2,
+} from 'lucide-react';
 import styles from './Calendar.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal'; // Import Modal mới
-
-// --- TYPE DEFINITIONS ---
-export interface ITaskResponse {
-  _id: string;
-  title: string;
-  description?: string;
-  image?: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  priority: 'low' | 'moderate' | 'extreme';
-  dueDate: string;
-  category?: string;
-}
+import type { ITaskResponse } from '~/types/task';
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -39,6 +35,8 @@ const Calendar: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); // Modal thêm mới task
 
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
+  // [MỚI] State lưu task đang muốn sửa
+  const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
 
   // --- FETCH DATA ---
   const fetchTasks = async () => {
@@ -75,14 +73,34 @@ const Calendar: React.FC = () => {
   };
 
   const handleOpenAddForm = () => {
+    setEditingTask(null); // Đảm bảo clear task cũ để ra form thêm mới
     setIsListModalOpen(false); // Đóng list view
     setIsTaskModalOpen(true); // Mở form thêm mới
   };
 
+  // [MỚI] Hàm mở form Edit
+  const handleOpenEditForm = (task: ITaskResponse) => {
+    setEditingTask(task); // Lưu task cần sửa
+    setIsListModalOpen(false); // Đóng list
+    setIsTaskModalOpen(true); // Mở form modal
+  };
+
+  // [MỚI] Hàm Xóa thật
   const handleDeleteTask = async (id: string) => {
-    if (window.confirm('Bạn có chắc muốn xóa?')) {
-      // Logic xóa tạm thời (bạn cần bổ sung API delete thật)
-      console.log('Delete logic here for ID:', id);
+    if (window.confirm('Bạn có chắc muốn xóa vĩnh viễn?')) {
+      try {
+        const token = localStorage.getItem('token');
+        // Gọi API xóa
+        await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Xóa thành công -> Load lại list task
+        fetchTasks();
+      } catch (error) {
+        console.error('Lỗi xóa task:', error);
+        alert('Không thể xóa task này.');
+      }
     }
   };
 
@@ -142,12 +160,24 @@ const Calendar: React.FC = () => {
                 }}
               />
             )}
-            <button
-              className={styles.deleteBtn}
-              onClick={() => handleDeleteTask(task._id)}
-            >
-              <Trash2 size={16} />
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {/* NÚT EDIT */}
+              <button
+                className={styles.deleteBtn} // Tái sử dụng class hoặc tạo class mới .editBtn
+                style={{ color: '#3b82f6' }} // Màu xanh dương cho nút sửa
+                onClick={() => handleOpenEditForm(task)}
+              >
+                <Edit2 size={16} />
+              </button>
+
+              {/* NÚT DELETE */}
+              <button
+                className={styles.deleteBtn}
+                onClick={() => handleDeleteTask(task._id)}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -231,15 +261,19 @@ const Calendar: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 2: Thêm Task Mới (Component tách riêng) */}
+      {/* MODAL 2: Truyền thêm prop taskToEdit */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setEditingTask(null); // Reset khi đóng
+        }}
         onSuccess={() => {
-          fetchTasks(); // Reload lịch sau khi thêm xong
-          setIsListModalOpen(true); // Mở lại danh sách để thấy task mới
+          fetchTasks();
+          setIsListModalOpen(true); // Mở lại list để xem kết quả
         }}
         defaultDate={selectedDate || new Date()}
+        taskToEdit={editingTask} // <--- Truyền task cần sửa vào đây
       />
     </div>
   );
