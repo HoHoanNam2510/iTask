@@ -81,6 +81,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     placeholder="e.g. 789-xyz-123"
                     value={joinId}
                     onChange={(e) => setJoinId(e.target.value)}
+                    spellCheck={false}
                     required
                   />
                 </div>
@@ -115,6 +116,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     placeholder="e.g. Awesome Project"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
+                    spellCheck={false}
                     required
                   />
                 </div>
@@ -126,6 +128,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     placeholder="What is this group about?"
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
+                    spellCheck={false}
                   />
                 </div>
                 <div className={cx('actions')}>

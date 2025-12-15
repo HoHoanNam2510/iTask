@@ -191,6 +191,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
+              spellCheck={false}
             />
           </div>
 
