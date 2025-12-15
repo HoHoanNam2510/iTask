@@ -4,6 +4,8 @@ import axios from 'axios';
 import classNames from 'classnames/bind';
 import { ArrowLeft, Plus, Calendar, Flag, Check, Clock } from 'lucide-react';
 
+// có thêm 1 vấn đề là mình đã nhờ bạn xây dựng phần TaskModel để tạo task trong cả Calendar và  CategoryDetail page nhưng các task đc tạo trong CategoryDetail lại ko hiển thị đc trong db, còn calendar thì ngược lại. Bạn hãy giải thích và khắc phục, mình gửi code
+
 // Import file SCSS vừa tạo
 import styles from './CategoryDetail.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';

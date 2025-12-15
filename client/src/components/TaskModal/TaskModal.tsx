@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Image as ImageIcon, Check } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
-
+import type { ITaskResponse } from '~/types/task';
 const cx = classNames.bind(styles);
 
 interface ICategory {
@@ -18,6 +18,7 @@ interface TaskModalProps {
   onSuccess: () => void; // Callback để báo cho cha biết đã thêm xong để reload list
   defaultDate?: Date; // Nếu gọi từ Calendar thì truyền ngày vào
   defaultCategoryId?: string; // Nếu gọi từ CategoryDetail thì truyền ID vào
+  taskToEdit?: ITaskResponse | null;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -26,6 +27,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onSuccess,
   defaultDate = new Date(),
   defaultCategoryId = '',
+  taskToEdit = null,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -43,22 +45,47 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Reset form mỗi khi mở modal
+  // --- [FIX] LOGIC KHỞI TẠO DỮ LIỆU ---
+  // Tạo biến chuỗi ngày để dùng trong dependency (tránh vòng lặp do object Date thay đổi)
+  const dateString = format(defaultDate, 'yyyy-MM-dd');
+
+  // --- [QUAN TRỌNG] SỬA USE EFFECT ---
+  // Để tự động điền dữ liệu khi mở modal ở chế độ Edit
   useEffect(() => {
     if (isOpen) {
+      // Logic xác định Category ID:
+      // - Nếu đang Edit: Lấy từ task cũ (nếu có)
+      // - Nếu đang Tạo mới: Lấy từ defaultCategoryId (được truyền từ CategoryDetail)
+      const targetCategoryId = taskToEdit
+        ? taskToEdit.category || ''
+        : defaultCategoryId;
+
       setFormData({
-        title: '',
-        description: '',
-        priority: 'low',
-        categoryId: defaultCategoryId,
-        date: format(defaultDate, 'yyyy-MM-dd'),
-        imagePreview: null,
+        title: taskToEdit ? taskToEdit.title : '',
+        description: taskToEdit?.description || '',
+        priority: taskToEdit ? taskToEdit.priority : 'low',
+
+        // 👇 Quan trọng: Đảm bảo lấy đúng ID
+        categoryId: targetCategoryId,
+
+        date: taskToEdit
+          ? format(new Date(taskToEdit.dueDate), 'yyyy-MM-dd')
+          : dateString,
+
+        imagePreview: taskToEdit?.image
+          ? `http://localhost:5000/${taskToEdit.image}`
+          : null,
         imageFile: null,
       });
+
+      // Log để kiểm tra xem Category ID có nhận được không
+      console.log('🛠 Modal Opened. Category ID set to:', targetCategoryId);
+
       fetchCategories();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]); // <--- SỬA LẠI: Chỉ giữ mỗi isOpen trong mảng này
+  }, [isOpen, taskToEdit, defaultCategoryId, dateString]);
+  // 👆 Thêm đầy đủ dependency (dùng dateString thay vì defaultDate object)
 
   // 2. Fetch danh sách Category để đổ vào Select
   const fetchCategories = async () => {
@@ -83,6 +110,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   // 4. Submit Form
+  // --- SỬA HÀM SAVE ĐỂ PHÂN BIỆT POST (Tạo) VÀ PUT (Sửa) ---
   const handleSave = async () => {
     if (!formData.title.trim()) {
       alert('Vui lòng nhập tiêu đề!');
@@ -92,35 +120,46 @@ const TaskModal: React.FC<TaskModalProps> = ({
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const data = new FormData();
 
+      // Chuẩn bị dữ liệu (giữ nguyên logic FormData cũ)
+      const data = new FormData();
       data.append('title', formData.title);
       data.append('description', formData.description);
       data.append('priority', formData.priority);
-      // Backend cần chuỗi ISO Date đầy đủ
       data.append('date', new Date(formData.date).toISOString());
+      if (formData.categoryId) data.append('categoryId', formData.categoryId);
+      if (formData.imageFile) data.append('image', formData.imageFile);
 
-      if (formData.categoryId) {
-        data.append('categoryId', formData.categoryId);
+      let res;
+      if (taskToEdit) {
+        // 👉 GỌI API UPDATE (PUT)
+        res = await axios.put(
+          `http://localhost:5000/api/tasks/${taskToEdit._id}`,
+          data,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      } else {
+        // 👉 GỌI API CREATE (POST)
+        res = await axios.post('http://localhost:5000/api/tasks', data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
+          },
+        });
       }
-      if (formData.imageFile) {
-        data.append('image', formData.imageFile);
-      }
-
-      const res = await axios.post('http://localhost:5000/api/tasks', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
-        },
-      });
 
       if (res.data.success) {
-        alert('Tạo task thành công!');
-        onSuccess(); // Báo cho cha reload dữ liệu
-        onClose(); // Đóng modal
+        alert(taskToEdit ? 'Cập nhật thành công!' : 'Tạo task thành công!');
+        onSuccess();
+        onClose();
       }
     } catch (error) {
-      console.error('Lỗi tạo task:', error);
+      console.error('Lỗi lưu task:', error);
       alert('Có lỗi xảy ra.');
     } finally {
       setIsLoading(false);
@@ -134,7 +173,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       <div className={cx('modalContent')} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={cx('formHeader')}>
-          <h3>Add New Task</h3>
+          <h3>{taskToEdit ? 'Edit Task' : 'Add New Task'}</h3>
           <button className={cx('closeBtn')} onClick={onClose}>
             Go Back
           </button>

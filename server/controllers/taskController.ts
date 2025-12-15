@@ -120,3 +120,68 @@ export const createTask = async (
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+// [PUT] /api/tasks/:id
+export const updateTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // 1. Lấy dữ liệu dạng text từ Form
+    const updateData: any = { ...req.body };
+
+    // 2. Kiểm tra nếu người dùng có upload ảnh mới
+    if (req.file) {
+      // Lưu đường dẫn ảnh mới vào DB (chuẩn hóa dấu gạch chéo)
+      updateData.image = req.file.path.replace(/\\/g, '/');
+    }
+
+    // 3. Xử lý Priority (nếu có gửi lên thì lowercase)
+    if (updateData.priority) {
+      updateData.priority = updateData.priority.toLowerCase();
+    }
+
+    // 4. Xử lý Date (nếu có gửi lên)
+    if (updateData.date) {
+      updateData.dueDate = new Date(updateData.date);
+    }
+
+    // 5. Tìm và Update
+    const updatedTask = await Task.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+
+    if (!updatedTask) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Task updated', task: updatedTask });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Update failed' });
+  }
+};
+
+// [DELETE] /api/tasks/:id
+export const deleteTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deletedTask = await Task.findByIdAndDelete(id);
+
+    if (!deletedTask) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Task deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Delete failed' });
+  }
+};
