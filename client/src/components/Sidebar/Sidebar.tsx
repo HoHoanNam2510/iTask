@@ -80,6 +80,17 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
     navigate('/login');
   };
 
+  // [MỚI] Hàm helper để xử lý đường dẫn ảnh
+  const getAvatarUrl = (avatarPath: string) => {
+    if (!avatarPath) return '';
+    // Nếu là link online (http) hoặc blob (preview) thì giữ nguyên
+    if (avatarPath.startsWith('http') || avatarPath.startsWith('blob:')) {
+      return avatarPath;
+    }
+    // Nếu là đường dẫn file từ backend -> Nối domain + sửa dấu gạch chéo
+    return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
+  };
+
   return (
     <div className={cx('sidebar')}>
       <button
@@ -94,13 +105,22 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
       <div className={cx('profile')}>
         <div className={cx('avatar')}>
           {isAuthenticated && user?.avatar ? (
-            <img src={user.avatar} alt={user.name} />
+            <img
+              // 👇 SỬA DÒNG NÀY: Dùng hàm helper để lấy link ảnh chuẩn
+              src={getAvatarUrl(user.avatar)}
+              alt={user.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} // Thêm style cho đẹp
+            />
           ) : (
             <div className={cx('avatar-placeholder')}>
-              {isAuthenticated ? user?.name?.charAt(0).toUpperCase() : 'G'}
+              {/* Thêm check user?.name để tránh lỗi charAt nếu name rỗng */}
+              {isAuthenticated
+                ? (user?.name || 'U').charAt(0).toUpperCase()
+                : 'G'}
             </div>
           )}
         </div>
+
         <h3 className={cx('name')}>{isAuthenticated ? user?.name : 'Khách'}</h3>
         <p className={cx('email')}>
           {isAuthenticated ? user?.email : 'Chưa đăng nhập'}

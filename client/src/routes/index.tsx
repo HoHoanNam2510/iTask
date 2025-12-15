@@ -4,6 +4,7 @@ import React from 'react';
 import Help from '~/pages/Help/Help';
 import Group from '~/pages/Group/Group';
 import MyTask from '~/pages/MyTask/MyTask';
+import Setting from '~/pages/Setting/Setting';
 import { Login, Register } from '~/pages/Auth';
 import Calendar from '~/pages/Calendar/Calendar';
 import Dashboard from '~/pages/Dashboard/Dashboard';
@@ -42,6 +43,7 @@ const privateRoutes: RouteType[] = [
     component: CategoryDetail,
     layout: DefaultLayout,
   },
+  { path: '/settings', component: Setting, layout: DefaultLayout },
   { path: '/groups/:groupId', component: Group, layout: DefaultLayout },
 ];
 

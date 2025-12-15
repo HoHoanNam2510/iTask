@@ -61,7 +61,7 @@ const Header = () => {
   return (
     <header className={cx('header')}>
       {/* 1. Logo Section */}
-      <div className={cx('left')}>
+      <div className={cx('left')} tabIndex={-1}>
         <div className={cx('logo')}>
           <Link to="/">
             <CheckSquare size={26} strokeWidth={2.5} />
