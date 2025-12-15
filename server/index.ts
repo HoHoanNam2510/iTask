@@ -13,6 +13,7 @@ import userRoutes from './routes/userRoutes';
 import groupRoutes from './routes/groupRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 7. GLOBAL ERROR HANDLER (Chặn lỗi crash app)
 app.use(

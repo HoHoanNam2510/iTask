@@ -1,187 +1,248 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import classNames from 'classnames/bind';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { format } from 'date-fns';
 import {
+  ListTodo,
+  Loader,
   CheckCircle2,
-  Circle,
   Clock,
   CalendarDays,
-  MoreHorizontal, // <--- Đã thêm component này vào
+  Plus,
 } from 'lucide-react';
+
+// --- IMPORT CHART.JS ---
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+
 import styles from './Dashboard.module.scss';
+import { useAuth } from '~/context/AuthContext';
+import TaskModal from '~/components/TaskModal/TaskModal';
+
+// Đăng ký các thành phần biểu đồ
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const cx = classNames.bind(styles);
 
-// --- Mock Data (Bạn có thể tách ra file types/dashboard.ts sau) ---
-const mockStats = [
-  { name: 'Completed', value: 7, color: '#4FB488' }, // Màu xanh (Primary)
-  { name: 'Pending', value: 3, color: '#f59e0b' }, // Màu cam (Warning)
-];
-
-const todayTasks = [
-  {
-    id: '1',
-    title: 'Hoàn thiện UI trang Dashboard',
-    status: 'in-progress',
-    priority: 'high',
-    dueDate: '2025-11-27',
-  },
-  {
-    id: '2',
-    title: 'Họp team Product',
-    status: 'pending',
-    priority: 'high',
-    dueDate: '2025-11-27',
-  },
-  {
-    id: '3',
-    title: 'Fix bug login mobile',
-    status: 'pending',
-    priority: 'medium',
-    dueDate: '2025-11-27',
-  },
-];
-
-const upcomingTasks = [
-  {
-    id: '4',
-    title: 'Gửi báo cáo tuần',
-    status: 'pending',
-    priority: 'high',
-    dueDate: '2025-11-29',
-  },
-  {
-    id: '5',
-    title: 'Review PR từ team BE',
-    status: 'pending',
-    priority: 'low',
-    dueDate: '2025-11-30',
-  },
-  {
-    id: '6',
-    title: 'Lên plan sprint mới',
-    status: 'pending',
-    priority: 'medium',
-    dueDate: '2025-12-01',
-  },
-];
-
 const Dashboard = () => {
+  const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Data State
+  const [stats, setStats] = useState({
+    total: 0,
+    todo: 0,
+    inProgress: 0,
+    completed: 0,
+  });
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  // Fetch Data
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+      const res = await axios.get(
+        `http://localhost:5000/api/dashboard/summary?date=${dateStr}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (res.data.success) {
+        setStats(res.data.stats);
+        setWeeklyData(res.data.weeklyData);
+      }
+    } catch (error) {
+      console.error('Lỗi tải dashboard:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedDate]);
+
+  // --- CẤU HÌNH BIỂU ĐỒ CỘT (BAR CHART) ---
+  const barChartData = {
+    // Lấy nhãn ngày từ weeklyData (đảo ngược mảng nếu cần thiết)
+    labels: weeklyData.map((d) => d.name),
+    datasets: [
+      {
+        label: 'Số lượng Task',
+        data: weeklyData.map((d) => d.tasks),
+        backgroundColor: '#40a578', // Màu xanh chủ đạo
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }, // Ẩn chú thích
+      title: { display: false },
+    },
+    scales: {
+      y: { beginAtZero: true, grid: { display: false } },
+      x: { grid: { display: false } },
+    },
+  };
+
+  // --- CẤU HÌNH BIỂU ĐỒ TRÒN (DOUGHNUT CHART) ---
+  const doughnutData = {
+    labels: ['To Do', 'In Progress', 'Completed'],
+    datasets: [
+      {
+        data: [stats.todo, stats.inProgress, stats.completed],
+        backgroundColor: [
+          '#e2e8f0', // Grey
+          '#3b82f6', // Blue
+          '#40a578', // Green
+        ],
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' as const },
+    },
+    cutout: '70%', // Tạo lỗ rỗng ở giữa
+  };
+
   return (
     <div className={cx('wrapper')}>
-      {/* Header Section */}
+      {/* 1. Header & Date Picker */}
       <header className={cx('header')}>
-        <div className={cx('welcome')}>
-          <h1 className={cx('title')}>Dashboard</h1>
-          <p className={cx('subtitle')}>
-            Chào Guest User, bạn có 3 việc ưu tiên hôm nay.
-          </p>
-        </div>
+        <h1 className={cx('title')}>
+          Hello, <span>{user?.name || 'User'}</span>! 👋
+        </h1>
+        <input
+          type="date"
+          className={cx('datePicker')}
+          value={format(selectedDate, 'yyyy-MM-dd')}
+          onChange={(e) => setSelectedDate(new Date(e.target.value))}
+        />
       </header>
 
-      {/* Main Content Grid */}
-      <div className={cx('gridContainer')}>
-        {/* Cột Trái: Thống kê & Today's Focus */}
-        <div className={cx('leftColumn')}>
-          {/* Section 1: Thống kê nhanh */}
-          <div className={cx('card', 'statsCard')}>
-            <h3 className={cx('cardTitle')}>Tiến độ trong ngày</h3>
-            <div className={cx('chartRow')}>
-              <div className={cx('statInfo')}>
-                <span className={cx('bigNumber')}>70%</span>
-                <span className={cx('statLabel')}>Đã hoàn thành</span>
-              </div>
-              <div className={cx('chartContainer')}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={mockStats}
-                      innerRadius={45}
-                      outerRadius={60}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {mockStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+      {/* 2. Stats Cards */}
+      <div className={cx('statsGrid')}>
+        <StatCard
+          title="Tổng công việc"
+          value={stats.total}
+          icon={<ListTodo />}
+          colorClass="purple"
+        />
+        <StatCard
+          title="Đang thực hiện"
+          value={stats.inProgress}
+          icon={<Loader />}
+          colorClass="blue"
+        />
+        <StatCard
+          title="Đã hoàn thành"
+          value={stats.completed}
+          icon={<CheckCircle2 />}
+          colorClass="green"
+        />
+        <StatCard
+          title="Chờ xử lý"
+          value={stats.todo}
+          icon={<Clock />}
+          colorClass="yellow"
+        />
+      </div>
 
-          {/* Section 2: Today's Focus */}
-          <div className={cx('card', 'focusCard')}>
-            <div className={cx('cardHeader')}>
-              <h3 className={cx('cardTitle')}>Today's Focus</h3>
-              <span className={cx('badge', 'high')}>High Priority</span>
-            </div>
-
-            <div className={cx('taskList')}>
-              {todayTasks.map((task) => (
-                <div key={task.id} className={cx('taskItem')}>
-                  <div className={cx('checkIcon')}>
-                    {task.status === 'completed' ? (
-                      <CheckCircle2 size={20} className={cx('iconSuccess')} />
-                    ) : (
-                      <Circle size={20} className={cx('iconPending')} />
-                    )}
-                  </div>
-                  <div className={cx('taskContent')}>
-                    <span className={cx('taskName')}>{task.title}</span>
-                    <span className={cx('taskTag', task.priority)}>
-                      {task.priority}
-                    </span>
-                  </div>
-                  <button className={cx('actionBtn')}>Start</button>
-                </div>
-              ))}
-            </div>
+      {/* 3. Charts Section */}
+      <div className={cx('chartsSection')}>
+        {/* Biểu đồ Cột */}
+        <div className={cx('chartCard')}>
+          <h3>Hiệu suất 7 ngày qua</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            {/* Render Bar Chart */}
+            <Bar options={barOptions} data={barChartData} />
           </div>
         </div>
 
-        {/* Cột Phải: Upcoming */}
-        <div className={cx('rightColumn')}>
-          <div className={cx('card', 'upcomingCard')}>
-            <div className={cx('cardHeader')}>
-              <h3 className={cx('cardTitle')}>Sắp đến hạn</h3>
-              {/* Đã import MoreHorizontal ở trên nên dòng này sẽ chạy tốt */}
-              <MoreHorizontal size={20} className={cx('moreIcon')} />
+        {/* Biểu đồ Tròn */}
+        <div className={cx('chartCard')}>
+          <h3>Tiến độ ngày {format(selectedDate, 'dd/MM')}</h3>
+          {stats.total === 0 ? (
+            <div className={cx('emptyState')}>
+              <CalendarDays
+                size={48}
+                style={{ opacity: 0.2, marginBottom: 10 }}
+              />
+              <p>Ngày này chưa có task nào!</p>
+              <button
+                className={cx('createBtn')}
+                onClick={() => setIsTaskModalOpen(true)}
+              >
+                <Plus size={16} style={{ marginRight: 6 }} />
+                Thêm ngay
+              </button>
             </div>
-
-            <div className={cx('upcomingList')}>
-              {upcomingTasks.map((task) => {
-                const day = task.dueDate.split('-')[2];
-                return (
-                  <div key={task.id} className={cx('upcomingItem')}>
-                    <div className={cx('dateBox')}>
-                      <span className={cx('day')}>{day}</span>
-                      <span className={cx('month')}>Th11</span>
-                    </div>
-                    <div className={cx('info')}>
-                      <span className={cx('upName')}>{task.title}</span>
-                      <div className={cx('meta')}>
-                        <Clock size={14} /> <span>2 ngày nữa</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: 300,
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              {/* Render Doughnut Chart */}
+              <Doughnut options={doughnutOptions} data={doughnutData} />
             </div>
-
-            {/* Empty State / Add Action */}
-            <div className={cx('viewCalendarBtn')}>
-              <CalendarDays size={18} />
-              <span>Xem toàn bộ lịch biểu</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
+
+      {/* Modal thêm task */}
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSuccess={() => {
+          fetchDashboardData();
+        }}
+        defaultDate={selectedDate}
+      />
     </div>
   );
 };
+
+// Component con StatCard giữ nguyên
+const StatCard = ({ title, value, icon, colorClass }: any) => (
+  <div className={cx('statCard')}>
+    <div className={cx('iconBox', colorClass)}>{icon}</div>
+    <div className={cx('info')}>
+      <h4>{title}</h4>
+      <span className={cx('number')}>{value}</span>
+    </div>
+  </div>
+);
 
 export default Dashboard;
