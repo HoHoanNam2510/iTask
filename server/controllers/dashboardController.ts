@@ -1,8 +1,8 @@
+// server/controllers/dashboardController.ts
 import { Request, Response } from 'express';
 import Task from '../models/Task';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 
-// [GET] /api/dashboard/summary?date=yyyy-mm-dd
 export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
@@ -10,15 +10,16 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       ? new Date(String(req.query.date))
       : new Date();
 
-    // 1. Lấy thống kê cho NGÀY ĐƯỢC CHỌN
     const start = startOfDay(dateQuery);
     const end = endOfDay(dateQuery);
 
+    // 1. Lấy danh sách task trong ngày
     const tasksInDay = await Task.find({
       creator: userId,
       dueDate: { $gte: start, $lte: end },
-    });
+    }); // .sort({ priority: 1 }) // Có thể sort theo priority nếu muốn
 
+    // 2. Tính toán thống kê (Giữ nguyên logic cũ)
     const stats = {
       total: tasksInDay.length,
       todo: tasksInDay.filter((t) => t.status === 'todo').length,
@@ -26,29 +27,23 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       completed: tasksInDay.filter((t) => t.status === 'completed').length,
     };
 
-    // 2. Lấy dữ liệu biểu đồ cột (7 ngày tính từ ngày được chọn trở về trước)
+    // 3. Dữ liệu biểu đồ 7 ngày (Giữ nguyên)
     const weeklyData = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(dateQuery, i);
       const s = startOfDay(d);
       const e = endOfDay(d);
-
       const count = await Task.countDocuments({
         creator: userId,
         dueDate: { $gte: s, $lte: e },
       });
-
-      weeklyData.push({
-        name: format(d, 'dd/MM'), // Tên trục X (VD: 12/12)
-        tasks: count, // Giá trị trục Y
-      });
+      weeklyData.push({ name: format(d, 'dd/MM'), tasks: count });
     }
 
-    res.json({ success: true, stats, weeklyData });
+    // 👇 TRẢ VỀ THÊM FIELD 'tasks' 👇
+    res.json({ success: true, stats, weeklyData, tasks: tasksInDay });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi lấy dữ liệu dashboard' });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
