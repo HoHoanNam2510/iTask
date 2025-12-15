@@ -8,6 +8,7 @@ import { publicRoutes, privateRoutes } from './routes';
 import DefaultLayout from './layouts/DefaultLayout';
 import React, { Fragment } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext'; // Import mới
+import { ThemeProvider } from './context/ThemeContext';
 
 // Component bảo vệ Routes dùng Context
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -70,11 +71,13 @@ const App = () => {
   return (
     // Bọc AuthProvider ở ngoài cùng
     <AuthProvider>
-      <Router>
-        <div className="app">
-          <AppRoutes />
-        </div>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <div className="app">
+            <AppRoutes />
+          </div>
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 };

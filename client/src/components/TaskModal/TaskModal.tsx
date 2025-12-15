@@ -198,7 +198,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')} style={{ flex: 1 }}>
               <div className={cx('formGroup')}>
-                <label>Date</label>
+                <label>Due date</label>
                 <input
                   type="date"
                   value={formData.date}

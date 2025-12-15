@@ -9,6 +9,7 @@ import path from 'path';
 import connectDB from './config/db';
 import authRoutes from './routes/authRoutes';
 import taskRoutes from './routes/taskRoutes';
+import userRoutes from './routes/userRoutes';
 import groupRoutes from './routes/groupRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
@@ -23,6 +24,9 @@ app.use(cors());
 app.use(express.json()); // Để đọc được req.body
 app.use(express.urlencoded({ extended: true }));
 
+// PUBLIC THƯ MỤC UPLOADS
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // 4. LOGGER CỰC MẠNH (Để debug)
 app.use((req, res, next) => {
   console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -36,6 +40,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // 6. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
