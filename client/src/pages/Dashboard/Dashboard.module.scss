@@ -106,14 +106,11 @@
 
 // --- CHARTS SECTION ---
 .chartsSection {
-  display: grid;
-  grid-template-columns: 2fr 1fr; // Cột trái rộng gấp đôi
-  gap: 2.4rem;
-  margin-bottom: 3rem;
-
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
-  }
+  display: flex; /* Chuyển sang Flexbox */
+  flex-direction: column; /* Xếp chồng các phần tử theo chiều dọc */
+  gap: 2.4rem; /* Khoảng cách giữa 2 biểu đồ */
+  margin-bottom: 2rem;
+  width: 100%; /* Đảm bảo chiếm hết chiều rộng container */
 }
 
 .chartCard {
@@ -121,6 +118,7 @@
   padding: 2.4rem;
   border-radius: 1.6rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+  width: 100%; /* Ép thẻ Card chiếm hết chiều ngang */
 
   h3 {
     font-size: 1.8rem;
@@ -153,5 +151,198 @@
     &:hover {
       background: var(--primary-dark);
     }
+  }
+}
+
+// --- KANBAN BOARD (DRAG & DROP) ---
+.kanbanSection {
+  margin-top: 1rem;
+}
+
+// [MỚI] Header của Kanban dùng Flexbox để đẩy nút sang phải
+.kanbanHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+
+  h3 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0; // Reset margin để căn giữa đẹp hơn
+  }
+
+  // Nút thêm task nhỏ gọn
+  .addTaskBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1.6rem;
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1.3rem;
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+  }
+}
+
+.kanbanColumns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.4rem;
+
+  @media (max-width: 992px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column {
+  background: #f8fafc;
+  border-radius: 1.2rem;
+  padding: 1.6rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 200px;
+
+  &.todoHeader {
+    border-top: 4px solid var(--text-light);
+  }
+  &.progressHeader {
+    border-top: 4px solid #3b82f6;
+  }
+  &.doneHeader {
+    border-top: 4px solid #40a578;
+  }
+}
+
+.columnHeader {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: 1.6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .countBadge {
+    background: var(--white);
+    padding: 0.2rem 0.8rem;
+    border-radius: 1rem;
+    font-size: 1.2rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+// --- TASK CARD (ITEM) ---
+.taskCard {
+  background: var(--white);
+  padding: 1.2rem;
+  border-radius: 0.8rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: grab;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  position: relative; // Để định vị nút action nếu cần
+
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary);
+
+    // Khi hover vào thẻ thì hiện các nút hành động lên (nếu muốn)
+    // .taskActions { opacity: 1; }
+  }
+
+  &.isDragging {
+    opacity: 0.9;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--primary);
+    cursor: grabbing;
+  }
+}
+
+// [MỚI] Phần Header của Card (Title + Actions)
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+  gap: 0.8rem;
+}
+
+.taskTitle {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+  word-break: break-word; // Xuống dòng nếu tên quá dài
+}
+
+// [MỚI] Các nút Edit/Delete
+.taskActions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0; // Không bị co lại
+
+  button {
+    background: none;
+    border: none;
+    padding: 0.4rem;
+    cursor: pointer;
+    color: var(--text-light);
+    border-radius: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: var(--bg-hover);
+      color: var(--primary);
+    }
+
+    &.deleteBtn:hover {
+      background-color: #fee2e2;
+      color: var(--danger);
+    }
+  }
+}
+
+.taskMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.2rem;
+  color: var(--text-light);
+}
+
+.priorityTag {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+
+  &.low {
+    background: #effcf5;
+    color: #40a578;
+  }
+  &.moderate {
+    background: #eff6ff;
+    color: #3b82f6;
+  }
+  &.extreme {
+    background: #fef2f2;
+    color: #ef4444;
   }
 }
