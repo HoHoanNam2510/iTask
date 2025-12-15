@@ -220,6 +220,7 @@ const TaskCategories = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
+                  spellCheck={false}
                 />
               </div>
               <div className={cx('formGroup')}>
@@ -230,6 +231,7 @@ const TaskCategories = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
+                  spellCheck={false}
                 />
               </div>
               {/* Color Picker giữ nguyên */}
