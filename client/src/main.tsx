@@ -6,9 +6,9 @@ import App from './App.tsx';
 import GlobalStyles from '~/components/GlobalStyles';
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <GlobalStyles>
-      <App />
-    </GlobalStyles>
-  </StrictMode>
+  // <StrictMode>
+  <GlobalStyles>
+    <App />
+  </GlobalStyles>
+  // </StrictMode>
 );
