@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import classNames from 'classnames/bind';
+import axios from 'axios'; // Import axios
 import { X, Users, PlusCircle } from 'lucide-react';
 import styles from './GroupModal.module.scss';
 
@@ -8,35 +9,81 @@ const cx = classNames.bind(styles);
 interface GroupModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void; // [QUAN TRỌNG] Thêm prop này để reload sidebar
 }
 
 type TabType = 'join' | 'create';
 
-const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
+const GroupModal: React.FC<GroupModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
   const [activeTab, setActiveTab] = useState<TabType>('join');
+  const [isLoading, setIsLoading] = useState(false); // [MỚI] Loading state
 
   // State cho Form
-  const [joinId, setJoinId] = useState('');
+  const [joinId, setJoinId] = useState(''); // Đây là Invite Code
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
 
   if (!isOpen) return null;
 
-  // Xử lý submit (Fake logic)
-  const handleSubmit = (e: React.FormEvent) => {
+  // Xử lý submit
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeTab === 'join') {
-      console.log('Joining group with ID:', joinId);
-      // Gọi API join group ở đây
-    } else {
-      console.log('Creating group:', { name: groupName, desc: groupDesc });
-      // Gọi API create group ở đây
+    const token = localStorage.getItem('token');
+
+    try {
+      setIsLoading(true);
+
+      if (activeTab === 'join') {
+        // --- LOGIC JOIN GROUP ---
+        // Gọi API tham gia nhóm bằng Invite Code
+        // (Lưu ý: Bạn cần đảm bảo Backend có route này: POST /api/groups/join)
+        const res = await axios.post(
+          'http://localhost:5000/api/groups/join',
+          { inviteCode: joinId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data.success) {
+          alert(`Đã tham gia nhóm: ${res.data.group.name}`);
+        }
+      } else {
+        // --- LOGIC CREATE GROUP ---
+        const res = await axios.post(
+          'http://localhost:5000/api/groups',
+          { name: groupName, description: groupDesc },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data.success) {
+          alert('Tạo nhóm thành công!');
+        }
+      }
+
+      // --- XỬ LÝ SAU KHI THÀNH CÔNG ---
+      // 1. Reset form
+      setJoinId('');
+      setGroupName('');
+      setGroupDesc('');
+
+      // 2. Gọi callback để reload Sidebar
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      // 3. Đóng modal
+      onClose();
+    } catch (error: any) {
+      console.error('Lỗi:', error);
+      const msg =
+        error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại';
+      alert(msg);
+    } finally {
+      setIsLoading(false);
     }
-    // Sau khi xong thì đóng modal và reset form
-    setJoinId('');
-    setGroupName('');
-    setGroupDesc('');
-    onClose();
   };
 
   return (
@@ -71,18 +118,19 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
           {activeTab === 'join' ? (
             <>
               <h3>Join a Team</h3>
-              <p>Enter the unique Group ID shared by your team admin.</p>
+              <p>Enter the unique Invite Code shared by your team admin.</p>
               <form onSubmit={handleSubmit}>
                 <div className={cx('inputGroup')}>
-                  <label className={cx('label')}>Group ID</label>
+                  <label className={cx('label')}>Invite Code</label>
                   <input
                     type="text"
                     className={cx('input')}
-                    placeholder="e.g. 789-xyz-123"
+                    placeholder="e.g. Xy7Bz"
                     value={joinId}
                     onChange={(e) => setJoinId(e.target.value)}
                     spellCheck={false}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 <div className={cx('actions')}>
@@ -90,15 +138,20 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     type="button"
                     className={cx('cancelBtn')}
                     onClick={onClose}
+                    disabled={isLoading}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className={cx('submitBtn')}>
+                  <button
+                    type="submit"
+                    className={cx('submitBtn')}
+                    disabled={isLoading}
+                  >
                     <Users
                       size={18}
                       style={{ marginRight: '8px', display: 'inline' }}
                     />
-                    Join Group
+                    {isLoading ? 'Joining...' : 'Join Group'}
                   </button>
                 </div>
               </form>
@@ -118,6 +171,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     onChange={(e) => setGroupName(e.target.value)}
                     spellCheck={false}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 <div className={cx('inputGroup')}>
@@ -129,6 +183,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
                     spellCheck={false}
+                    disabled={isLoading}
                   />
                 </div>
                 <div className={cx('actions')}>
@@ -136,15 +191,20 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose }) => {
                     type="button"
                     className={cx('cancelBtn')}
                     onClick={onClose}
+                    disabled={isLoading}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className={cx('submitBtn')}>
+                  <button
+                    type="submit"
+                    className={cx('submitBtn')}
+                    disabled={isLoading}
+                  >
                     <PlusCircle
                       size={18}
                       style={{ marginRight: '8px', display: 'inline' }}
                     />
-                    Create Group
+                    {isLoading ? 'Creating...' : 'Create Group'}
                   </button>
                 </div>
               </form>

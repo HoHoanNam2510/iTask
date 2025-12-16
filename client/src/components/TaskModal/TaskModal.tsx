@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Image as ImageIcon, Check } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
+import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
 const cx = classNames.bind(styles);
 
@@ -19,6 +20,8 @@ interface TaskModalProps {
   defaultDate?: Date; // Nếu gọi từ Calendar thì truyền ngày vào
   defaultCategoryId?: string; // Nếu gọi từ CategoryDetail thì truyền ID vào
   taskToEdit?: ITaskResponse | null;
+  groupMembers?: UserBasic[]; // [MỚI] Danh sách thành viên (Optional)
+  groupId?: string; // [MỚI] ID nhóm nếu đang ở trong nhóm
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -28,9 +31,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
   defaultDate = new Date(),
   defaultCategoryId = '',
   taskToEdit = null,
+  groupMembers = [], // Mặc định rỗng (Personal mode)
+  groupId,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ICategory[]>([]);
+  const [assigneeId, setAssigneeId] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -82,6 +88,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
       console.log('🛠 Modal Opened. Category ID set to:', targetCategoryId);
 
       fetchCategories();
+
+      if (taskToEdit) {
+        // Nếu edit task nhóm, fill assignee cũ
+        setAssigneeId(taskToEdit.assignee || '');
+      } else {
+        setAssigneeId(''); // Mặc định rỗng (Backend sẽ tự lấy người tạo)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, taskToEdit, defaultCategoryId, dateString]);
@@ -129,6 +142,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
       data.append('date', new Date(formData.date).toISOString());
       if (formData.categoryId) data.append('categoryId', formData.categoryId);
       if (formData.imageFile) data.append('image', formData.imageFile);
+
+      // [MỚI] Xử lý Group & Assignee
+      if (groupId) {
+        data.append('groupId', groupId); // Gửi groupId lên để backend biết
+
+        // Nếu user chọn assignee thì gửi, không thì thôi (backend sẽ lấy current user)
+        if (assigneeId) {
+          data.append('assignee', assigneeId);
+        }
+      }
 
       let res;
       if (taskToEdit) {
@@ -230,6 +253,25 @@ const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* [MỚI] SELECT ASSIGNEE (CHỈ HIỆN KHI CÓ GROUP MEMBERS) */}
+          {groupMembers.length > 0 && (
+            <div className={cx('formGroup')}>
+              <label>Giao việc cho (Assignee)</label>
+              <select
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                className={cx('input')}
+              >
+                <option value="">Chính tôi (Mặc định)</option>
+                {groupMembers.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.username} ({u.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Priority */}
           <div className={cx('formGroup')}>

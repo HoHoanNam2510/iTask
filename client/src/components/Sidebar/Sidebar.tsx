@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import axios from 'axios';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
@@ -18,29 +19,8 @@ import {
 import styles from './Sidebar.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import GroupModal from '~/components/GroupModal/GroupModal';
+
 const cx = classNames.bind(styles);
-
-interface SidebarProps {
-  user?: {
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  // [MỚI] Thêm prop này để nhận hàm từ Layout
-  onToggle?: () => void;
-}
-
-// ... (Phần Interface Group và MOCK_GROUPS giữ nguyên) ...
-interface Group {
-  id: string;
-  name: string;
-  memberCount: number;
-}
-const MOCK_GROUPS: Group[] = [
-  { id: 'dev-team', name: 'Dev Team Frontend', memberCount: 5 },
-  { id: 'marketing', name: 'Marketing Campaign', memberCount: 8 },
-  { id: 'study', name: 'English Class', memberCount: 12 },
-];
 
 const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
   const location = useLocation();
@@ -49,6 +29,33 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
   // 2. Lấy state từ Context
   const { isAuthenticated, user, logout } = useAuth();
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+
+  // [MỚI] State lưu danh sách nhóm thật
+  const [groups, setGroups] = useState<{ _id: string; name: string }[]>([]);
+
+  // [MỚI] Fetch Groups
+  const fetchMyGroups = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(
+        'http://localhost:5000/api/groups/my-groups',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.data.success) {
+        setGroups(res.data.groups);
+      }
+    } catch (error) {
+      console.error('Lỗi tải groups sidebar', error);
+    }
+  };
+
+  // Gọi API khi login thành công hoặc khi vừa tạo nhóm xong (bạn có thể tối ưu thêm context sau)
+  useEffect(() => {
+    fetchMyGroups();
+  }, [isAuthenticated]);
 
   // 3. Định nghĩa menu: Thêm cờ 'public'
   const menuItems = [
@@ -159,9 +166,24 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
           <div className={cx('group-section')}>
             <div className={cx('group-label')}>
               <span>GROUPS</span>
-              {/* ... */}
             </div>
-            {/* ... Render Groups ... */}
+
+            {/* Render Nhóm Thật từ State */}
+            <div className={cx('group-list')}>
+              {groups.map((group) => (
+                <Link
+                  key={group._id}
+                  to={`/groups/${group._id}`} // Đường dẫn tới trang chi tiết nhóm
+                  className={cx('menu-item', {
+                    active: location.pathname === `/groups/${group._id}`,
+                  })}
+                >
+                  <span className={cx('group-dot')}>#</span>
+                  <span className={cx('group-name')}>{group.name}</span>
+                </Link>
+              ))}
+            </div>
+
             <button
               className={cx('add-group-btn')}
               onClick={() => setIsGroupModalOpen(true)}
@@ -197,6 +219,7 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
       <GroupModal
         isOpen={isGroupModalOpen}
         onClose={() => setIsGroupModalOpen(false)}
+        onSuccess={fetchMyGroups} // [MỚI] Reload sidebar sau khi tạo nhóm thành công
       />
     </div>
   );
