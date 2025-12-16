@@ -173,6 +173,20 @@
   }
 }
 
+.group-list {
+  .menu-item {
+    gap: 0.4rem;
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+  }
+
+  .group-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 .group-item {
   // Kế thừa .menu-item nhưng chỉnh nhỏ lại chút nếu cần
   font-size: 1.6rem;
