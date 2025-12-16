@@ -1,4 +1,4 @@
-/* src/pages/MyTasks/MyTasks.module.scss */
+/* src/pages/MyTasks/MyTask.module.scss */
 
 // Layout chung
 .wrapper {
@@ -44,21 +44,34 @@
 
 // --- PANEL DANH SÁCH (LEFT) ---
 .listPanel {
-  flex: 1; // Mặc định chiếm hết khi chưa chọn task
+  /* [QUAN TRỌNG] 
+     Mặc định flex: 1 giúp nó chiếm toàn bộ không gian khi chưa có detailPanel.
+     Khi detailPanel xuất hiện, nó sẽ co lại nếu có class .shrunk
+  */
+  flex: 1;
   overflow-y: auto;
   padding-right: 0.8rem;
-  transition: flex 0.3s ease, width 0.3s ease; // Animation mượt khi thu nhỏ
 
-  // Khi có task được chọn, panel này thu nhỏ lại
+  /* Hiệu ứng trượt mượt mà khi thay đổi kích thước */
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+  // Khi có task được chọn (Detail hiện ra), panel này thu nhỏ lại
   &.shrunk {
-    flex: 0 0 380px; // Cố định chiều rộng ~380px
+    flex: 0 0 400px; // Cố định chiều rộng list khi xem chi tiết
+    max-width: 400px; // Đảm bảo không bị giãn
+
     @media (max-width: 1024px) {
-      display: none; // Trên màn hình nhỏ, ẩn luôn list khi xem detail
+      // Trên màn hình nhỏ, ẩn list luôn để detail chiếm trọn
+      display: none;
     }
   }
 
   .panelHeader {
     margin-bottom: 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
     h3 {
       font-size: 1.8rem;
       font-weight: 700;
@@ -67,108 +80,33 @@
       display: inline-block;
       padding-bottom: 0.4rem;
     }
+
+    // [MỚI] Style cho nút thêm nhanh
+    .addTaskBtn {
+      background: var(--primary);
+      color: var(--white);
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.8rem;
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+      &:hover {
+        background: var(--primary-dark);
+      }
+    }
   }
 
   .listContent {
     display: flex;
     flex-direction: column;
     gap: 1.6rem;
-  }
-}
-
-// Card công việc trong danh sách
-.taskCard {
-  background: var(--white);
-  border-radius: 1.2rem;
-  padding: 2rem;
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-
-  &:hover {
-    border-color: var(--primary);
-    transform: translateY(-2px);
-  }
-
-  &.active {
-    border-color: var(--primary);
-    background-color: var(--primary-bg); // Xanh nhạt
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
-  }
-
-  .cardHeader {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 1.2rem;
-
-    .statusIcon {
-      &.notStarted {
-        color: var(--danger);
-      }
-      &.inProgress {
-        color: #3b82f6;
-      }
-    }
-    .moreIcon {
-      color: var(--text-light);
-    }
-  }
-
-  .taskTitle {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin-bottom: 0.8rem;
-  }
-
-  .taskDesc {
-    font-size: 1.4rem;
-    color: var(--text-light);
-    margin-bottom: 1.6rem;
-    line-height: 1.4;
-  }
-
-  .cardFooter {
-    font-size: 1.4rem;
-    border-top: 1px dashed var(--border-color);
-    padding-top: 1.2rem;
-
-    .meta {
-      display: flex;
-      margin-bottom: 0.4rem;
-      .label {
-        color: var(--text-light);
-        font-weight: 500;
-        width: 60px;
-      }
-
-      .value {
-        font-weight: 600;
-        &.extreme {
-          color: var(--danger);
-        }
-        &.moderate {
-          color: #3b82f6;
-        }
-        &.low {
-          color: var(--text-light);
-        }
-        &.pending {
-          color: var(--danger);
-        }
-        &.process {
-          color: #3b82f6;
-        }
-      }
-    }
-
-    .date {
-      margin-top: 0.8rem;
-      color: var(--text-light);
-      font-size: 1.4rem;
-      text-align: right;
-    }
   }
 }
 
@@ -181,7 +119,20 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slideLeft 0.3s ease-out;
+  /* Animation trượt vào từ bên phải */
+  animation: slideInRight 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+  // Sửa lại animation
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 
   // Khi mở rộng full màn hình
   &.fullWidth {
@@ -229,113 +180,150 @@
     flex: 1;
     overflow-y: auto;
     padding: 2.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 
-    .coverImage {
-      width: 100%;
-      height: 180px;
-      margin-bottom: 2.4rem;
-      border-radius: 1.2rem;
-      overflow: hidden;
+    // 1. Tiêu đề to đùng nằm trên cùng
+    .mainHeader {
+      border-bottom: 1px solid var(--bg-hover);
+      padding-bottom: 1.6rem;
 
-      .placeholderImg {
-        width: 100%;
-        height: 100%;
-        background-color: #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-light);
-        font-weight: 500;
-        // Nếu có ảnh thật: background-image: url(...)
-      }
-    }
-
-    .mainInfo {
       .bigTitle {
         font-size: 2.4rem;
         font-weight: 700;
         color: var(--text-main);
-        margin-bottom: 1.6rem;
+        margin-bottom: 0.8rem;
       }
 
-      .tagsRow {
+      .dateInfo {
+        font-size: 1.3rem;
+        color: var(--text-light);
         display: flex;
-        flex-wrap: wrap;
-        gap: 1.2rem;
-        margin-bottom: 2.4rem;
         align-items: center;
+        gap: 0.6rem;
+      }
+    }
 
-        .tag {
-          font-size: 1.2rem;
-          font-weight: 600;
-          padding: 0.6rem 1.2rem;
-          border-radius: 2rem;
+    // 2. Layout Chia Đôi (Split View)
+    .splitView {
+      display: flex;
+      gap: 2.4rem;
 
-          &.extreme {
-            background: #fee2e2;
-            color: var(--danger);
-          }
-          &.moderate {
-            background: #eff6ff;
-            color: #3b82f6;
-          }
-          &.low {
-            background: var(--bg-hover);
-            color: var(--text-light);
-          }
-          &.status {
-            background: #fef9c3;
-            color: #ca8a04;
-          }
+      @media (max-width: 900px) {
+        flex-direction: column; // Màn hình nhỏ thì xếp dọc lại
+      }
+
+      // Cột Trái: Ảnh (40%)
+      .imageColumn {
+        flex: 0 0 40%; // Fix cứng 40%
+        max-width: 40%;
+
+        @media (max-width: 900px) {
+          flex: 0 0 auto;
+          max-width: 100%;
         }
 
-        .dateInfo {
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-          font-size: 1.3rem;
-          color: var(--text-light);
-          margin-left: auto; // Đẩy ngày sang phải
+        .coverImage {
+          width: 100%;
+          // Aspect ratio giúp ảnh đẹp hơn: 4/3 hoặc 1/1 tùy ý
+          aspect-ratio: 4/3;
+          border-radius: 1.2rem;
+          overflow: hidden;
+          position: relative; // Để định vị các thành phần con nếu cần
+          border: 2px solid transparent; // Chuẩn bị viền cho hover
+          transition: all 0.2s ease;
+
+          // 1. Style cho thẻ IMG để ảnh không bị vỡ
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; // QUAN TRỌNG: Giữ tỷ lệ ảnh, cắt bớt phần thừa thay vì kéo dãn
+            display: block;
+          }
+
+          // 2. Style cho Placeholder (khi chưa có ảnh)
+          .placeholder {
+            width: 100%;
+            height: 100%;
+            background-color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            font-weight: 500;
+            gap: 0.8rem;
+            transition: all 0.2s;
+          }
+
+          // 3. Hiệu ứng Hover: Để người dùng biết khu vực này bấm vào được (Upload)
+          &:hover {
+            border-color: var(--primary); // Hiện viền xanh khi rê chuột vào
+
+            .placeholder {
+              background-color: #cbd5e1; // Làm tối màu nền placeholder chút
+              color: var(--primary);
+            }
+
+            img {
+              opacity: 0.9; // Làm mờ ảnh nhẹ để biết đang focus
+            }
+          }
         }
       }
 
-      .section {
-        margin-bottom: 2.4rem;
+      // Cột Phải: Thông tin (60%)
+      .infoColumn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
 
-        h3 {
-          font-size: 1.6rem;
-          font-weight: 700;
-          color: var(--text-light); // Label màu nhạt giống design
-          margin-bottom: 0.8rem;
+        .tagsRow {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+          .tag {
+            padding: 0.4rem 1rem;
+            border-radius: 0.6rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-transform: uppercase;
 
-          .normalText {
-            color: var(--text-main);
-            font-weight: 500;
+            &.extreme {
+              background: #fee2e2;
+              color: #ef4444;
+            }
+            &.moderate {
+              background: #eff6ff;
+              color: #3b82f6;
+            }
+            &.low {
+              background: #ecfdf5;
+              color: #10b981;
+            }
+            &.status {
+              background: var(--text-main);
+              color: var(--white);
+            }
           }
         }
 
-        p {
-          font-size: 1.5rem;
-          color: var(--text-main);
-          line-height: 1.6;
-
-          &.justified {
-            text-align: justify;
-          }
-        }
-
-        .notesList {
-          list-style: disc;
-          padding-left: 2rem;
-          color: var(--text-main);
-          li {
+        .section {
+          h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
             margin-bottom: 0.8rem;
           }
-        }
-
-        &.deadline {
-          color: var(--danger);
-          font-size: 1.5rem;
+          p {
+            font-size: 1.5rem;
+            color: var(--text-main);
+            line-height: 1.6;
+            text-align: justify;
+          }
         }
       }
     }
@@ -383,57 +371,5 @@
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-.detailContent {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2.4rem;
-
-  .coverImage {
-    width: 100%;
-    height: 180px;
-    margin-bottom: 2.4rem;
-    border-radius: 1.2rem;
-    overflow: hidden;
-    position: relative; // Để định vị các thành phần con nếu cần
-    border: 2px solid transparent; // Chuẩn bị viền cho hover
-    transition: all 0.2s ease;
-
-    // 1. Style cho thẻ IMG để ảnh không bị vỡ
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover; // QUAN TRỌNG: Giữ tỷ lệ ảnh, cắt bớt phần thừa thay vì kéo dãn
-      display: block;
-    }
-
-    // 2. Style cho Placeholder (khi chưa có ảnh)
-    .placeholderImg {
-      width: 100%;
-      height: 100%;
-      background-color: #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-light);
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    // 3. Hiệu ứng Hover: Để người dùng biết khu vực này bấm vào được (Upload)
-    &:hover {
-      border-color: var(--primary); // Hiện viền xanh khi rê chuột vào
-
-      .placeholderImg {
-        background-color: #cbd5e1; // Làm tối màu nền placeholder chút
-        color: var(--primary);
-      }
-
-      img {
-        opacity: 0.9; // Làm mờ ảnh nhẹ để biết đang focus
-      }
-    }
   }
 }

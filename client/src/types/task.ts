@@ -5,8 +5,24 @@ export interface ITaskResponse {
   image?: string;
   status: 'todo' | 'in_progress' | 'completed';
   priority: 'low' | 'moderate' | 'extreme';
-  dueDate: string; // ISO String
-  category?: string; // ID của category
-  group?: string; // ID của group (nếu có)
-  assignee?: string; // ID của user (nếu có)
+  dueDate: string;
+
+  // [MỚI] Thêm trường này để hiển thị "Created on..."
+  createdAt: string;
+
+  // [SỬA] Vì Backend có populate nên nó trả về Object
+  category?: {
+    _id: string;
+    name: string;
+    color: string;
+  };
+
+  // [SỬA] Tương tự category
+  group?: {
+    _id: string;
+    name: string;
+  };
+
+  // Assignee trong API getTasks chưa populate nên vẫn là string (ID)
+  assignee?: string;
 }
