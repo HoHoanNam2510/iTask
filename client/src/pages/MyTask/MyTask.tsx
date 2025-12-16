@@ -1,98 +1,70 @@
-import React, { useState, useRef } from 'react';
+/* src/pages/MyTasks/MyTask.tsx */
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import classNames from 'classnames/bind';
+import { format } from 'date-fns';
 import {
   Calendar,
-  MoreHorizontal,
   Maximize2,
   Minimize2,
   X,
-  CheckCircle2,
-  AlertCircle,
-  Image as ImageIcon, // Thêm icon ảnh để hiển thị placeholder đẹp hơn
-  Upload, // Thêm icon upload
+  Image as ImageIcon,
+  Plus,
 } from 'lucide-react';
+
 import styles from './MyTask.module.scss';
+import TaskItem from '~/components/TaskItem/TaskItem';
+import TaskModal from '~/components/TaskModal/TaskModal';
+import type { ITaskResponse } from '~/types/task';
 
 const cx = classNames.bind(styles);
 
-// --- Types & Mock Data ---
-interface Task {
-  id: string;
-  title: string;
-  descShort: string;
-  priority: 'Extreme' | 'Moderate' | 'Low';
-  status: 'Not Started' | 'In Progress' | 'Completed';
-  createdDate: string;
-  objective?: string;
-  descriptionFull?: string;
-  notes?: string[];
-  deadline?: string;
-  image?: string; // <--- Thêm trường này để lưu URL ảnh
-}
-
-// Đổi tên thành initialTasks để làm giá trị khởi tạo cho state
-const initialTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Submit Documents',
-    descShort: 'Make sure to submit all the necessary documents...',
-    priority: 'Extreme',
-    status: 'Not Started',
-    createdDate: '20/06/2025',
-    objective: 'To submit required documents for something important.',
-    descriptionFull:
-      'Review the list of documents required for submission and ensure all necessary documents are ready. Organize the documents accordingly and scan them if physical copies need to be submitted digitally.',
-    notes: [
-      'Ensure that the documents are authentic and up-to-date.',
-      'Maintain confidentiality during submission.',
-      'Check specific guidelines for deadlines.',
-    ],
-    deadline: 'End of Day',
-    // image: '...' // Có thể có ảnh mặc định nếu muốn
-  },
-  {
-    id: '2',
-    title: 'Complete Assignments',
-    descShort: 'The assignments must be completed to pass final year...',
-    priority: 'Moderate',
-    status: 'In Progress',
-    createdDate: '21/06/2025',
-    objective: 'Complete all module assignments.',
-    descriptionFull:
-      'Finish the coding assignment for React module and write report for Database design.',
-    notes: ['Double check grammar in report.'],
-    deadline: 'Next Monday',
-  },
-  {
-    id: '3',
-    title: 'Team Meeting Preparation',
-    descShort: 'Prepare slides for the upcoming weekly sync...',
-    priority: 'Low',
-    status: 'Not Started',
-    createdDate: '22/06/2025',
-    objective: 'Prepare slide deck.',
-    descriptionFull:
-      'Gather metrics from last week and put them into the slide template.',
-    deadline: 'Wednesday',
-  },
-];
-
 const MyTask = () => {
-  // Chuyển danh sách task thành State để có thể cập nhật ảnh
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  // --- STATE ---
+  const [tasks, setTasks] = useState<ITaskResponse[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Ref để truy cập input file ẩn
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // [MỚI] State cho Modal Add/Edit
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
 
-  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+  // --- FETCH DATA ---
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/tasks', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        setTasks(res.data.tasks);
+      }
+    } catch (error) {
+      console.error('Lỗi tải tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // --- Handlers ---
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  // --- HELPERS ---
+  const selectedTask = tasks.find((t) => t._id === selectedTaskId);
+
+  const getImageUrl = (path?: string) => {
+    if (!path) return null;
+    if (path.startsWith('http') || path.startsWith('blob:')) return path;
+    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
+  };
+
+  // --- HANDLERS ---
   const handleSelectTask = (id: string) => {
-    if (selectedTaskId === id) {
-      handleCloseDetail();
-    } else {
+    if (selectedTaskId === id) handleCloseDetail();
+    else {
       setSelectedTaskId(id);
       setIsFullScreen(false);
     }
@@ -103,121 +75,109 @@ const MyTask = () => {
     setIsFullScreen(false);
   };
 
-  const toggleFullScreen = () => {
-    setIsFullScreen(!isFullScreen);
+  // [MỚI] Mở Modal Thêm mới
+  const handleAddTask = () => {
+    setTaskToEdit(null); // Reset task edit
+    setIsModalOpen(true);
   };
 
-  // 1. Hàm kích hoạt click vào input file ẩn
-  const handleImageClick = () => {
-    fileInputRef.current?.click();
+  // [MỚI] Mở Modal Chỉnh sửa
+  const handleEditTask = () => {
+    if (selectedTask) {
+      setTaskToEdit(selectedTask);
+      setIsModalOpen(true);
+    }
   };
 
-  // 2. Hàm xử lý khi người dùng chọn file
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && selectedTaskId) {
-      // Tạo URL tạm thời cho ảnh vừa upload
-      const imageUrl = URL.createObjectURL(file);
+  // [MỚI] Xử lý Xóa Task
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
 
-      // Cập nhật state tasks
-      setTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.id === selectedTaskId ? { ...t, image: imageUrl } : t
-        )
-      );
+    if (
+      window.confirm(`Bạn có chắc muốn xóa công việc "${selectedTask.title}"?`)
+    ) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(
+          `http://localhost:5000/api/tasks/${selectedTask._id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        // Xóa thành công: Reload list & đóng detail
+        fetchTasks();
+        handleCloseDetail();
+      } catch (error) {
+        console.error('Lỗi xóa task:', error);
+        alert('Không thể xóa công việc này!');
+      }
     }
   };
 
   return (
     <div className={cx('wrapper')}>
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       {!isFullScreen && (
         <header className={cx('header')}>
           <h1 className={cx('title')}>My Tasks</h1>
-          <p className={cx('subtitle')}>Quản lý chi tiết công việc của bạn</p>
+          <p className={cx('subtitle')}>
+            Quản lý chi tiết công việc của bạn ({tasks.length})
+          </p>
         </header>
       )}
 
       <div className={cx('container')}>
-        {/* --- LEFT COLUMN: TASK LIST --- */}
+        {/* --- LEFT: TASK LIST --- */}
         {!isFullScreen && (
           <div className={cx('listPanel', { shrunk: !!selectedTaskId })}>
             <div className={cx('panelHeader')}>
               <h3>Danh sách công việc</h3>
+              {/* [MỚI] Nút Add Task */}
+              <button
+                className={cx('addTaskBtn')}
+                onClick={handleAddTask}
+                title="Thêm công việc mới"
+              >
+                <Plus size={16} /> Add task
+              </button>
             </div>
 
             <div className={cx('listContent')}>
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={cx('taskCard', {
-                    active: selectedTaskId === task.id,
-                  })}
-                  onClick={() => handleSelectTask(task.id)}
+              {loading ? (
+                <p
+                  style={{ textAlign: 'center', color: '#888', marginTop: 20 }}
                 >
-                  <div className={cx('cardHeader')}>
-                    <div
-                      className={cx(
-                        'statusIcon',
-                        task.status === 'Not Started'
-                          ? 'notStarted'
-                          : 'inProgress'
-                      )}
-                    >
-                      {task.status === 'Not Started' ? (
-                        <AlertCircle size={16} />
-                      ) : (
-                        <CheckCircle2 size={16} />
-                      )}
-                    </div>
-                    <MoreHorizontal size={16} className={cx('moreIcon')} />
-                  </div>
-
-                  <h4 className={cx('taskTitle')}>{task.title}</h4>
-                  <p className={cx('taskDesc')}>{task.descShort}</p>
-
-                  <div className={cx('cardFooter')}>
-                    <div className={cx('meta')}>
-                      <span className={cx('label')}>Priority:</span>
-                      <span
-                        className={cx('value', task.priority.toLowerCase())}
-                      >
-                        {task.priority}
-                      </span>
-                    </div>
-                    <div className={cx('meta')}>
-                      <span className={cx('label')}>Status:</span>
-                      <span
-                        className={cx(
-                          'value',
-                          task.status === 'Not Started' ? 'pending' : 'process'
-                        )}
-                      >
-                        {task.status}
-                      </span>
-                    </div>
-                    <div className={cx('date')}>
-                      Created on: {task.createdDate}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  Đang tải...
+                </p>
+              ) : tasks.length === 0 ? (
+                <p
+                  style={{ textAlign: 'center', color: '#888', marginTop: 20 }}
+                >
+                  Chưa có công việc nào.
+                </p>
+              ) : (
+                tasks.map((task) => (
+                  <TaskItem
+                    key={task._id}
+                    task={task}
+                    isActive={selectedTaskId === task._id}
+                    onClick={() => handleSelectTask(task._id)}
+                  />
+                ))
+              )}
             </div>
           </div>
         )}
 
-        {/* --- RIGHT COLUMN: TASK DETAIL --- */}
-        {selectedTask ? (
+        {/* --- RIGHT: DETAIL VIEW --- */}
+        {selectedTask && (
           <div className={cx('detailPanel', { fullWidth: isFullScreen })}>
+            {/* Toolbar */}
             <div className={cx('detailToolbar')}>
               <button
                 className={cx('toolBtn')}
-                onClick={toggleFullScreen}
-                title={
-                  isFullScreen
-                    ? 'Thu nhỏ (Hiện danh sách)'
-                    : 'Mở rộng (Ẩn danh sách)'
-                }
+                onClick={() => setIsFullScreen(!isFullScreen)}
               >
                 {isFullScreen ? (
                   <Minimize2 size={20} />
@@ -228,123 +188,131 @@ const MyTask = () => {
               <button
                 className={cx('toolBtn', 'close')}
                 onClick={handleCloseDetail}
-                title="Đóng"
               >
                 <X size={20} />
               </button>
             </div>
 
+            {/* DETAIL CONTENT */}
             <div className={cx('detailContent')}>
-              {/* --- PHẦN UPLOAD ẢNH ĐÃ ĐƯỢC CẬP NHẬT --- */}
-              <div
-                className={cx('coverImage')}
-                onClick={handleImageClick}
-                style={{ cursor: 'pointer', position: 'relative' }} // Thêm cursor pointer để người dùng biết click được
-                title="Bấm để thay đổi ảnh bìa"
-              >
-                {/* Input File Ẩn */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-
-                {selectedTask.image ? (
-                  // Hiển thị ảnh nếu đã có
-                  <img
-                    src={selectedTask.image}
-                    alt="Task Context"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                ) : (
-                  // Placeholder nếu chưa có ảnh
-                  <div className={cx('placeholderImg')}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                    >
-                      <Upload size={24} />
-                      <span>Click to Upload Task Image</span>
-                    </div>
-                  </div>
-                )}
+              {/* 1. Title & Meta */}
+              <div className={cx('mainHeader')}>
+                <h2 className={cx('bigTitle')}>{selectedTask.title}</h2>
+                <div className={cx('dateInfo')}>
+                  <Calendar size={14} />
+                  <span>
+                    Created:{' '}
+                    {format(
+                      new Date(selectedTask.createdAt),
+                      'dd/MM/yyyy HH:mm'
+                    )}
+                  </span>
+                  {selectedTask.dueDate && (
+                    <span style={{ marginLeft: 10, color: '#ef4444' }}>
+                      • Due:{' '}
+                      {format(new Date(selectedTask.dueDate), 'dd/MM/yyyy')}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className={cx('mainInfo')}>
-                <h2 className={cx('bigTitle')}>{selectedTask.title}</h2>
-
-                <div className={cx('tagsRow')}>
-                  <span
-                    className={cx('tag', selectedTask.priority.toLowerCase())}
-                  >
-                    Priority: {selectedTask.priority}
-                  </span>
-                  <span className={cx('tag', 'status')}>
-                    Status: {selectedTask.status}
-                  </span>
-                  <span className={cx('dateInfo')}>
-                    <Calendar size={14} /> {selectedTask.createdDate}
-                  </span>
+              {/* 2. Split View */}
+              <div className={cx('splitView')}>
+                {/* CỘT TRÁI: ẢNH */}
+                <div className={cx('imageColumn')}>
+                  <div className={cx('coverImage')}>
+                    {getImageUrl(selectedTask.image) ? (
+                      <img
+                        src={getImageUrl(selectedTask.image)!}
+                        alt="Task cover"
+                      />
+                    ) : (
+                      <div className={cx('placeholder')}>
+                        <ImageIcon size={32} />
+                        <span>No Image</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className={cx('section')}>
-                  <h3>
-                    Task Title:{' '}
-                    <span className={cx('normalText')}>
-                      {selectedTask.title}
+                {/* CỘT PHẢI: CHI TIẾT */}
+                <div className={cx('infoColumn')}>
+                  <div className={cx('tagsRow')}>
+                    <span className={cx('tag', selectedTask.priority)}>
+                      {selectedTask.priority}
                     </span>
-                  </h3>
-                </div>
+                    <span className={cx('tag', 'status')}>
+                      {selectedTask.status.replace('_', ' ')}
+                    </span>
 
-                <div className={cx('section')}>
-                  <h3>Objective:</h3>
-                  <p>{selectedTask.objective}</p>
-                </div>
+                    {selectedTask.category && (
+                      <span
+                        className={cx('tag')}
+                        style={{
+                          backgroundColor:
+                            selectedTask.category.color || '#94a3b8',
+                          color: '#fff',
+                          border: 'none',
+                        }}
+                      >
+                        {selectedTask.category.name}
+                      </span>
+                    )}
 
-                <div className={cx('section')}>
-                  <h3>Task Description:</h3>
-                  <p className={cx('justified')}>
-                    {selectedTask.descriptionFull}
-                  </p>
-                </div>
+                    {selectedTask.group && (
+                      <span
+                        style={{
+                          fontSize: 16,
+                          color: '#666',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        Group: {selectedTask.group.name}
+                      </span>
+                    )}
+                  </div>
 
-                {selectedTask.notes && (
                   <div className={cx('section')}>
-                    <h3>Additional Notes:</h3>
-                    <ul className={cx('notesList')}>
-                      {selectedTask.notes.map((note, idx) => (
-                        <li key={idx}>{note}</li>
-                      ))}
-                    </ul>
+                    <h3>Description</h3>
+                    <p>
+                      {selectedTask.description || 'Không có mô tả chi tiết.'}
+                    </p>
                   </div>
-                )}
-
-                {selectedTask.deadline && (
-                  <div className={cx('section', 'deadline')}>
-                    <strong>Deadline for Submission:</strong>{' '}
-                    {selectedTask.deadline}
-                  </div>
-                )}
+                </div>
               </div>
             </div>
 
+            {/* Footer */}
             <div className={cx('detailFooter')}>
-              <button className={cx('footerBtn', 'delete')}>Delete Task</button>
-              <button className={cx('footerBtn', 'edit')}>Edit Task</button>
+              <button
+                className={cx('footerBtn', 'delete')}
+                onClick={handleDeleteTask} // [MỚI] Gắn sự kiện Xóa
+              >
+                Delete Task
+              </button>
+              <button
+                className={cx('footerBtn', 'edit')}
+                onClick={handleEditTask} // [MỚI] Gắn sự kiện Sửa
+              >
+                Edit Task
+              </button>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
+
+      {/* [MỚI] MODAL ADD/EDIT TASK */}
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          fetchTasks(); // Reload list sau khi thêm/sửa thành công
+          // Nếu đang edit thì cần reload lại selectedTask (bằng cách fetchTasks sẽ tự update state tasks)
+          // Nếu muốn UX tốt hơn có thể update local state tasks luôn
+        }}
+        taskToEdit={taskToEdit} // Truyền task cần sửa (null nếu thêm mới)
+      />
     </div>
   );
 };

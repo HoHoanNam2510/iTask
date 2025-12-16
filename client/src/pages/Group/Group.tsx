@@ -224,7 +224,10 @@ const Group: React.FC = () => {
           label="In Progress"
           value={getTasksByStatus('in_progress').length}
         />
-        <StatCard label="Done" value={getTasksByStatus('completed').length} />
+        <StatCard
+          label="Completed"
+          value={getTasksByStatus('completed').length}
+        />
       </div>
 
       {/* [MỚI] KANBAN BOARD VỚI DRAG & DROP */}
@@ -248,7 +251,7 @@ const Group: React.FC = () => {
           />
           <TaskColumn
             id="completed"
-            title="Done"
+            title="Completed"
             tasks={getTasksByStatus('completed')}
             headerClass="doneHeader"
             onEdit={handleEditTask}

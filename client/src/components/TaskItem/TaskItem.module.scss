@@ -1,0 +1,116 @@
+.taskCard {
+  background: var(--white);
+  border-radius: 1.2rem;
+  padding: 1.6rem;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  &.active {
+    border-color: var(--primary);
+    background-color: var(--primary-bg);
+    box-shadow: 0 0 0 2px rgba(64, 165, 120, 0.1);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  align-items: center;
+
+  .statusWrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    .icon.todo {
+      color: #f59e0b;
+    }
+    .icon.process {
+      color: #3b82f6;
+    }
+    .icon.done {
+      color: #10b981;
+    }
+
+    .statusText {
+      font-size: 1.2rem;
+      text-transform: capitalize;
+      color: var(--text-light);
+      font-weight: 500;
+    }
+  }
+  .moreIcon {
+    color: var(--text-light);
+  }
+}
+
+.taskTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.6rem;
+}
+
+.taskDesc {
+  font-size: 1.3rem;
+  color: var(--text-light);
+  margin-bottom: 1.6rem;
+  line-height: 1.4;
+  height: 3.6rem; /* Giới hạn chiều cao */
+  overflow: hidden;
+}
+
+.cardFooter {
+  font-size: 1.3rem;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .meta {
+    display: flex;
+    gap: 0.4rem;
+    .label {
+      color: var(--text-light);
+    }
+    .value {
+      font-weight: 600;
+      text-transform: capitalize;
+      &.extreme {
+        color: var(--danger);
+      }
+      &.moderate {
+        color: #3b82f6;
+      }
+      &.low {
+        color: #10b981;
+      }
+    }
+  }
+
+  // [MỚI] Style cho Category Tag
+  .categoryBadge {
+    font-size: 1rem;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .date {
+    color: var(--text-light);
+    font-size: 1.2rem;
+  }
+}
