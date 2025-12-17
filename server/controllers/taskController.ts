@@ -1,20 +1,26 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
+import fs from 'fs'; // Thư viện thao tác file
+import path from 'path'; // Thư viện thao tác đường dẫn
+
+// [HELPER] Hàm lấy đường dẫn file chuẩn xác
+// Vì thư mục 'uploads' nằm TRONG 'server', nên ta nối trực tiếp process.cwd() với đường dẫn ảnh
+const getLocalImagePath = (dbPath: string) => {
+  return path.join(process.cwd(), dbPath);
+};
 
 // [GET] /api/tasks
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
 
-    // Lấy tất cả task mà user là người tạo HOẶC được gán
-    // Sắp xếp theo ngày tạo mới nhất (sort -1)
     const tasks = await Task.find({
       $or: [{ creator: userId }, { assignee: userId }],
     })
       .sort({ createdAt: -1 })
-      .populate('category', 'name color') // Nếu muốn lấy chi tiết category
-      .populate('group', 'name'); // Nếu muốn lấy chi tiết group
+      .populate('category', 'name color')
+      .populate('group', 'name');
 
     res.status(200).json({
       success: true,
@@ -36,9 +42,8 @@ export const createTask = async (
 ): Promise<void> => {
   console.log('👉 Đã nhận được request tạo Task!', req.body);
 
-  // Thay đổi kiểu return để tránh lỗi TS
   try {
-    // 1. Kiểm tra Auth trước (Quan trọng!)
+    // 1. Kiểm tra Auth
     const creatorId = (req as any).user?._id;
     if (!creatorId) {
       res
@@ -48,7 +53,6 @@ export const createTask = async (
     }
 
     // 2. Lấy dữ liệu
-    // Lưu ý: Frontend cần gửi key 'date' hoặc 'dueDate' đều được xử lý
     const {
       title,
       description,
@@ -60,8 +64,7 @@ export const createTask = async (
       categoryId,
     } = req.body;
 
-    // Kiểm tra field bắt buộc: Title và Date
-    const finalDate = date || dueDate; // Ưu tiên cái nào có dữ liệu
+    const finalDate = date || dueDate;
     if (!title || !finalDate) {
       res
         .status(400)
@@ -69,18 +72,17 @@ export const createTask = async (
       return;
     }
 
-    // 3. Xử lý ảnh
+    // 3. Xử lý ảnh (Lưu đường dẫn tương đối: uploads/filename)
     let imageUrl = '';
     if (req.file) {
-      imageUrl = req.file.path.replace(/\\/g, '/');
+      imageUrl = `uploads/${req.file.filename}`;
     }
 
-    // 4. Xử lý Logic Group/Assignee
+    // 4. Xử lý Group/Assignee
     const group = groupId ? groupId : null;
     const assignee = req.body.assignee ? req.body.assignee : creatorId;
 
-    // 5. Xử lý Priority (Chuyển về chữ thường để khớp với Enum của Model)
-    // Nếu không gửi lên thì mặc định là 'moderate'
+    // 5. Priority
     const finalPriority = priority ? priority.toLowerCase() : 'moderate';
 
     // 6. Tạo Task
@@ -88,7 +90,7 @@ export const createTask = async (
       title,
       description,
       image: imageUrl,
-      dueDate: new Date(finalDate), // Đảm bảo format Date
+      dueDate: new Date(finalDate),
       priority: finalPriority,
       status: status || 'todo',
       creator: creatorId,
@@ -98,10 +100,7 @@ export const createTask = async (
     });
 
     await newTask.save();
-
     console.log(`✅ Đã lưu Task "${newTask.title}" với ID: ${newTask._id}`);
-    console.log(`📂 Vào Database: ${mongoose.connection.name}`);
-    console.log(`📚 Vào Collection: ${newTask.collection.name}`);
 
     res.status(201).json({
       success: true,
@@ -109,14 +108,11 @@ export const createTask = async (
       task: newTask,
     });
   } catch (error: any) {
-    console.error('Create Task Error:', error); // Log lỗi ra terminal để debug
-
-    // Bắt lỗi Validation của Mongoose để trả về frontend dễ hiểu hơn
+    console.error('Create Task Error:', error);
     if (error.name === 'ValidationError') {
       res.status(400).json({ success: false, message: error.message });
       return;
     }
-
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
@@ -128,27 +124,40 @@ export const updateTask = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-
-    // 1. Lấy dữ liệu dạng text từ Form
     const updateData: any = { ...req.body };
 
-    // 2. Kiểm tra nếu người dùng có upload ảnh mới
+    // --- LOGIC XÓA ẢNH CŨ KHI CÓ ẢNH MỚI ---
     if (req.file) {
-      // Lưu đường dẫn ảnh mới vào DB (chuẩn hóa dấu gạch chéo)
-      updateData.image = req.file.path.replace(/\\/g, '/');
-    }
+      // 1. Set đường dẫn ảnh mới
+      updateData.image = `uploads/${req.file.filename}`;
 
-    // 3. Xử lý Priority (nếu có gửi lên thì lowercase)
+      // 2. Tìm task cũ
+      const oldTask = await Task.findById(id);
+
+      // 3. Xóa ảnh cũ nếu có
+      if (oldTask && oldTask.image && !oldTask.image.startsWith('http')) {
+        // [QUAN TRỌNG] Sử dụng hàm helper đã sửa đường dẫn
+        const oldAbsolutePath = getLocalImagePath(oldTask.image);
+
+        if (fs.existsSync(oldAbsolutePath)) {
+          try {
+            fs.unlinkSync(oldAbsolutePath);
+            console.log('🗑️ Đã xóa file ảnh cũ:', oldAbsolutePath);
+          } catch (err) {
+            console.error('Lỗi khi xóa ảnh cũ:', err);
+          }
+        }
+      }
+    }
+    // ----------------------------------------
+
     if (updateData.priority) {
       updateData.priority = updateData.priority.toLowerCase();
     }
-
-    // 4. Xử lý Date (nếu có gửi lên)
     if (updateData.date) {
       updateData.dueDate = new Date(updateData.date);
     }
 
-    // 5. Tìm và Update
     const updatedTask = await Task.findByIdAndUpdate(id, updateData, {
       new: true,
     });
@@ -172,12 +181,34 @@ export const deleteTask = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const deletedTask = await Task.findByIdAndDelete(id);
 
-    if (!deletedTask) {
+    // --- LOGIC XÓA ẢNH KHI XÓA TASK ---
+    const taskToDelete = await Task.findById(id);
+
+    if (!taskToDelete) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
+
+    // Nếu có ảnh, xóa file trên ổ cứng
+    if (taskToDelete.image && !taskToDelete.image.startsWith('http')) {
+      // [QUAN TRỌNG] Sử dụng hàm helper đã sửa đường dẫn
+      const imagePath = getLocalImagePath(taskToDelete.image);
+
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath);
+          console.log('🗑️ Đã dọn dẹp ảnh của task bị xóa:', imagePath);
+        } catch (err) {
+          console.error('Lỗi dọn dẹp ảnh:', err);
+        }
+      } else {
+        console.log('⚠️ File ảnh không tồn tại để xóa:', imagePath);
+      }
+    }
+    // -----------------------------------
+
+    await Task.findByIdAndDelete(id);
 
     res.json({ success: true, message: 'Task deleted successfully' });
   } catch (error) {

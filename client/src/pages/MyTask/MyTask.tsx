@@ -19,6 +19,21 @@ import type { ITaskResponse } from '~/types/task';
 
 const cx = classNames.bind(styles);
 
+const getImageUrl = (imagePath?: string) => {
+  if (!imagePath) return null;
+
+  // Nếu là link online hoặc blob thì giữ nguyên
+  if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) {
+    return imagePath;
+  }
+
+  // Xử lý đường dẫn từ backend (sửa lỗi dấu gạch chéo ngược trên Windows)
+  const cleanPath = imagePath.replace(/\\/g, '/');
+
+  // Trả về full URL (Backend chạy port 5000)
+  return `http://localhost:5000/${cleanPath}`;
+};
+
 const MyTask = () => {
   // --- STATE ---
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
@@ -54,12 +69,6 @@ const MyTask = () => {
 
   // --- HELPERS ---
   const selectedTask = tasks.find((t) => t._id === selectedTaskId);
-
-  const getImageUrl = (path?: string) => {
-    if (!path) return null;
-    if (path.startsWith('http') || path.startsWith('blob:')) return path;
-    return `http://localhost:5000/${path.replace(/\\/g, '/')}`;
-  };
 
   // --- HANDLERS ---
   const handleSelectTask = (id: string) => {
@@ -225,12 +234,13 @@ const MyTask = () => {
                       <img
                         src={getImageUrl(selectedTask.image)!}
                         alt="Task cover"
+                        // Thêm dòng này để nếu ảnh lỗi thì tự ẩn đi
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
                       />
                     ) : (
-                      <div className={cx('placeholder')}>
-                        <ImageIcon size={32} />
-                        <span>No Image</span>
-                      </div>
+                      <div className={cx('placeholder')}>...</div>
                     )}
                   </div>
                 </div>

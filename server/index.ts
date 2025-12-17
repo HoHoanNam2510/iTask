@@ -26,7 +26,7 @@ app.use(express.json()); // Để đọc được req.body
 app.use(express.urlencoded({ extended: true }));
 
 // PUBLIC THƯ MỤC UPLOADS
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const uploadsPath = path.join(process.cwd(), '../uploads');
 
 // 4. LOGGER CỰC MẠNH (Để debug)
 app.use((req, res, next) => {
