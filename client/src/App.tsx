@@ -1,3 +1,4 @@
+/* client/src/App.tsx */
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,18 +8,21 @@ import {
 import { publicRoutes, privateRoutes } from './routes';
 import DefaultLayout from './layouts/DefaultLayout';
 import React, { Fragment } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext'; // Import mới
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
-// Component bảo vệ Routes dùng Context
+// Import AdminRoute đã tách ra file riêng
+import AdminRoute from './components/Routing/AdminRoute';
+
+// 1. ProtectedRoute (Cho User thường & Admin đều vào được)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
-
   if (isLoading) return <div>Loading...</div>;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-// Tách Routes ra component con để dùng được useAuth
+// [ĐÃ XÓA] const AdminRoute... (Vì đã import ở trên)
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -42,7 +46,7 @@ const AppRoutes = () => {
         );
       })}
 
-      {/* PRIVATE ROUTES */}
+      {/* PRIVATE ROUTES (User logged in) */}
       {privateRoutes.map((route, index) => {
         const Page = route.component;
         let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
@@ -63,13 +67,28 @@ const AppRoutes = () => {
           />
         );
       })}
+
+      {/* [MỚI] ADMIN ROUTES */}
+      {/* Route này được bảo vệ bởi component AdminRoute import từ bên ngoài */}
+      <Route path="/admin" element={<AdminRoute />}>
+        <Route
+          index
+          element={
+            <div style={{ padding: 50 }}>
+              <h1>Admin Dashboard</h1>
+              <p>Welcome, Admin!</p>
+              {/* Sau này bạn sẽ import component AdminDashboard thật vào đây */}
+            </div>
+          }
+        />
+        {/* Thêm các route admin con khác: /admin/users, /admin/analytics... */}
+      </Route>
     </Routes>
   );
 };
 
 const App = () => {
   return (
-    // Bọc AuthProvider ở ngoài cùng
     <AuthProvider>
       <ThemeProvider>
         <Router>
