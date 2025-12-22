@@ -5,9 +5,9 @@ import fs from 'fs'; // Thư viện thao tác file
 import path from 'path'; // Thư viện thao tác đường dẫn
 
 // [HELPER] Hàm lấy đường dẫn file chuẩn xác
-// Vì thư mục 'uploads' nằm TRONG 'server', nên ta nối trực tiếp process.cwd() với đường dẫn ảnh
+// Thêm '../' để lùi ra ngoài folder server
 const getLocalImagePath = (dbPath: string) => {
-  return path.join(process.cwd(), dbPath);
+  return path.join(process.cwd(), '../', dbPath);
 };
 
 // [GET] /api/tasks

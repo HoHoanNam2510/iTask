@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import User from '../models/User';
+
+// [MỚI] Hàm lấy đường dẫn file chuẩn xác
+// Do uploads nằm ngang hàng với server, ta phải dùng '../' để lùi ra ngoài folder server
+const getLocalImagePath = (dbPath: string) => {
+  return path.join(process.cwd(), '../', dbPath);
+};
 
 // [PUT] /api/users/profile
 export const updateUserProfile = async (
@@ -7,46 +15,57 @@ export const updateUserProfile = async (
   res: Response
 ): Promise<void> => {
   try {
-    // 1. Lấy ID user từ token (được middleware verifyToken gán vào req.user)
     const userId = (req as any).user._id;
 
-    // 👇 [LOG DEBUG QUAN TRỌNG] 👇
+    // Log debug (Giữ nguyên của bạn)
     console.log('--- DEBUG UPDATE PROFILE ---');
-    console.log('📂 req.file:', req.file); // Xem có nhận được file không
-    console.log('📝 req.body:', req.body); // Xem Multer đã parse ra fields chưa
+    console.log('📂 req.file:', req.file);
+    console.log('📝 req.body:', req.body);
     console.log('----------------------------');
 
-    // 2. Lấy dữ liệu từ client gửi lên
-    // Frontend gửi 'name', nhưng DB của bạn tên là 'username' -> Cần map lại
     const { name } = req.body;
     let avatarPath = '';
 
-    // 3. Xử lý file ảnh (Avatar)
-    if (req.file) {
-      avatarPath = `uploads/${req.file.filename}`;
-    }
-
-    // 4. Tìm User trong DB
+    // 1. Tìm User TRƯỚC để lấy avatar cũ
     const user = await User.findById(userId);
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
 
-    // 5. Cập nhật thông tin
-    if (name) user.username = name; // Map 'name' từ form vào 'username' của Model
+    // 2. Nếu người dùng có upload ảnh mới
+    if (req.file) {
+      avatarPath = `uploads/${req.file.filename}`;
+
+      // 👇 [LOGIC MỚI] XÓA ẢNH CŨ 👇
+      if (user.avatar && !user.avatar.startsWith('http')) {
+        const oldAbsolutePath = getLocalImagePath(user.avatar);
+
+        // Kiểm tra file có tồn tại không rồi xóa
+        if (fs.existsSync(oldAbsolutePath)) {
+          try {
+            fs.unlinkSync(oldAbsolutePath);
+            console.log('🗑️ Đã xóa avatar cũ:', oldAbsolutePath);
+          } catch (err) {
+            console.error('❌ Lỗi không xóa được ảnh cũ:', err);
+          }
+        }
+      }
+      // 👆 [HẾT LOGIC XÓA] 👆
+    }
+
+    // 3. Cập nhật thông tin vào DB
+    if (name) user.username = name;
     if (avatarPath) user.avatar = avatarPath;
 
-    // 6. Lưu vào DB
     await user.save();
 
-    // 7. Trả về kết quả (Trả về user mới để Frontend update Context)
     res.json({
       success: true,
       message: 'Cập nhật thông tin thành công',
       user: {
         _id: user._id,
-        username: user.username, // Trả về 'name' để khớp với interface frontend
+        username: user.username,
         email: user.email,
         avatar: user.avatar,
         role: user.role,
