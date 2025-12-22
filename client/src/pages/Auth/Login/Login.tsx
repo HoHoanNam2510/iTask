@@ -27,7 +27,7 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setIsLoading(true); // Nên set loading true khi bắt đầu gọi
+      setIsLoading(true);
 
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         email,
@@ -35,16 +35,25 @@ const Login: React.FC = () => {
       });
 
       if (res.data.success) {
-        // -----------------------------------------------------------
-        // ✅ SỬA LẠI: Gọi hàm login() của Context thay vì set localStorage thủ công
-        // Hàm này sẽ tự động:
-        // 1. Lưu localStorage
-        // 2. Cập nhật State để Sidebar/Dashboard đổi giao diện NGAY LẬP TỨC
-        // -----------------------------------------------------------
-        login(res.data.token, res.data.user);
+        const { token, user } = res.data;
 
-        alert('Đăng nhập thành công! Chào mừng quay lại.');
-        navigate('/');
+        // 1. Lưu thông tin
+        login(token, user);
+
+        // 2. Thông báo (Tùy chọn)
+        // alert('Đăng nhập thành công! Chào mừng quay lại.');
+        // Nên bỏ alert để trải nghiệm mượt hơn, hoặc dùng thư viện Toast
+
+        // 3. ĐIỀU HƯỚNG (Chỉ giữ lại đoạn này)
+        if (user.role === 'admin') {
+          console.log('👑 Admin detected -> /admin');
+          navigate('/admin');
+        } else {
+          console.log('👤 User detected -> /');
+          navigate('/');
+        }
+
+        // ❌ XÓA DÒNG navigate('/') Ở ĐÂY ĐI
       }
     } catch (error: any) {
       console.error('Login Error:', error);

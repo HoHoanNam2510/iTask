@@ -11,9 +11,14 @@ import Dashboard from '~/pages/Dashboard/Dashboard';
 import TaskCategories from '~/pages/TaskCategories/TaskCategories';
 import CategoryDetail from '~/pages/TaskCategories/CategoryDetail';
 
+// Admin Pages
+import AdminDashboard from '~/pages/Admin/Dashboard/Dashboard';
+import UserManagement from '~/pages/Admin/UserManagement/UserManagement';
+
 // Layouts
 import AuthLayout from '~/layouts/AuthLayout';
 import DefaultLayout from '~/layouts/DefaultLayout';
+import AdminLayout from '~/layouts/AdminLayout/AdminLayout';
 
 type RouteType = {
   path: string;
@@ -25,7 +30,7 @@ type RouteType = {
 const publicRoutes: RouteType[] = [
   { path: '/login', component: Login, layout: AuthLayout },
   { path: '/register', component: Register, layout: AuthLayout },
-  { path: '/', component: Dashboard, layout: DefaultLayout }, // <--- ĐÃ CHUYỂN DASHBOARD VỀ ĐÂY
+  { path: '/', component: Dashboard, layout: DefaultLayout },
 ];
 
 // 2. PRIVATE ROUTES (Chưa login sẽ bị đá về trang Login)
@@ -47,4 +52,23 @@ const privateRoutes: RouteType[] = [
   { path: '/groups/:groupId', component: Group, layout: DefaultLayout },
 ];
 
-export { publicRoutes, privateRoutes };
+// 3. ADMIN ROUTES (Dảnh riêng cho Admin)
+const adminRoutes: RouteType[] = [
+  {
+    path: '/admin',
+    component: AdminDashboard,
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/settings',
+    component: Setting, // Tái sử dụng component Setting của User
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/users',
+    component: UserManagement,
+    layout: AdminLayout,
+  },
+];
+
+export { publicRoutes, privateRoutes, adminRoutes };

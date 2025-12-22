@@ -24,7 +24,7 @@ const Setting = () => {
   // Load dữ liệu user ban đầu
   useEffect(() => {
     if (user) {
-      setName(user.name || ''); // Fallback về chuỗi rỗng nếu user.name null
+      setName(user.username || ''); // Fallback về chuỗi rỗng nếu user.name null
       if (user.avatar) setAvatarPreview(user.avatar);
     }
   }, [user]);
@@ -40,25 +40,39 @@ const Setting = () => {
   };
 
   // Xử lý Lưu thông tin cá nhân
+  /* src/pages/Setting/Setting.tsx */
+
+  // ... (các đoạn code trên giữ nguyên)
+
+  // Xử lý Lưu thông tin cá nhân
   const handleSaveProfile = async () => {
     if (!name.trim()) return alert('Tên không được để trống');
 
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
+      // ... (đoạn FormData giữ nguyên)
+
+      // 1. Tạo FormData chuẩn của trình duyệt
       const formData = new FormData();
       formData.append('name', name);
+
+      // Chỉ append file nếu người dùng có chọn file mới
       if (avatarFile) {
         formData.append('avatar', avatarFile);
       }
 
-      // GỌI API UPDATE USER (Bạn cần tạo API này ở Backend: PUT /api/users/profile)
+      // Log ra console trình duyệt để chắc chắn data đúng trước khi gửi
+      // Lưu ý: console.log(formData) sẽ thấy rỗng, phải dùng for...of để log
+      for (const pair of formData.entries()) {
+        console.log('Frontend gửi:', pair[0], pair[1]);
+      }
+
       const res = await axios.put(
         'http://localhost:5000/api/users/profile',
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
         }
@@ -66,18 +80,30 @@ const Setting = () => {
 
       if (res.data.success) {
         alert('Cập nhật thành công!');
-        // Update lại AuthContext để Sidebar cập nhật avatar/tên mới ngay lập tức
-        // Giả sử API trả về user mới trong res.data.user
-        // Ta dùng hàm login (hoặc bạn viết hàm updateUser riêng trong Context) để set lại state
-        login(token!, res.data.user);
+
+        // 👇 [SỬA ĐOẠN NÀY QUAN TRỌNG] 👇
+
+        // Backend có thể trả về user thiếu trường 'role', dẫn đến việc bị AdminRoute đá ra ngoài.
+        // Giải pháp: Merge thông tin cũ (có role) với thông tin mới trả về.
+        const updatedUser = {
+          ...user, // Lấy toàn bộ info cũ (bao gồm role: 'admin')
+          ...res.data.user, // Ghi đè info mới (name, avatar) lên
+        };
+
+        // Cập nhật lại Context với user đầy đủ quyền
+        login(token!, updatedUser);
+
+        // 👆 [HẾT PHẦN SỬA] 👆
       }
     } catch (error) {
       console.error('Lỗi update:', error);
-      alert('Cập nhật thất bại. (Kiểm tra lại xem đã có API chưa?)');
+      alert('Cập nhật thất bại.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ... (phần return giữ nguyên)
 
   return (
     <div className={cx('wrapper')}>

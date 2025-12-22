@@ -1,0 +1,32 @@
+/* src/layouts/AdminLayout/AdminLayout.module.scss */
+
+.wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.container {
+  flex: 1;
+  // [CẬP NHẬT] Dùng biến bg-hover (thường là màu xám nhạt #f1f5f9) làm nền Admin
+  background-color: var(--bg-hover);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    // [CẬP NHẬT] Dùng border-color cho thanh cuộn để tiệp màu
+    background-color: var(--border-color);
+    border-radius: 4px;
+  }
+}
