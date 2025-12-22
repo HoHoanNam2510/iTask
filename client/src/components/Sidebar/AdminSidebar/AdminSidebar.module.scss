@@ -79,7 +79,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: transparent;
+  background: var(--white);
 
   // [CẬP NHẬT] Dùng biến Danger
   border: 1px solid var(--primary);

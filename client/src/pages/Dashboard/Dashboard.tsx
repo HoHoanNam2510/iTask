@@ -35,6 +35,7 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 
 import styles from './Dashboard.module.scss';
 import { useAuth } from '~/context/AuthContext';
+import type { ITaskResponse } from '~/types/task';
 import TaskModal from '~/components/TaskModal/TaskModal';
 
 ChartJS.register(
@@ -49,20 +50,8 @@ ChartJS.register(
 
 const cx = classNames.bind(styles);
 
-// Interface task cần khớp với bên Calendar để dùng chung Modal
-interface ITask {
-  _id: string;
-  title: string;
-  description?: string;
-  image?: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  priority: 'low' | 'moderate' | 'extreme';
-  dueDate: string;
-  category?: string;
-}
-
 interface Columns {
-  [key: string]: ITask[];
+  [key: string]: ITaskResponse[];
 }
 
 const Dashboard = () => {
@@ -86,7 +75,7 @@ const Dashboard = () => {
   // Modal & Editing State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   // [MỚI] State để lưu task đang sửa
-  const [editingTask, setEditingTask] = useState<ITask | null>(null);
+  const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
 
   // --- FETCH DATA ---
   const fetchDashboardData = async () => {
@@ -103,7 +92,7 @@ const Dashboard = () => {
         setStats(res.data.stats);
         setWeeklyData(res.data.weeklyData);
 
-        const allTasks: ITask[] = res.data.tasks || [];
+        const allTasks: ITaskResponse[] = res.data.tasks || [];
         setColumns({
           todo: allTasks.filter((t) => t.status === 'todo'),
           in_progress: allTasks.filter((t) => t.status === 'in_progress'),
@@ -128,7 +117,7 @@ const Dashboard = () => {
   };
 
   // 2. Mở Modal Sửa
-  const handleEditTask = (task: ITask) => {
+  const handleEditTask = (task: ITaskResponse) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
   };
@@ -235,7 +224,7 @@ const Dashboard = () => {
       {/* Header & Stats Grid (Giữ nguyên) */}
       <header className={cx('header')}>
         <h1 className={cx('title')}>
-          Hello, <span>{user?.name || 'User'}</span>! 👋
+          Hello, <span>{user?.username || 'User'}</span>! 👋
         </h1>
         <input
           type="date"
@@ -412,7 +401,7 @@ const DroppableColumn = ({
             {title} <span className={cx('countBadge')}>{tasks.length}</span>
           </div>
 
-          {tasks.map((task: ITask, index: number) => (
+          {tasks.map((task: ITaskResponse, index: number) => (
             <Draggable key={task._id} draggableId={task._id} index={index}>
               {(provided, snapshot) => (
                 <div

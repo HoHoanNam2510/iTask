@@ -134,3 +134,48 @@ export const deleteCategory = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Lỗi xóa danh mục' });
   }
 };
+
+// ADMIN
+// 👇 [THÊM MỚI] Admin lấy toàn bộ Categories
+export const getAllCategoriesAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const categories = await Category.find()
+      .populate('createdBy', 'username email avatar') // ⚠️ LƯU Ý: Kiểm tra Model Category của bạn dùng 'owner' hay 'creator' nhé!
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: categories.length,
+      categories,
+    });
+  } catch (error) {
+    console.error('Admin Get Categories Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách danh mục',
+    });
+  }
+};
+
+// 👇 [THÊM MỚI] Admin xóa Category
+export const deleteCategoryAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // (Tùy chọn) Xóa các task thuộc category này hoặc set category = null
+    // await Task.updateMany({ category: id }, { $unset: { category: "" } });
+
+    await Category.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Đã xóa danh mục thành công' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi xóa danh mục' });
+  }
+};
