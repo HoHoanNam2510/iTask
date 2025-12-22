@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
   LayoutDashboard,
-  Zap,
   CheckSquare,
   List,
   Calendar,
@@ -60,7 +59,6 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
   // 3. Định nghĩa menu: Thêm cờ 'public'
   const menuItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, public: true },
-    { path: '/vital-task', label: 'Vital Task', icon: Zap, public: false },
     { path: '/my-task', label: 'My Task', icon: CheckSquare, public: false },
     {
       path: '/task-categories',
@@ -115,20 +113,22 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
             <img
               // 👇 SỬA DÒNG NÀY: Dùng hàm helper để lấy link ảnh chuẩn
               src={getAvatarUrl(user.avatar)}
-              alt={user.name}
+              alt={user.username}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} // Thêm style cho đẹp
             />
           ) : (
             <div className={cx('avatar-placeholder')}>
-              {/* Thêm check user?.name để tránh lỗi charAt nếu name rỗng */}
+              {/* Thêm check user?.username để tránh lỗi charAt nếu name rỗng */}
               {isAuthenticated
-                ? (user?.name || 'U').charAt(0).toUpperCase()
+                ? (user?.username || 'U').charAt(0).toUpperCase()
                 : 'G'}
             </div>
           )}
         </div>
 
-        <h3 className={cx('name')}>{isAuthenticated ? user?.name : 'Khách'}</h3>
+        <h3 className={cx('name')}>
+          {isAuthenticated ? user?.username : 'Khách'}
+        </h3>
         <p className={cx('email')}>
           {isAuthenticated ? user?.email : 'Chưa đăng nhập'}
         </p>

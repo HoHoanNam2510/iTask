@@ -216,3 +216,28 @@ export const deleteTask = async (
     res.status(500).json({ success: false, message: 'Delete failed' });
   }
 };
+
+// ADMIN
+// 👇 [THÊM MỚI] Admin lấy toàn bộ Task trong hệ thống
+export const getAllTasksAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Lấy tất cả task, populate thông tin người tạo (creator) để biết task của ai
+    const tasks = await Task.find()
+      .populate('creator', 'username email avatar') // Lấy tên, email, avatar người tạo
+      .sort({ createdAt: -1 }); // Mới nhất lên đầu
+
+    res.json({
+      success: true,
+      count: tasks.length,
+      tasks,
+    });
+  } catch (error) {
+    console.error('Admin Get Tasks Error:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi lấy danh sách tasks' });
+  }
+};

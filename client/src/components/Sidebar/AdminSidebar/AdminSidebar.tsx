@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
-  LayoutDashboard,
   Users,
-  Settings,
   LogOut,
+  ListTodo,
+  Settings,
   ShieldCheck,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '~/context/AuthContext';
 import styles from './AdminSidebar.module.scss';
@@ -24,6 +25,11 @@ const AdminSidebar = () => {
   const menuItems = [
     { path: '/admin', icon: <LayoutDashboard size={20} />, label: 'Tổng quan' },
     { path: '/admin/users', icon: <Users size={20} />, label: 'Quản lý Users' },
+    {
+      path: '/admin/tasks',
+      icon: <ListTodo size={20} />,
+      label: 'Quản lý Tasks',
+    },
     { path: '/admin/settings', icon: <Settings size={20} />, label: 'Cài đặt' },
   ];
 
