@@ -39,3 +39,19 @@ export const verifyToken = (
     res.status(403).json({ success: false, message: 'Invalid Token' });
   }
 };
+
+// 👇 [THÊM MỚI] Middleware chặn quyền Admin
+export const verifyAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const user = (req as any).user;
+  if (user && user.role === 'admin') {
+    next();
+  } else {
+    res
+      .status(403)
+      .json({ success: false, message: 'Access denied: Admin only' });
+  }
+};
