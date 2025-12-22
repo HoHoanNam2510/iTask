@@ -12,12 +12,12 @@ import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// Routes cho User thường
+// Routes cho User
 router.get('/', verifyToken, getTasks);
 router.post('/', verifyToken, upload.single('image'), createTask);
 router.put('/:id', verifyToken, upload.single('image'), updateTask);
 router.delete('/:id', verifyToken, deleteTask);
 
-// Route cho Admin
+// Routes cho Admin
 router.get('/admin/all', verifyToken, verifyAdmin, getAllTasksAdmin);
 export default router;

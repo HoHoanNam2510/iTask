@@ -16,6 +16,7 @@ import AdminDashboard from '~/pages/Admin/Dashboard/Dashboard';
 import UserManagement from '~/pages/Admin/UserManagement/UserManagement';
 import TaskManagement from '~/pages/Admin/TaskManagement/TaskManagement';
 import GroupManagement from '~/pages/Admin/GroupManagement/GroupManagement';
+import CategoryManagement from '~/pages/Admin/CategoryManagement/CategoryManagement';
 
 // Layouts
 import AuthLayout from '~/layouts/AuthLayout';
@@ -63,7 +64,8 @@ const adminRoutes: RouteType[] = [
   },
   {
     path: '/admin/settings',
-    component: Setting, // Tái sử dụng component Setting của User
+    // Tái sử dụng component Setting của User
+    component: Setting,
     layout: AdminLayout,
   },
   {
@@ -79,6 +81,11 @@ const adminRoutes: RouteType[] = [
   {
     path: '/admin/groups',
     component: GroupManagement,
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/categories',
+    component: CategoryManagement,
     layout: AdminLayout,
   },
 ];

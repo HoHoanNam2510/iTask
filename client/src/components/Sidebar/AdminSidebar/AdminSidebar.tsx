@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
+  Tag,
   Users,
   LogOut,
   ListTodo,
@@ -30,6 +31,11 @@ const AdminSidebar = () => {
       path: '/admin/tasks',
       icon: <ListTodo size={20} />,
       label: 'Quản lý Tasks',
+    },
+    {
+      path: '/admin/categories',
+      icon: <Tag size={20} />,
+      label: 'Quản lý Danh mục',
     },
     {
       path: '/admin/groups',

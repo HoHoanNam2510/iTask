@@ -14,14 +14,14 @@ const router = express.Router();
 
 router.use(verifyToken); // Bắt buộc đăng nhập
 
-// Routes của User
+// Routes cho User
 router.post('/', createGroup);
 router.post('/join', joinGroupByCode);
 router.get('/my-groups', getMyGroups);
 router.get('/:groupId', getGroupDetails);
 router.post('/:groupId/invite', addMember);
 
-// Routes của Admin
+// Routes cho Admin
 router.get('/admin/all', verifyToken, verifyAdmin, getAllGroupsAdmin);
 router.delete('/admin/:id', verifyToken, verifyAdmin, deleteGroupAdmin);
 export default router;

@@ -59,19 +59,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // Để tự động điền dữ liệu khi mở modal ở chế độ Edit
   useEffect(() => {
     if (isOpen) {
-      // Logic xác định Category ID:
-      // - Nếu đang Edit: Lấy từ task cũ (nếu có)
-      // - Nếu đang Tạo mới: Lấy từ defaultCategoryId (được truyền từ CategoryDetail)
-      const targetCategoryId = taskToEdit
-        ? taskToEdit.category || ''
-        : defaultCategoryId;
+      let targetCategoryId = defaultCategoryId;
+
+      if (taskToEdit) {
+        if (typeof taskToEdit.category === 'string') {
+          // Trường hợp 1: category là string ID
+          targetCategoryId = taskToEdit.category;
+        } else if (
+          taskToEdit.category &&
+          typeof taskToEdit.category === 'object'
+        ) {
+          // Trường hợp 2: category là object (đã populate) -> Lấy _id bên trong
+          // Ép kiểu as any để tránh lỗi TS tạm thời nếu interface chưa khớp hoàn toàn
+          targetCategoryId = (taskToEdit.category as any)._id;
+        }
+      }
 
       setFormData({
         title: taskToEdit ? taskToEdit.title : '',
         description: taskToEdit?.description || '',
         priority: taskToEdit ? taskToEdit.priority : 'low',
 
-        // 👇 Quan trọng: Đảm bảo lấy đúng ID
+        // Gán giá trị đã xử lý vào state
         categoryId: targetCategoryId,
 
         date: taskToEdit
