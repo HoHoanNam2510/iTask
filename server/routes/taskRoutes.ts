@@ -5,19 +5,19 @@ import {
   createTask,
   deleteTask,
   updateTask,
+  getAllTasksAdmin,
 } from '../controllers/taskController';
 import upload from '../middleware/upload';
-import { verifyToken } from '../middleware/authMiddleware';
+import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// 2. QUAN TRỌNG: Thêm dòng này để xử lý GET (Lấy danh sách)
-// Nếu thiếu dòng này -> Lỗi 404 Not Found
+// Routes cho User thường
 router.get('/', verifyToken, getTasks);
-
-// Route xử lý POST (Tạo mới)
 router.post('/', verifyToken, upload.single('image'), createTask);
-
 router.put('/:id', verifyToken, upload.single('image'), updateTask);
 router.delete('/:id', verifyToken, deleteTask);
+
+// Route cho Admin
+router.get('/admin/all', verifyToken, verifyAdmin, getAllTasksAdmin);
 export default router;

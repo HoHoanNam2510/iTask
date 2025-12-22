@@ -82,8 +82,8 @@
   background: transparent;
 
   // [CẬP NHẬT] Dùng biến Danger
-  border: 1px solid var(--danger);
-  color: var(--danger);
+  border: 1px solid var(--primary);
+  color: var(--primary);
 
   padding: 10px;
   border-radius: 8px;
@@ -92,7 +92,7 @@
   transition: all 0.2s;
 
   &:hover {
-    background-color: var(--danger);
+    background-color: var(--primary);
     color: var(--white);
   }
 }

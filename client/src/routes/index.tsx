@@ -14,6 +14,7 @@ import CategoryDetail from '~/pages/TaskCategories/CategoryDetail';
 // Admin Pages
 import AdminDashboard from '~/pages/Admin/Dashboard/Dashboard';
 import UserManagement from '~/pages/Admin/UserManagement/UserManagement';
+import TaskManagement from '~/pages/Admin/TaskManagement/TaskManagement';
 
 // Layouts
 import AuthLayout from '~/layouts/AuthLayout';
@@ -67,6 +68,11 @@ const adminRoutes: RouteType[] = [
   {
     path: '/admin/users',
     component: UserManagement,
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/tasks',
+    component: TaskManagement,
     layout: AdminLayout,
   },
 ];
