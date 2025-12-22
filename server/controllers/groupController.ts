@@ -148,7 +148,11 @@ export const joinGroupByCode = async (req: Request, res: Response) => {
         .json({ success: false, message: 'Mã mời không hợp lệ' });
 
     // Check đã tham gia chưa
-    if (group.members.includes(userId)) {
+    const isMember = group.members.some(
+      (memberId) => memberId.toString() === userId.toString()
+    );
+
+    if (isMember) {
       return res
         .status(400)
         .json({ success: false, message: 'Bạn đã là thành viên nhóm này' });
@@ -161,5 +165,56 @@ export const joinGroupByCode = async (req: Request, res: Response) => {
     res.json({ success: true, group: { name: group.name } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi join group' });
+  }
+};
+
+// ADMIN
+// 👇 [THÊM MỚI] Admin lấy toàn bộ Groups (Kèm thông tin người tạo và số lượng thành viên)
+export const getAllGroupsAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const groups = await Group.find()
+      .populate('owner', 'username email avatar') // Lưu ý: Code trên bạn dùng 'owner', nên ở đây cũng phải là 'owner'
+      .populate('members', 'username email avatar')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: groups.length,
+      groups,
+    });
+  } catch (error) {
+    console.error('Admin Get Groups Error:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi lấy danh sách nhóm' });
+  }
+};
+
+// 👇 [THÊM MỚI] Admin xóa Group (Giải tán nhóm)
+export const deleteGroupAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // (Tùy chọn) Xóa luôn task của nhóm đó để sạch DB
+    // await Task.deleteMany({ group: id });
+
+    const deletedGroup = await Group.findByIdAndDelete(id);
+    if (!deletedGroup) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
+  } catch (error) {
+    console.error('Admin Delete Group Error:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi xóa nhóm' });
   }
 };

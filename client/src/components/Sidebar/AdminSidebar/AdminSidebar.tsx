@@ -5,6 +5,7 @@ import {
   LogOut,
   ListTodo,
   Settings,
+  LayoutGrid,
   ShieldCheck,
   LayoutDashboard,
 } from 'lucide-react';
@@ -29,6 +30,11 @@ const AdminSidebar = () => {
       path: '/admin/tasks',
       icon: <ListTodo size={20} />,
       label: 'Quản lý Tasks',
+    },
+    {
+      path: '/admin/groups',
+      icon: <LayoutGrid size={20} />,
+      label: 'Quản lý Nhóm',
     },
     { path: '/admin/settings', icon: <Settings size={20} />, label: 'Cài đặt' },
   ];

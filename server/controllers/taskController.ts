@@ -227,6 +227,9 @@ export const getAllTasksAdmin = async (
     // Lấy tất cả task, populate thông tin người tạo (creator) để biết task của ai
     const tasks = await Task.find()
       .populate('creator', 'username email avatar') // Lấy tên, email, avatar người tạo
+      // 👇 [THÊM] Populate thêm Category và Group
+      .populate('category', 'name color')
+      .populate('group', 'name')
       .sort({ createdAt: -1 }); // Mới nhất lên đầu
 
     res.json({

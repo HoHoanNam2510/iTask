@@ -5,7 +5,7 @@ import { useAuth } from '~/context/AuthContext';
 const AdminRoute = () => {
   const { user, isLoading } = useAuth();
 
-  // 1. Nếu đang tải thông tin user thì hiển thị Loading
+  // 1. Nếu đang tải thì hiện Loading
   if (isLoading) {
     return (
       <div
@@ -22,17 +22,23 @@ const AdminRoute = () => {
     );
   }
 
-  // 2. Kiểm tra quyền hạn:
-  // - Phải có user (đã đăng nhập)
-  // - Role phải là 'admin'
-  if (user && user.role === 'admin') {
-    // Cho phép truy cập vào các Route con (ví dụ /admin/dashboard)
-    return <Outlet />;
+  // 2. LOGIC PHÂN QUYỀN MỚI
+
+  // TRƯỜNG HỢP A: Chưa đăng nhập (User là null)
+  // -> Đá thẳng về trang Login
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
-  // 3. Nếu không đủ quyền -> Đá về trang Dashboard của User thường
-  // 'replace' giúp user không back lại được trang admin bằng nút Back của trình duyệt
-  return <Navigate to="/dashboard" replace />;
+  // TRƯỜNG HỢP B: Đã đăng nhập nhưng KHÔNG PHẢI Admin
+  // -> Đá về trang chủ của User (đường dẫn là '/')
+  if (user.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  // TRƯỜNG HỢP C: Là Admin xịn
+  // -> Cho phép đi tiếp
+  return <Outlet />;
 };
 
 export default AdminRoute;

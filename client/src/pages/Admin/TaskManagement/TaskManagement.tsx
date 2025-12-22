@@ -19,6 +19,16 @@ interface ITask {
     email: string;
     avatar?: string;
   };
+  // 👇 [THÊM] Định nghĩa kiểu dữ liệu cho Group và Category
+  group?: {
+    _id: string;
+    name: string;
+  };
+  category?: {
+    _id: string;
+    name: string;
+    color: string;
+  };
 }
 
 const TaskManagement = () => {
@@ -131,6 +141,46 @@ const TaskManagement = () => {
                     <div>{task.title}</div>
                     <div className={cx('desc')}>
                       {task.description || 'No description'}
+                    </div>
+
+                    {/* 👇 [MỚI] Hiển thị Tags Category/Group nhỏ gọn bên dưới */}
+                    <div
+                      style={{ display: 'flex', gap: '8px', marginTop: '6px' }}
+                    >
+                      {/* Badge Category */}
+                      {task.category && (
+                        <span
+                          style={{
+                            fontSize: '1.1rem',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: task.category.color || '#eee', // Dùng màu của category
+                            color: '#fff',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {task.category.name}
+                        </span>
+                      )}
+
+                      {/* Badge Group */}
+                      {task.group && (
+                        <span
+                          style={{
+                            fontSize: '1.1rem',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#e2e8f0',
+                            color: '#475569',
+                            border: '1px solid #cbd5e1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          👥 {task.group.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </td>
