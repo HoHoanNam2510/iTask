@@ -1,30 +1,48 @@
+/* src/pages/Setting/Setting.tsx */
 import React, { useState, useRef, useEffect } from 'react';
 import classNames from 'classnames/bind';
-import { Camera, Save, User, Palette, Mail } from 'lucide-react';
+import {
+  Camera,
+  Save,
+  User,
+  Palette,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 import axios from 'axios';
 
 import styles from './Setting.module.scss';
 import { useAuth } from '~/context/AuthContext';
-import { useTheme, THEMES } from '~/context/ThemeContext'; // Import Context vừa tạo
+import { useTheme, THEMES } from '~/context/ThemeContext';
 
 const cx = classNames.bind(styles);
 
 const Setting = () => {
-  const { user, login } = useAuth(); // Lấy user và hàm login để update lại context sau khi sửa
+  const { user, login } = useAuth();
   const { color: currentColor, changeTheme } = useTheme();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Form State
+  // --- STATE CHO PROFILE ---
   const [name, setName] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
+  // --- [MỚI] STATE CHO PASSWORD ---
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isPassLoading, setIsPassLoading] = useState(false);
+
   // Load dữ liệu user ban đầu
   useEffect(() => {
     if (user) {
-      setName(user.username || ''); // Fallback về chuỗi rỗng nếu user.name null
+      setName(user.username || '');
       if (user.avatar) setAvatarPreview(user.avatar);
     }
   }, [user]);
@@ -40,32 +58,17 @@ const Setting = () => {
   };
 
   // Xử lý Lưu thông tin cá nhân
-  /* src/pages/Setting/Setting.tsx */
-
-  // ... (các đoạn code trên giữ nguyên)
-
-  // Xử lý Lưu thông tin cá nhân
   const handleSaveProfile = async () => {
     if (!name.trim()) return alert('Tên không được để trống');
 
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      // ... (đoạn FormData giữ nguyên)
 
-      // 1. Tạo FormData chuẩn của trình duyệt
       const formData = new FormData();
       formData.append('name', name);
-
-      // Chỉ append file nếu người dùng có chọn file mới
       if (avatarFile) {
         formData.append('avatar', avatarFile);
-      }
-
-      // Log ra console trình duyệt để chắc chắn data đúng trước khi gửi
-      // Lưu ý: console.log(formData) sẽ thấy rỗng, phải dùng for...of để log
-      for (const pair of formData.entries()) {
-        console.log('Frontend gửi:', pair[0], pair[1]);
       }
 
       const res = await axios.put(
@@ -80,20 +83,11 @@ const Setting = () => {
 
       if (res.data.success) {
         alert('Cập nhật thành công!');
-
-        // 👇 [SỬA ĐOẠN NÀY QUAN TRỌNG] 👇
-
-        // Backend có thể trả về user thiếu trường 'role', dẫn đến việc bị AdminRoute đá ra ngoài.
-        // Giải pháp: Merge thông tin cũ (có role) với thông tin mới trả về.
         const updatedUser = {
-          ...user, // Lấy toàn bộ info cũ (bao gồm role: 'admin')
-          ...res.data.user, // Ghi đè info mới (name, avatar) lên
+          ...user,
+          ...res.data.user,
         };
-
-        // Cập nhật lại Context với user đầy đủ quyền
         login(token!, updatedUser);
-
-        // 👆 [HẾT PHẦN SỬA] 👆
       }
     } catch (error) {
       console.error('Lỗi update:', error);
@@ -103,7 +97,43 @@ const Setting = () => {
     }
   };
 
-  // ... (phần return giữ nguyên)
+  // --- [MỚI] HÀM ĐỔI MẬT KHẨU ---
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword } = passwordData;
+
+    if (!currentPassword || !newPassword) {
+      alert('Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setIsPassLoading(true);
+      const token = localStorage.getItem('token');
+
+      const res = await axios.put(
+        'http://localhost:5000/api/users/change-password',
+        { currentPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        alert('Đổi mật khẩu thành công!');
+        // Reset form
+        setPasswordData({ currentPassword: '', newPassword: '' });
+      }
+    } catch (error: any) {
+      console.error('Lỗi đổi pass:', error);
+      const msg = error.response?.data?.message || 'Đổi mật khẩu thất bại';
+      alert(msg);
+    } finally {
+      setIsPassLoading(false);
+    }
+  };
 
   return (
     <div className={cx('wrapper')}>
@@ -123,7 +153,6 @@ const Setting = () => {
           </div>
 
           <div className={cx('cardBody')}>
-            {/* Avatar Upload */}
             <div className={cx('avatarSection')}>
               <div
                 className={cx('avatarWrapper')}
@@ -132,13 +161,9 @@ const Setting = () => {
                 {avatarPreview ? (
                   <img
                     src={
-                      // Nếu là ảnh vừa chọn từ máy (blob:...) thì giữ nguyên
                       avatarPreview.startsWith('blob:')
                         ? avatarPreview
-                        : // Nếu là ảnh từ DB:
-                        // 1. Thay thế dấu '\' thành '/' (để sửa lỗi đường dẫn Windows cũ)
-                        // 2. Nếu đường dẫn chưa có http, thì nối thêm vào
-                        avatarPreview.startsWith('http')
+                        : avatarPreview.startsWith('http')
                         ? avatarPreview
                         : `http://localhost:5000/${avatarPreview.replace(
                             /\\/g,
@@ -154,9 +179,7 @@ const Setting = () => {
                   />
                 ) : (
                   <div className={cx('avatarPlaceholder')}>
-                    {/* --- SỬA DÒNG DƯỚI ĐÂY --- */}
                     {(name || 'U').charAt(0).toUpperCase()}
-                    {/* Fallback về 'U' (User) nếu name bị rỗng/undefined */}
                   </div>
                 )}
                 <div className={cx('overlay')}>
@@ -173,7 +196,6 @@ const Setting = () => {
               <p className={cx('hint')}>Nhấn vào ảnh để thay đổi</p>
             </div>
 
-            {/* Form Inputs */}
             <div className={cx('formGrid')}>
               <div className={cx('formGroup')}>
                 <label>Tên hiển thị</label>
@@ -207,7 +229,75 @@ const Setting = () => {
           </div>
         </div>
 
-        {/* SECTION 2: APPEARANCE / THEME */}
+        {/* 👇 [MỚI] SECTION 2: SECURITY / CHANGE PASSWORD */}
+        <div className={cx('card')}>
+          <div className={cx('cardHeader')}>
+            <Lock size={20} className={cx('icon')} />
+            <h3>Bảo mật & Mật khẩu</h3>
+          </div>
+
+          <div className={cx('cardBody')}>
+            <div className={cx('formGrid')}>
+              {/* Mật khẩu hiện tại */}
+              <div className={cx('formGroup')}>
+                <label>Mật khẩu hiện tại</label>
+                <div className={cx('inputWithIcon')}>
+                  <Lock size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Nhập mật khẩu đang dùng"
+                    value={passwordData.currentPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        currentPassword: e.target.value,
+                      })
+                    }
+                  />
+                  {/* Nút toggle ẩn hiện pass */}
+                  <div
+                    className={cx('eyeIcon')}
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mật khẩu mới */}
+              <div className={cx('formGroup')}>
+                <label>Mật khẩu mới</label>
+                <div className={cx('inputWithIcon')}>
+                  <Lock size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Nhập mật khẩu mới"
+                    value={passwordData.newPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        newPassword: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={cx('actionRow')}>
+              <button
+                className={cx('saveBtn')}
+                onClick={handleChangePassword}
+                disabled={isPassLoading}
+              >
+                <Save size={18} />
+                {isPassLoading ? 'Đang xử lý...' : 'Cập nhật mật khẩu'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 3: APPEARANCE / THEME */}
         <div className={cx('card')}>
           <div className={cx('cardHeader')}>
             <Palette size={20} className={cx('icon')} />

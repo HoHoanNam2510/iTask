@@ -242,3 +242,42 @@
   border: 2px solid white;
   box-shadow: 0 0 0 1px var(--border-color);
 }
+
+.inputWithIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  svg {
+    position: absolute;
+    left: 1.4rem;
+    color: var(--text-light);
+    pointer-events: none; // Để click xuyên qua icon bên trái
+  }
+
+  input {
+    width: 100%;
+    padding-left: 4rem;
+    padding-right: 4rem; // Chừa chỗ cho icon mắt bên phải
+  }
+
+  // [MỚI] Style cho icon mắt ẩn/hiện password
+  .eyeIcon {
+    position: absolute;
+    right: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: var(--text-light);
+
+    // Override pointer-events của svg bên trong div này để click được
+    svg {
+      position: static;
+      pointer-events: auto;
+    }
+
+    &:hover {
+      color: var(--primary);
+    }
+  }
+}
