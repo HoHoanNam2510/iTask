@@ -84,8 +84,7 @@ const GroupManagement = () => {
     <div className={cx('wrapper')}>
       <header className={cx('header')}>
         <h1 className={cx('title')}>
-          Quản lý Nhóm (Groups){' '}
-          <span className={cx('countBadge')}>{groups.length}</span>
+          Quản lý Nhóm <span className={cx('countBadge')}>{groups.length}</span>
         </h1>
         <div style={{ position: 'relative' }}>
           <Search
