@@ -219,6 +219,10 @@ const Calendar: React.FC = () => {
             isSameDay(new Date(t.dueDate), day)
           );
           const isCurrentMonth = isSameMonth(day, monthStart);
+
+          // Tính số lượng task dư ra
+          const moreCount = dayTasks.length - 2;
+
           return (
             <div
               key={index}
@@ -227,18 +231,23 @@ const Calendar: React.FC = () => {
               } ${isToday(day) ? styles.today : ''}`}
               onClick={() => handleDayClick(day)}
             >
-              <div className={styles.dateNumber}>{format(day, 'd')}</div>
+              {/* 👇 [SỬA] Bọc DateNumber và MoreCount vào 1 Header row */}
+              <div className={styles.dayHeader}>
+                <div className={styles.dateNumber}>{format(day, 'd')}</div>
+
+                {/* Nếu có hơn 2 task thì hiện số lượng dư ở góc phải */}
+                {moreCount > 0 && (
+                  <div className={styles.moreCount}>+{moreCount} nữa</div>
+                )}
+              </div>
+
               <div className={styles.taskPreviewList}>
                 {dayTasks.slice(0, 2).map((t) => (
                   <div key={t._id} className={styles.taskDot} title={t.title}>
                     {t.title}
                   </div>
                 ))}
-                {dayTasks.length > 2 && (
-                  <div className={styles.moreTasks}>
-                    +{dayTasks.length - 2} nữa
-                  </div>
-                )}
+                {/* ❌ ĐÃ XÓA đoạn render moreTasks cũ ở dưới này */}
               </div>
             </div>
           );

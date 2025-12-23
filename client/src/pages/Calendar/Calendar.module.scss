@@ -98,7 +98,7 @@
   flex-direction: column;
   gap: 4px;
   transition: background 0.2s;
-  min-height: 100%;
+  min-height: 100px; // Đảm bảo chiều cao tối thiểu để đẹp hơn
 
   &:hover {
     background-color: var(--bg-hover);
@@ -120,6 +120,14 @@
   }
 }
 
+// 👇 [MỚI] Header chứa Ngày và Số lượng dư
+.dayHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px; // Tạo khoảng cách với list task bên dưới
+}
+
 .dateNumber {
   font-weight: 600;
   font-size: 1.4rem;
@@ -132,12 +140,22 @@
   color: var(--text-main);
 }
 
+// 👇 [MỚI] Style cho số lượng task dư (+2)
+.moreCount {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-light);
+  background-color: #f1f5f9; // Nền xám nhạt
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 // --- 3. TASK PREVIEW ---
 .taskPreviewList {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 4px;
+  // margin-top: 4px; -> Xóa hoặc giảm margin vì đã có margin-bottom ở dayHeader
 }
 
 .taskDot {
@@ -151,13 +169,6 @@
   text-overflow: ellipsis;
   font-weight: 500;
   border-left: 3px solid var(--primary);
-}
-
-.moreTasks {
-  font-size: 1rem;
-  color: var(--text-light);
-  padding-left: 4px;
-  font-weight: 500;
 }
 
 // --- 4. MODAL OVERLAY (Cho List View) ---
