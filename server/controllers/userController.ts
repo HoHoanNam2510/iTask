@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcrypt';
 import User from '../models/User';
 
 // [MỚI] Hàm lấy đường dẫn file chuẩn xác
@@ -111,5 +112,54 @@ export const deleteUser = async (
     res
       .status(500)
       .json({ success: false, message: 'Lỗi server khi xóa user' });
+  }
+};
+
+// 👇 [THÊM MỚI] Hàm đổi mật khẩu
+export const changePassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = (req as any).user._id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Vui lòng nhập đủ thông tin' });
+      return;
+    }
+
+    // 1. Tìm user trong DB (cần lấy cả field password để so sánh)
+    const user = await User.findById(userId);
+    if (!user || !user.password) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    // 2. Kiểm tra mật khẩu hiện tại có đúng không
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
+      return;
+    }
+
+    // 3. Mã hóa mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // 4. Lưu mật khẩu mới vào DB
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    console.error('Change Password Error:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi đổi mật khẩu' });
   }
 };
