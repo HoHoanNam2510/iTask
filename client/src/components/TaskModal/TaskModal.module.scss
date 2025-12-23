@@ -266,3 +266,157 @@
     transform: translateY(0);
   }
 }
+
+// --- COMMENT SECTION STYLES ---
+
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 20px -24px; // Kéo dài ra sát mép modal
+}
+
+.sectionTitle {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.commentSection {
+  margin-top: 10px;
+}
+
+.commentList {
+  max-height: 250px; // Giới hạn chiều cao, scroll nếu nhiều comment
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 8px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+  }
+}
+
+.emptyComment {
+  font-size: 1.3rem;
+  color: var(--text-light);
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.commentItem {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  .cmtAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .cmtAvatarPlaceholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .cmtContentBox {
+    background-color: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 0 12px 12px 12px;
+    flex: 1;
+
+    .cmtHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+
+      .cmtUser {
+        font-weight: 600;
+        font-size: 1.3rem;
+        color: var(--text-main);
+      }
+
+      .cmtTime {
+        font-size: 1.1rem;
+        color: var(--text-light);
+      }
+    }
+
+    .cmtText {
+      font-size: 1.4rem;
+      color: var(--text-main);
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+  }
+}
+
+.commentInputBox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-hover);
+  padding: 4px 4px 4px 16px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: var(--primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  }
+
+  input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 1.4rem;
+    padding: 8px 0;
+  }
+
+  button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+
+    &:disabled {
+      background-color: #cbd5e1;
+      cursor: not-allowed;
+    }
+  }
+}

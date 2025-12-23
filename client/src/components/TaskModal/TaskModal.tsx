@@ -1,11 +1,18 @@
+/* src/components/TaskModal/TaskModal.tsx */
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { Image as ImageIcon, Check } from 'lucide-react';
+import {
+  Image as ImageIcon,
+  Check,
+  Send, // [MỚI] Icon gửi
+  MessageSquare, // [MỚI] Icon chat
+} from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
 import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
+
 const cx = classNames.bind(styles);
 
 interface ICategory {
@@ -13,15 +20,27 @@ interface ICategory {
   name: string;
 }
 
+// [MỚI] Interface cho Comment
+interface IComment {
+  _id: string;
+  content: string;
+  user: {
+    _id: string;
+    username: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
+
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void; // Callback để báo cho cha biết đã thêm xong để reload list
-  defaultDate?: Date; // Nếu gọi từ Calendar thì truyền ngày vào
-  defaultCategoryId?: string; // Nếu gọi từ CategoryDetail thì truyền ID vào
+  onSuccess: () => void;
+  defaultDate?: Date;
+  defaultCategoryId?: string;
   taskToEdit?: ITaskResponse | null;
-  groupMembers?: UserBasic[]; // [MỚI] Danh sách thành viên (Optional)
-  groupId?: string; // [MỚI] ID nhóm nếu đang ở trong nhóm
+  groupMembers?: UserBasic[];
+  groupId?: string;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -31,7 +50,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   defaultDate = new Date(),
   defaultCategoryId = '',
   taskToEdit = null,
-  groupMembers = [], // Mặc định rỗng (Personal mode)
+  groupMembers = [],
   groupId,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -49,28 +68,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
     imageFile: null as File | null,
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // [MỚI] State cho Comments
+  const [comments, setComments] = useState<IComment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isCommentLoading, setIsCommentLoading] = useState(false);
 
-  // --- [FIX] LOGIC KHỞI TẠO DỮ LIỆU ---
-  // Tạo biến chuỗi ngày để dùng trong dependency (tránh vòng lặp do object Date thay đổi)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentsEndRef = useRef<HTMLDivElement>(null); // [MỚI] Để scroll xuống dưới cùng
+
   const dateString = format(defaultDate, 'yyyy-MM-dd');
 
-  // --- [QUAN TRỌNG] SỬA USE EFFECT ---
-  // Để tự động điền dữ liệu khi mở modal ở chế độ Edit
+  // --- USE EFFECT KHỞI TẠO ---
   useEffect(() => {
     if (isOpen) {
       let targetCategoryId = defaultCategoryId;
 
       if (taskToEdit) {
         if (typeof taskToEdit.category === 'string') {
-          // Trường hợp 1: category là string ID
           targetCategoryId = taskToEdit.category;
         } else if (
           taskToEdit.category &&
           typeof taskToEdit.category === 'object'
         ) {
-          // Trường hợp 2: category là object (đã populate) -> Lấy _id bên trong
-          // Ép kiểu as any để tránh lỗi TS tạm thời nếu interface chưa khớp hoàn toàn
           targetCategoryId = (taskToEdit.category as any)._id;
         }
       }
@@ -79,37 +98,34 @@ const TaskModal: React.FC<TaskModalProps> = ({
         title: taskToEdit ? taskToEdit.title : '',
         description: taskToEdit?.description || '',
         priority: taskToEdit ? taskToEdit.priority : 'low',
-
-        // Gán giá trị đã xử lý vào state
         categoryId: targetCategoryId,
-
         date: taskToEdit
           ? format(new Date(taskToEdit.dueDate), 'yyyy-MM-dd')
           : dateString,
-
         imagePreview: taskToEdit?.image
           ? `http://localhost:5000/${taskToEdit.image}`
           : null,
         imageFile: null,
       });
 
-      // Log để kiểm tra xem Category ID có nhận được không
-      console.log('🛠 Modal Opened. Category ID set to:', targetCategoryId);
-
       fetchCategories();
 
       if (taskToEdit) {
-        // Nếu edit task nhóm, fill assignee cũ
         setAssigneeId(taskToEdit.assignee || '');
+        fetchComments(); // [MỚI] Tải comment nếu đang edit
       } else {
-        setAssigneeId(''); // Mặc định rỗng (Backend sẽ tự lấy người tạo)
+        setAssigneeId('');
+        setComments([]); // [MỚI] Reset comment nếu tạo mới
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, taskToEdit, defaultCategoryId, dateString]);
-  // 👆 Thêm đầy đủ dependency (dùng dateString thay vì defaultDate object)
 
-  // 2. Fetch danh sách Category để đổ vào Select
+  // [MỚI] Cuộn xuống comment mới nhất
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [comments]);
+
+  // --- API CALLS ---
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -122,7 +138,57 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // 3. Xử lý ảnh
+  // [MỚI] API Lấy comments
+  const fetchComments = async () => {
+    if (!taskToEdit) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(
+        `http://localhost:5000/api/comments/${taskToEdit._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.data.success) {
+        setComments(res.data.comments);
+      }
+    } catch (error) {
+      console.error('Lỗi tải comment', error);
+    }
+  };
+
+  // [MỚI] API Gửi comment
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !taskToEdit) return;
+
+    try {
+      setIsCommentLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        'http://localhost:5000/api/comments',
+        { taskId: taskToEdit._id, content: newComment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        setComments([...comments, res.data.comment]);
+        setNewComment('');
+      }
+    } catch (error) {
+      console.error('Lỗi gửi comment', error);
+    } finally {
+      setIsCommentLoading(false);
+    }
+  };
+
+  // [MỚI] Xử lý phím Enter
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendComment();
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -131,8 +197,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // 4. Submit Form
-  // --- SỬA HÀM SAVE ĐỂ PHÂN BIỆT POST (Tạo) VÀ PUT (Sửa) ---
   const handleSave = async () => {
     if (!formData.title.trim()) {
       alert('Vui lòng nhập tiêu đề!');
@@ -143,7 +207,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setIsLoading(true);
       const token = localStorage.getItem('token');
 
-      // Chuẩn bị dữ liệu (giữ nguyên logic FormData cũ)
       const data = new FormData();
       data.append('title', formData.title);
       data.append('description', formData.description);
@@ -152,11 +215,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       if (formData.categoryId) data.append('categoryId', formData.categoryId);
       if (formData.imageFile) data.append('image', formData.imageFile);
 
-      // [MỚI] Xử lý Group & Assignee
       if (groupId) {
-        data.append('groupId', groupId); // Gửi groupId lên để backend biết
-
-        // Nếu user chọn assignee thì gửi, không thì thôi (backend sẽ lấy current user)
+        data.append('groupId', groupId);
         if (assigneeId) {
           data.append('assignee', assigneeId);
         }
@@ -164,7 +224,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       let res;
       if (taskToEdit) {
-        // 👉 GỌI API UPDATE (PUT)
         res = await axios.put(
           `http://localhost:5000/api/tasks/${taskToEdit._id}`,
           data,
@@ -176,7 +235,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
           }
         );
       } else {
-        // 👉 GỌI API CREATE (POST)
         res = await axios.post('http://localhost:5000/api/tasks', data, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -213,7 +271,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
         {/* Body */}
         <div className={cx('formBody')}>
-          {/* Title */}
+          {/* ... Form Inputs (Title, Date, Category...) GIỮ NGUYÊN ... */}
           <div className={cx('formGroup')}>
             <label>Title</label>
             <input
@@ -227,7 +285,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
             />
           </div>
 
-          {/* Date & Category */}
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')} style={{ flex: 1 }}>
               <div className={cx('formGroup')}>
@@ -249,7 +306,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   onChange={(e) =>
                     setFormData({ ...formData, categoryId: e.target.value })
                   }
-                  // Nếu đang ở trang detail category cụ thể thì disable chọn cái khác cho đỡ nhầm
                   disabled={!!defaultCategoryId}
                 >
                   <option value="">Select Category</option>
@@ -263,7 +319,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* [MỚI] SELECT ASSIGNEE (CHỈ HIỆN KHI CÓ GROUP MEMBERS) */}
           {groupMembers.length > 0 && (
             <div className={cx('formGroup')}>
               <label>Giao việc cho (Assignee)</label>
@@ -282,7 +337,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           )}
 
-          {/* Priority */}
           <div className={cx('formGroup')}>
             <label>Priority</label>
             <div className={cx('priorityGroup')}>
@@ -315,7 +369,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* Desc & Image */}
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')}>
               <div className={cx('formGroup')}>
@@ -370,6 +423,77 @@ const TaskModal: React.FC<TaskModalProps> = ({
           >
             {isLoading ? 'Saving...' : 'Done'}
           </button>
+
+          {/* 👇 [PHẦN MỚI] KHU VỰC BÌNH LUẬN (Chỉ hiện khi đang Edit Task) */}
+          {taskToEdit && (
+            <div className={cx('commentSection')}>
+              <div className={cx('divider')}></div>
+              <h4 className={cx('sectionTitle')}>
+                <MessageSquare size={18} /> Bình luận & Trao đổi
+              </h4>
+
+              <div className={cx('commentList')}>
+                {comments.length === 0 ? (
+                  <p className={cx('emptyComment')}>
+                    Chưa có bình luận nào. Hãy bắt đầu trao đổi!
+                  </p>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment._id} className={cx('commentItem')}>
+                      {comment.user.avatar ? (
+                        <img
+                          src={`http://localhost:5000/${comment.user.avatar.replace(
+                            /\\/g,
+                            '/'
+                          )}`}
+                          className={cx('cmtAvatar')}
+                          alt="avt"
+                        />
+                      ) : (
+                        <div className={cx('cmtAvatarPlaceholder')}>
+                          {comment.user.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      <div className={cx('cmtContentBox')}>
+                        <div className={cx('cmtHeader')}>
+                          <span className={cx('cmtUser')}>
+                            {comment.user.username}
+                          </span>
+                          <span className={cx('cmtTime')}>
+                            {format(
+                              new Date(comment.createdAt),
+                              'dd/MM/yyyy - HH:mm'
+                            )}
+                          </span>
+                        </div>
+                        <p className={cx('cmtText')}>{comment.content}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={commentsEndRef} />
+              </div>
+
+              <div className={cx('commentInputBox')}>
+                <input
+                  type="text"
+                  placeholder="Viết bình luận... (Nhấn Enter để gửi)"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isCommentLoading}
+                />
+                <button
+                  onClick={handleSendComment}
+                  disabled={isCommentLoading || !newComment.trim()}
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+          {/* 👆 [HẾT PHẦN MỚI] */}
         </div>
       </div>
     </div>
