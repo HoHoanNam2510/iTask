@@ -26,7 +26,7 @@
     font-size: 1.4rem;
     font-weight: 700;
     margin-left: 12px;
-    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.3);
   }
 }
 

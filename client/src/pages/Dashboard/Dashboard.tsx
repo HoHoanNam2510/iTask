@@ -271,7 +271,14 @@ const Dashboard = () => {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                  y: { beginAtZero: true, grid: { display: false } },
+                  y: {
+                    beginAtZero: true,
+                    grid: { display: false },
+                    ticks: {
+                      stepSize: 1,
+                      precision: 0,
+                    },
+                  },
                   x: { grid: { display: false } },
                 },
               }}
