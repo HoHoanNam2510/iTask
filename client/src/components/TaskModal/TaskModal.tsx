@@ -5,8 +5,12 @@ import { format } from 'date-fns';
 import {
   Image as ImageIcon,
   Check,
-  Send, // [MỚI] Icon gửi
-  MessageSquare, // [MỚI] Icon chat
+  Send,
+  MessageSquare,
+  MoreHorizontal,
+  Edit2,
+  Trash2,
+  X,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
@@ -79,7 +83,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [filteredMembers, setFilteredMembers] = useState<UserBasic[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const commentsEndRef = useRef<HTMLDivElement>(null); // [MỚI] Để scroll xuống dưới cùng
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
 
   const dateString = format(defaultDate, 'yyyy-MM-dd');
 
@@ -249,6 +256,66 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
+  // 👇 [HÀM MỚI] Bắt đầu sửa comment
+  const handleStartEdit = (comment: IComment) => {
+    setEditingCommentId(comment._id);
+    setEditContent(comment.content);
+  };
+
+  // 👇 [HÀM MỚI] Hủy sửa
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditContent('');
+  };
+
+  // 👇 [HÀM MỚI] Gọi API update comment
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editContent.trim()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(
+        `http://localhost:5000/api/comments/${commentId}`,
+        { content: editContent },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        // Cập nhật lại list comments ở state
+        setComments((prev) =>
+          prev.map((c) => (c._id === commentId ? res.data.comment : c))
+        );
+        handleCancelEdit();
+      }
+    } catch (error) {
+      console.error('Lỗi update comment:', error);
+      alert('Không thể sửa bình luận');
+    }
+  };
+
+  // 👇 [HÀM MỚI] Gọi API delete comment
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('Bạn có chắc muốn xóa bình luận này?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.delete(
+        `http://localhost:5000/api/comments/${commentId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (res.data.success) {
+        // Xóa khỏi state
+        setComments((prev) => prev.filter((c) => c._id !== commentId));
+      }
+    } catch (error) {
+      console.error('Lỗi xóa comment:', error);
+      alert('Không thể xóa bình luận');
+    }
+  };
+
   // [MỚI] Xử lý phím Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -396,11 +463,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 className={cx('input')}
               >
                 <option value="">Chính tôi (Mặc định)</option>
-                {groupMembers.map((u) => (
-                  <option key={u._id} value={u._id}>
-                    {u.username} ({u.email})
-                  </option>
-                ))}
+
+                {/* 👇 LỌC BỎ CHÍNH MÌNH RA KHỎI LIST */}
+                {groupMembers
+                  .filter((u) => u._id !== user?._id)
+                  .map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.username} ({u.email})
+                    </option>
+                  ))}
               </select>
             </div>
           )}
@@ -508,6 +579,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 ) : (
                   comments.map((comment) => (
                     <div key={comment._id} className={cx('commentItem')}>
+                      {/* Avatar */}
                       {comment.user.avatar ? (
                         <img
                           src={`http://localhost:5000/${comment.user.avatar.replace(
@@ -523,21 +595,77 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         </div>
                       )}
 
-                      <div className={cx('cmtContentBox')}>
-                        <div className={cx('cmtHeader')}>
-                          <span className={cx('cmtUser')}>
-                            {comment.user.username}
-                          </span>
-                          <span className={cx('cmtTime')}>
-                            {format(
-                              new Date(comment.createdAt),
-                              'dd/MM/yyyy - HH:mm'
-                            )}
-                          </span>
+                      <div className={cx('cmtContentWrapper')}>
+                        <div className={cx('cmtContentBox')}>
+                          <div className={cx('cmtHeader')}>
+                            <span className={cx('cmtUser')}>
+                              {comment.user.username}
+                            </span>
+                            <span className={cx('cmtTime')}>
+                              {format(
+                                new Date(comment.createdAt),
+                                'dd/MM/yyyy - HH:mm'
+                              )}
+                            </span>
+                          </div>
+
+                          {/* 👇 [LOGIC UI] Check xem có đang sửa comment này không */}
+                          {editingCommentId === comment._id ? (
+                            <div className={cx('editModeBox')}>
+                              <input
+                                autoFocus
+                                className={cx('editInput')}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter')
+                                    handleUpdateComment(comment._id);
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                              />
+                              <div className={cx('editActions')}>
+                                <button
+                                  onClick={() =>
+                                    handleUpdateComment(comment._id)
+                                  }
+                                  className={cx('saveEditBtn')}
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className={cx('cancelEditBtn')}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className={cx('cmtText')}>
+                              {renderCommentContent(comment.content)}
+                            </p>
+                          )}
                         </div>
-                        <p className={cx('cmtText')}>
-                          {renderCommentContent(comment.content)}
-                        </p>
+
+                        {/* 👇 [MỚI] Nút Action (Chỉ hiện nếu là comment của chính mình và KHÔNG đang sửa) */}
+                        {user?._id === comment.user._id &&
+                          editingCommentId !== comment._id && (
+                            <div className={cx('cmtActions')}>
+                              <button
+                                onClick={() => handleStartEdit(comment)}
+                                title="Sửa"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(comment._id)}
+                                title="Xóa"
+                                className={cx('delBtn')}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
                       </div>
                     </div>
                   ))
