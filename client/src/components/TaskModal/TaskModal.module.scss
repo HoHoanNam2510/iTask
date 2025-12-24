@@ -317,6 +317,11 @@
   gap: 12px;
   margin-bottom: 16px;
 
+  // [MỚI] Để hover vào mới hiện nút sửa/xóa
+  &:hover .cmtActions {
+    opacity: 1;
+  }
+
   .cmtAvatar {
     width: 32px;
     height: 32px;
@@ -339,11 +344,19 @@
     flex-shrink: 0;
   }
 
+  .cmtContentWrapper {
+    flex: 1;
+    display: flex;
+    align-items: flex-start; // Căn hàng ngang với nút action
+    gap: 8px;
+  }
+
   .cmtContentBox {
     background-color: #f8fafc;
     padding: 8px 12px;
     border-radius: 0 12px 12px 12px;
-    flex: 1;
+    flex: 1; // Chiếm hết chiều rộng có thể
+    max-width: 100%; // Tránh vỡ layout
 
     .cmtHeader {
       display: flex;
@@ -368,6 +381,79 @@
       color: var(--text-main);
       line-height: 1.4;
       white-space: pre-wrap;
+    }
+  }
+
+  // [MỚI] Nút Action bên cạnh comment
+  .cmtActions {
+    display: flex;
+    gap: 4px;
+    opacity: 0; // Ẩn mặc định
+    transition: opacity 0.2s;
+    padding-top: 8px; // Căn chỉnh theo chiều dọc cho đẹp
+
+    button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      padding: 4px;
+      border-radius: 4px;
+
+      &:hover {
+        background-color: #f1f5f9;
+        color: var(--primary);
+      }
+
+      &.delBtn:hover {
+        color: var(--danger);
+        background-color: #fee2e2;
+      }
+    }
+  }
+
+  // [MỚI] Giao diện khi đang Sửa (Edit Mode)
+  .editModeBox {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+
+    .editInput {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 1.4rem;
+      outline: none;
+      &:focus {
+        border-color: var(--primary);
+      }
+    }
+
+    .editActions {
+      display: flex;
+      gap: 4px;
+
+      button {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+      }
+
+      .saveEditBtn {
+        background-color: var(--primary);
+      }
+
+      .cancelEditBtn {
+        background-color: #94a3b8;
+      }
     }
   }
 }
