@@ -347,16 +347,14 @@
   .cmtContentWrapper {
     flex: 1;
     display: flex;
-    align-items: flex-start; // Căn hàng ngang với nút action
-    gap: 8px;
+    flex-direction: column; // [SỬA] Để box chiếm hết width
   }
 
   .cmtContentBox {
     background-color: #f8fafc;
     padding: 8px 12px;
     border-radius: 0 12px 12px 12px;
-    flex: 1; // Chiếm hết chiều rộng có thể
-    max-width: 100%; // Tránh vỡ layout
+    width: 100%; // Chiếm hết khổ ngang có thể
 
     .cmtHeader {
       display: flex;
@@ -376,38 +374,62 @@
       }
     }
 
+    // 👇 [CLASS MỚI] Wrapper chứa Text và Actions
+    .cmtBody {
+      display: flex;
+      justify-content: space-between; // Căn 2 phía
+      align-items: flex-start; // Căn hàng trên cùng
+      gap: 12px; // Khoảng cách giữa chữ và nút
+    }
+
     .cmtText {
       font-size: 1.4rem;
       color: var(--text-main);
       line-height: 1.4;
       white-space: pre-wrap;
+      flex: 1; // Text chiếm hết không gian còn lại
+      word-break: break-word; // Xuống dòng nếu chữ quá dài
+      margin: 0;
     }
   }
 
   // [MỚI] Nút Action bên cạnh comment
   .cmtActions {
     display: flex;
-    gap: 4px;
-    opacity: 0; // Ẩn mặc định
+    gap: 6px;
+    flex-shrink: 0; // Không bị co lại khi text dài
+    opacity: 0; // Mặc định ẩn cho gọn
     transition: opacity 0.2s;
-    padding-top: 8px; // Căn chỉnh theo chiều dọc cho đẹp
+
+    // Logic: Hover vào cả cái box comment thì mới hiện nút
+    .cmtContentBox:hover & {
+      opacity: 1;
+    }
 
     button {
-      background: transparent;
+      background: transparent; // Hoặc để nền trắng nhẹ rgba(255,255,255,0.5)
       border: none;
       cursor: pointer;
-      color: #94a3b8;
       padding: 4px;
       border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
 
-      &:hover {
-        background-color: #f1f5f9;
-        color: var(--primary);
+      // 👇 [MỚI] Màu sắc cụ thể theo yêu cầu
+      &.editBtn {
+        color: #22c55e; // Xanh lá (Tailwind green-500)
+        &:hover {
+          background-color: #dcfce7; // Nền xanh nhạt
+        }
       }
 
-      &.delBtn:hover {
-        color: var(--danger);
-        background-color: #fee2e2;
+      &.delBtn {
+        color: #ef4444; // Đỏ (Tailwind red-500)
+        &:hover {
+          background-color: #fee2e2; // Nền đỏ nhạt
+        }
       }
     }
   }

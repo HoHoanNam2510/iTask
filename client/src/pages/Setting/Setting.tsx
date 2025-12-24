@@ -280,6 +280,12 @@ const Setting = () => {
                       })
                     }
                   />
+                  <div
+                    className={cx('eyeIcon')}
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </div>
                 </div>
               </div>
             </div>

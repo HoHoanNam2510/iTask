@@ -3,14 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import {
-  Image as ImageIcon,
-  Check,
+  X,
   Send,
-  MessageSquare,
-  MoreHorizontal,
+  Check,
   Edit2,
   Trash2,
-  X,
+  MessageSquare,
+  Image as ImageIcon,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
@@ -123,7 +122,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
       fetchCategories();
 
       if (taskToEdit) {
-        setAssigneeId(taskToEdit.assignee || '');
+        // Kiểm tra nếu assignee là Object thì lấy _id, nếu là string thì lấy trực tiếp
+        if (taskToEdit.assignee) {
+          if (typeof taskToEdit.assignee === 'object') {
+            // Ép kiểu any để lấy _id vì TypeScript có thể chưa hiểu structure populate
+            setAssigneeId((taskToEdit.assignee as any)._id);
+          } else {
+            setAssigneeId(taskToEdit.assignee as string);
+          }
+        } else {
+          // Trường hợp không có assignee (Chính tôi)
+          setAssigneeId('');
+        }
         fetchComments(); // [MỚI] Tải comment nếu đang edit
       } else {
         setAssigneeId('');
@@ -579,7 +589,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 ) : (
                   comments.map((comment) => (
                     <div key={comment._id} className={cx('commentItem')}>
-                      {/* Avatar */}
+                      {/* Avatar giữ nguyên */}
                       {comment.user.avatar ? (
                         <img
                           src={`http://localhost:5000/${comment.user.avatar.replace(
@@ -597,6 +607,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
                       <div className={cx('cmtContentWrapper')}>
                         <div className={cx('cmtContentBox')}>
+                          {/* Header (Tên + Giờ) giữ nguyên */}
                           <div className={cx('cmtHeader')}>
                             <span className={cx('cmtUser')}>
                               {comment.user.username}
@@ -609,8 +620,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             </span>
                           </div>
 
-                          {/* 👇 [LOGIC UI] Check xem có đang sửa comment này không */}
+                          {/* 👇 [LOGIC UI SỬA ĐỔI] */}
                           {editingCommentId === comment._id ? (
+                            // Giao diện khi đang Sửa (Input) - GIỮ NGUYÊN
                             <div className={cx('editModeBox')}>
                               <input
                                 autoFocus
@@ -641,31 +653,36 @@ const TaskModal: React.FC<TaskModalProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <p className={cx('cmtText')}>
-                              {renderCommentContent(comment.content)}
-                            </p>
-                          )}
-                        </div>
+                            // 👇 [MỚI] Bọc Text và Action vào cmtBody để căn 2 bên
+                            <div className={cx('cmtBody')}>
+                              <p className={cx('cmtText')}>
+                                {renderCommentContent(comment.content)}
+                              </p>
 
-                        {/* 👇 [MỚI] Nút Action (Chỉ hiện nếu là comment của chính mình và KHÔNG đang sửa) */}
-                        {user?._id === comment.user._id &&
-                          editingCommentId !== comment._id && (
-                            <div className={cx('cmtActions')}>
-                              <button
-                                onClick={() => handleStartEdit(comment)}
-                                title="Sửa"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteComment(comment._id)}
-                                title="Xóa"
-                                className={cx('delBtn')}
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {/* 👇 [DI CHUYỂN VÀO ĐÂY] Nút Action nằm cùng dòng text */}
+                              {user?._id === comment.user._id && (
+                                <div className={cx('cmtActions')}>
+                                  <button
+                                    onClick={() => handleStartEdit(comment)}
+                                    title="Sửa"
+                                    className={cx('editBtn')}
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteComment(comment._id)
+                                    }
+                                    title="Xóa"
+                                    className={cx('delBtn')}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
+                        </div>
                       </div>
                     </div>
                   ))
