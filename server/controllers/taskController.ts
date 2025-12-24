@@ -1,26 +1,94 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
-import fs from 'fs'; // Thư viện thao tác file
-import path from 'path'; // Thư viện thao tác đường dẫn
+import Group from '../models/Group'; // 👈 [QUAN TRỌNG] Import Group để check quyền
+import fs from 'fs';
+import path from 'path';
 
 // [HELPER] Hàm lấy đường dẫn file chuẩn xác
-// Thêm '../' để lùi ra ngoài folder server
 const getLocalImagePath = (dbPath: string) => {
   return path.join(process.cwd(), '../', dbPath);
 };
 
-// [GET] /api/tasks
+// ----------------------------------------------------------------
+// [GET] /api/tasks/:id (LẤY CHI TIẾT 1 TASK) -> Fix lỗi 404 khi click thông báo
+// ----------------------------------------------------------------
+export const getTask = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    // 1. Tìm Task
+    const task = await Task.findById(id);
+
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    // 2. CHECK QUYỀN TRUY CẬP
+    let hasAccess = false;
+
+    // - Nếu là người tạo (creator) hoặc người được giao (assignee) -> Có quyền
+    if (
+      task.creator?.toString() === userId.toString() ||
+      task.assignee?.toString() === userId.toString()
+    ) {
+      hasAccess = true;
+    }
+    // - Nếu task thuộc nhóm -> Check xem user có trong nhóm đó không
+    else if (task.group) {
+      const group = await Group.findById(task.group);
+      if (group && group.members.includes(userId)) {
+        hasAccess = true;
+      }
+    }
+
+    if (!hasAccess) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Bạn không có quyền xem task này' });
+      return;
+    }
+
+    // 3. Populate dữ liệu cần thiết để hiển thị trên Modal
+    await task.populate('category', 'name color');
+    await task.populate('group', 'name members');
+    await task.populate('assignee', 'username avatar email');
+    await task.populate('creator', 'username avatar');
+
+    res.json({ success: true, task });
+  } catch (error) {
+    console.error('Get Single Task Error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// ----------------------------------------------------------------
+// [GET] /api/tasks (LẤY DANH SÁCH TASK) -> Đã update logic Group
+// ----------------------------------------------------------------
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
 
+    // 1. Tìm tất cả các nhóm mà user là thành viên
+    const userGroups = await Group.find({ members: userId }).distinct('_id');
+
+    // 2. Tìm task thỏa mãn 1 trong 3 điều kiện:
+    // - User là người tạo
+    // - User là người được giao
+    // - Task thuộc về nhóm mà user tham gia
     const tasks = await Task.find({
-      $or: [{ creator: userId }, { assignee: userId }],
+      $or: [
+        { creator: userId },
+        { assignee: userId },
+        { group: { $in: userGroups } }, // 👈 Logic mới bổ sung
+      ],
     })
       .sort({ createdAt: -1 })
       .populate('category', 'name color')
-      .populate('group', 'name');
+      .populate('group', 'name')
+      .populate('assignee', 'username avatar'); // Hiện avatar người làm
 
     res.status(200).json({
       success: true,
@@ -35,7 +103,9 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// ----------------------------------------------------------------
 // [POST] /api/tasks
+// ----------------------------------------------------------------
 export const createTask = async (
   req: Request,
   res: Response
@@ -43,7 +113,6 @@ export const createTask = async (
   console.log('👉 Đã nhận được request tạo Task!', req.body);
 
   try {
-    // 1. Kiểm tra Auth
     const creatorId = (req as any).user?._id;
     if (!creatorId) {
       res
@@ -52,7 +121,6 @@ export const createTask = async (
       return;
     }
 
-    // 2. Lấy dữ liệu
     const {
       title,
       description,
@@ -72,20 +140,15 @@ export const createTask = async (
       return;
     }
 
-    // 3. Xử lý ảnh (Lưu đường dẫn tương đối: uploads/filename)
     let imageUrl = '';
     if (req.file) {
       imageUrl = `uploads/${req.file.filename}`;
     }
 
-    // 4. Xử lý Group/Assignee
     const group = groupId ? groupId : null;
     const assignee = req.body.assignee ? req.body.assignee : creatorId;
-
-    // 5. Priority
     const finalPriority = priority ? priority.toLowerCase() : 'moderate';
 
-    // 6. Tạo Task
     const newTask = new Task({
       title,
       description,
@@ -117,7 +180,9 @@ export const createTask = async (
   }
 };
 
+// ----------------------------------------------------------------
 // [PUT] /api/tasks/:id
+// ----------------------------------------------------------------
 export const updateTask = async (
   req: Request,
   res: Response
@@ -126,19 +191,11 @@ export const updateTask = async (
     const { id } = req.params;
     const updateData: any = { ...req.body };
 
-    // --- LOGIC XÓA ẢNH CŨ KHI CÓ ẢNH MỚI ---
     if (req.file) {
-      // 1. Set đường dẫn ảnh mới
       updateData.image = `uploads/${req.file.filename}`;
-
-      // 2. Tìm task cũ
       const oldTask = await Task.findById(id);
-
-      // 3. Xóa ảnh cũ nếu có
       if (oldTask && oldTask.image && !oldTask.image.startsWith('http')) {
-        // [QUAN TRỌNG] Sử dụng hàm helper đã sửa đường dẫn
         const oldAbsolutePath = getLocalImagePath(oldTask.image);
-
         if (fs.existsSync(oldAbsolutePath)) {
           try {
             fs.unlinkSync(oldAbsolutePath);
@@ -149,7 +206,6 @@ export const updateTask = async (
         }
       }
     }
-    // ----------------------------------------
 
     if (updateData.priority) {
       updateData.priority = updateData.priority.toLowerCase();
@@ -174,15 +230,15 @@ export const updateTask = async (
   }
 };
 
+// ----------------------------------------------------------------
 // [DELETE] /api/tasks/:id
+// ----------------------------------------------------------------
 export const deleteTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-
-    // --- LOGIC XÓA ẢNH KHI XÓA TASK ---
     const taskToDelete = await Task.findById(id);
 
     if (!taskToDelete) {
@@ -190,11 +246,8 @@ export const deleteTask = async (
       return;
     }
 
-    // Nếu có ảnh, xóa file trên ổ cứng
     if (taskToDelete.image && !taskToDelete.image.startsWith('http')) {
-      // [QUAN TRỌNG] Sử dụng hàm helper đã sửa đường dẫn
       const imagePath = getLocalImagePath(taskToDelete.image);
-
       if (fs.existsSync(imagePath)) {
         try {
           fs.unlinkSync(imagePath);
@@ -202,14 +255,10 @@ export const deleteTask = async (
         } catch (err) {
           console.error('Lỗi dọn dẹp ảnh:', err);
         }
-      } else {
-        console.log('⚠️ File ảnh không tồn tại để xóa:', imagePath);
       }
     }
-    // -----------------------------------
 
     await Task.findByIdAndDelete(id);
-
     res.json({ success: true, message: 'Task deleted successfully' });
   } catch (error) {
     console.error(error);
@@ -217,20 +266,19 @@ export const deleteTask = async (
   }
 };
 
-// ADMIN
-// 👇 [THÊM MỚI] Admin lấy toàn bộ Task trong hệ thống
+// ----------------------------------------------------------------
+// [ADMIN] Get All Tasks
+// ----------------------------------------------------------------
 export const getAllTasksAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    // Lấy tất cả task, populate thông tin người tạo (creator) để biết task của ai
     const tasks = await Task.find()
-      .populate('creator', 'username email avatar') // Lấy tên, email, avatar người tạo
-      // 👇 [THÊM] Populate thêm Category và Group
+      .populate('creator', 'username email avatar')
       .populate('category', 'name color')
       .populate('group', 'name')
-      .sort({ createdAt: -1 }); // Mới nhất lên đầu
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,

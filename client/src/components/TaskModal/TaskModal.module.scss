@@ -420,3 +420,64 @@
     }
   }
 }
+
+// [MỚI] Wrapper để định vị popup
+.commentInputWrapper {
+  position: relative; // Để popup absolute theo thằng này
+  margin-top: auto;
+}
+
+// [MỚI] Style cho Text được Highlight
+.mentionHighlight {
+  color: var(--primary); // Xanh lá
+  font-weight: 700;
+  background-color: rgba(var(--primary-rgb), 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+// [MỚI] Popup gợi ý
+.mentionPopup {
+  position: absolute;
+  bottom: 100%; // Hiện lên trên input
+  left: 20px;
+  width: 200px;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+  z-index: 10;
+  overflow: hidden;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 1.3rem;
+  color: var(--text-main);
+
+  &:hover {
+    background-color: var(--bg-hover);
+    color: var(--primary);
+  }
+}
+
+.mentionAvatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+}

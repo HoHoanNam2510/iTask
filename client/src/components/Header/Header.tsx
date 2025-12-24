@@ -1,10 +1,27 @@
+/* src/components/Layout/Header/Header.tsx */
 import classNames from 'classnames/bind';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { Search, Bell, CalendarDays, CheckSquare } from 'lucide-react'; // Import icon từ lucide-react
-import styles from './header.module.scss';
+import axios from 'axios';
+import { Search, Bell, CalendarDays, CheckSquare, Trash2 } from 'lucide-react'; // 👈 [MỚI] Thêm Trash2
+import { format } from 'date-fns';
+import styles from './Header.module.scss';
 
 const cx = classNames.bind(styles);
+
+// Interface cho Notification
+interface INotification {
+  _id: string;
+  text: string;
+  type: string;
+  link?: string; // 👈 [MỚI] Thêm trường link (chứa taskId)
+  isRead: boolean;
+  sender: {
+    username: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
 
 const Header = () => {
   const navigate = useNavigate();
@@ -13,15 +30,38 @@ const Header = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [now, setNow] = useState(new Date());
 
-  // Mock data
-  const [notifications] = useState([
-    { id: '1', text: 'Deadline task A in 1 hour' },
-    { id: '2', text: 'Task B assigned to you' },
-    { id: '3', text: 'Meeting with team at 2 PM' },
-  ]);
+  const [notifications, setNotifications] = useState<INotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const notiRef = useRef<HTMLDivElement | null>(null);
   const calRef = useRef<HTMLDivElement | null>(null);
+
+  // Hàm gọi API lấy thông báo
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const res = await axios.get('http://localhost:5000/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        setNotifications(res.data.notifications);
+        const unread = res.data.notifications.filter(
+          (n: any) => !n.isRead
+        ).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('Lỗi tải thông báo');
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
@@ -41,6 +81,89 @@ const Header = () => {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
+  // 👇 [MỚI] Hàm xóa thông báo
+  const handleDeleteNoti = async (e: React.MouseEvent, notiId: string) => {
+    e.stopPropagation(); // Ngăn click lan ra ngoài
+    if (!window.confirm('Bạn có chắc muốn xóa thông báo này?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/notifications/${notiId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Update UI
+      setNotifications((prev) => prev.filter((n) => n._id !== notiId));
+      // Nếu xóa thông báo chưa đọc thì giảm count
+      const isUnread = notifications.find((n) => n._id === notiId && !n.isRead);
+      if (isUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Lỗi xóa notification:', error);
+    }
+  };
+
+  // 👇 [CẬP NHẬT] Xử lý click thông báo -> Đánh dấu đọc & Điều hướng
+  const handleNotiClick = async (noti: INotification) => {
+    // 1. Đánh dấu đã đọc
+    if (!noti.isRead) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.put(
+          `http://localhost:5000/api/notifications/${noti._id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === noti._id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    setShowNoti(false); // Đóng dropdown
+
+    // 2. Logic điều hướng Deep Link
+    // Giả sử noti.link chứa taskId
+    const taskId = noti.link;
+    if (
+      taskId &&
+      (noti.type === 'mention' ||
+        noti.type === 'assign' ||
+        noti.type === 'deadline')
+    ) {
+      try {
+        // Gọi API lấy thông tin task để biết nó thuộc Group nào
+        const token = localStorage.getItem('token');
+        const res = await axios.get(
+          `http://localhost:5000/api/tasks/${taskId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (res.data.success) {
+          const task = res.data.task;
+          if (task.group) {
+            // 👇 [SỬA] Kiểm tra nếu group là object (đã populate) thì lấy _id, ngược lại giữ nguyên
+            const groupId =
+              typeof task.group === 'object' ? task.group._id : task.group;
+
+            // Navigate với ID chuẩn
+            navigate(`/groups/${groupId}?openTask=${task._id}`);
+          } else {
+            // Nếu là task cá nhân -> Qua Dashboard (hoặc MyTask)
+            navigate(`/?openTask=${task._id}`);
+          }
+        }
+      } catch (error) {
+        console.error('Task không tồn tại:', error);
+        alert('Công việc này có thể đã bị xóa.');
+      }
+    }
+  };
+
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (query.trim()) {
@@ -49,7 +172,6 @@ const Header = () => {
   };
 
   const formatDate = (date: Date) => {
-    // Format ngắn gọn hơn một chút để đỡ tốn diện tích
     return new Intl.DateTimeFormat('vi-VN', {
       weekday: 'short',
       day: 'numeric',
@@ -58,9 +180,22 @@ const Header = () => {
     }).format(date);
   };
 
+  const renderNotificationText = (text: string) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        return (
+          <span key={index} className={cx('mentionHighlight')}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <header className={cx('header')}>
-      {/* 1. Logo Section */}
       <div className={cx('left')} tabIndex={-1}>
         <div className={cx('logo')}>
           <Link to="/">
@@ -70,7 +205,6 @@ const Header = () => {
         </div>
       </div>
 
-      {/* 2. Search Section */}
       <div className={cx('center')}>
         <form className={cx('searchBar')} onSubmit={handleSearch}>
           <input
@@ -85,7 +219,6 @@ const Header = () => {
         </form>
       </div>
 
-      {/* 3. Actions Section */}
       <div className={cx('right')}>
         {/* Notifications */}
         <div className={cx('iconWrapper')} ref={notiRef}>
@@ -99,8 +232,8 @@ const Header = () => {
             <Bell size={20} />
           </button>
 
-          {notifications.length > 0 && (
-            <span className={cx('badge')}>{notifications.length}</span>
+          {unreadCount > 0 && (
+            <span className={cx('badge')}>{unreadCount}</span>
           )}
 
           {showNoti && (
@@ -114,16 +247,76 @@ const Header = () => {
               >
                 Thông báo
               </h4>
-              {notifications.map((n) => (
-                <div className={cx('dropdownItem')} key={n.id}>
-                  {n.text}
-                </div>
-              ))}
+
+              <div className={cx('notiList')}>
+                {notifications.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 12,
+                      textAlign: 'center',
+                      color: '#999',
+                      fontSize: '1.4rem',
+                    }}
+                  >
+                    Không có thông báo mới
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      className={cx('dropdownItem')}
+                      key={n._id}
+                      onClick={() => handleNotiClick(n)} // Gọi hàm click mới
+                      style={{ opacity: n.isRead ? 0.7 : 1 }}
+                    >
+                      {/* Chấm trạng thái */}
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: n.isRead
+                            ? 'transparent'
+                            : 'var(--primary)',
+                          flexShrink: 0,
+                          marginTop: 6,
+                        }}
+                      />
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          width: '100%',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontWeight: 700 }}>
+                            {n.sender?.username}{' '}
+                          </span>
+                          {renderNotificationText(n.text)}
+                        </div>
+                        <span className={cx('notiTime')}>
+                          {format(new Date(n.createdAt), 'dd/MM/yyyy - HH:mm')}
+                        </span>
+                      </div>
+
+                      {/* 👇 [MỚI] Nút xóa */}
+                      <button
+                        className={cx('deleteBtn')}
+                        onClick={(e) => handleDeleteNoti(e, n._id)}
+                        title="Xóa thông báo"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Calendar Quick View */}
+        {/* Calendar */}
         <div className={cx('iconWrapper')} ref={calRef}>
           <button
             className={cx('iconBtn', { active: showCalendar })}
@@ -147,7 +340,6 @@ const Header = () => {
           )}
         </div>
 
-        {/* Date Display */}
         <div className={cx('dateText')}>{formatDate(now)}</div>
       </div>
     </header>

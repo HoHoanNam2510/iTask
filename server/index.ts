@@ -15,6 +15,7 @@ import commentRoutes from './routes/commentRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 const app = express();
 
@@ -32,7 +33,7 @@ const uploadsPath = path.join(process.cwd(), '../uploads');
 // 4. LOGGER CỰC MẠNH (Để debug)
 app.use((req, res, next) => {
   console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  console.log('   📦 Body:', JSON.stringify(req.body, null, 2));
+  console.log('📦 Body:', JSON.stringify(req.body, null, 2));
   next();
 });
 
@@ -48,6 +49,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 7. GLOBAL ERROR HANDLER (Chặn lỗi crash app)
 app.use(
