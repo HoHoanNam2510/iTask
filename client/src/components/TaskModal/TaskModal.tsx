@@ -12,6 +12,7 @@ import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
 import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
+import { useAuth } from '~/context/AuthContext';
 
 const cx = classNames.bind(styles);
 
@@ -53,6 +54,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   groupMembers = [],
   groupId,
 }) => {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [assigneeId, setAssigneeId] = useState('');
@@ -72,6 +74,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [comments, setComments] = useState<IComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isCommentLoading, setIsCommentLoading] = useState(false);
+  // 👇 [STATE MỚI] Cho Autocomplete Mention
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [filteredMembers, setFilteredMembers] = useState<UserBasic[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null); // [MỚI] Để scroll xuống dưới cùng
@@ -155,6 +160,69 @@ const TaskModal: React.FC<TaskModalProps> = ({
     } catch (error) {
       console.error('Lỗi tải comment', error);
     }
+  };
+
+  // - Điều kiện 1: Phải có groupId (đang ở trong Group).
+  // - Điều kiện 2: Phải có danh sách thành viên.
+  // - LỌC: Loại bỏ chính bản thân user đang đăng nhập ra khỏi danh sách.
+  const mentionableUsers =
+    groupId && groupMembers.length > 0
+      ? groupMembers.filter((member) => member._id !== user?._id)
+      : [];
+
+  // 👇 [HÀM MỚI] Xử lý khi gõ phím để detect @
+  const handleCommentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setNewComment(val);
+
+    // Logic detect @ ở cuối câu
+    const lastWord = val.split(' ').pop();
+
+    // SỬA: Thay "groupMembers" bằng "mentionableUsers"
+    if (lastWord && lastWord.startsWith('@') && mentionableUsers.length > 0) {
+      const query = lastWord.slice(1).toLowerCase(); // Bỏ dấu @
+
+      // SỬA: Thay "groupMembers" bằng "mentionableUsers"
+      const matches = mentionableUsers.filter((m) =>
+        m.username.toLowerCase().includes(query)
+      );
+
+      if (matches.length > 0) {
+        setFilteredMembers(matches);
+        setShowMentionList(true);
+        return;
+      }
+    }
+    setShowMentionList(false);
+  };
+
+  // 👇 [HÀM MỚI] Chọn user từ list gợi ý
+  const handleSelectMention = (username: string) => {
+    // Thay thế từ @cuối cùng bằng @username + khoảng trắng
+    const words = newComment.split(' ');
+    words.pop(); // Bỏ từ @dang_go
+    const newVal = [...words, `@${username} `].join(' '); // Thêm tên đầy đủ
+    setNewComment(newVal);
+    setShowMentionList(false);
+
+    // Focus lại vào input (tùy chọn)
+  };
+
+  // 👇 [HÀM MỚI] Render nội dung có highlight @Username
+  const renderCommentContent = (content: string) => {
+    // Regex tìm các từ bắt đầu bằng @
+    const parts = content.split(/(@\w+)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        return (
+          <span key={index} className={cx('mentionHighlight')}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
 
   // [MỚI] API Gửi comment
@@ -467,7 +535,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             )}
                           </span>
                         </div>
-                        <p className={cx('cmtText')}>{comment.content}</p>
+                        <p className={cx('cmtText')}>
+                          {renderCommentContent(comment.content)}
+                        </p>
                       </div>
                     </div>
                   ))
@@ -475,21 +545,41 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 <div ref={commentsEndRef} />
               </div>
 
-              <div className={cx('commentInputBox')}>
-                <input
-                  type="text"
-                  placeholder="Viết bình luận... (Nhấn Enter để gửi)"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isCommentLoading}
-                />
-                <button
-                  onClick={handleSendComment}
-                  disabled={isCommentLoading || !newComment.trim()}
-                >
-                  <Send size={18} />
-                </button>
+              {/* Input Comment Box */}
+              <div className={cx('commentInputWrapper')}>
+                {' '}
+                {/* Đổi tên class cha để dễ CSS position relative */}
+                {/* 👇 [MỚI] Popup gợi ý Mention */}
+                {showMentionList && (
+                  <div className={cx('mentionPopup')}>
+                    {filteredMembers.map((user) => (
+                      <div
+                        key={user._id}
+                        className={cx('mentionItem')}
+                        onClick={() => handleSelectMention(user.username)}
+                      >
+                        <div className={cx('mentionAvatar')}>
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <span>{user.username}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Input cũ */}
+                <div className={cx('commentInputBox')}>
+                  <input
+                    type="text"
+                    placeholder="Viết bình luận... (gõ @ để tag tên)"
+                    value={newComment}
+                    onChange={handleCommentChange} // Dùng hàm mới
+                    onKeyDown={handleKeyDown}
+                    disabled={isCommentLoading}
+                  />
+                  <button onClick={handleSendComment} /* ... */>
+                    <Send size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 /* src/pages/Group/Group.tsx */
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import classNames from 'classnames/bind';
@@ -49,6 +49,11 @@ interface GroupData {
 
 const Group: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
+
+  // 👇 [MỚI] Hook lấy query params (?openTask=...)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openTaskId = searchParams.get('openTask');
+
   const [data, setData] = useState<GroupData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,7 +96,45 @@ const Group: React.FC = () => {
     fetchGroupData();
   }, [groupId]);
 
+  // 👇 [MỚI] EFFECT TỰ ĐỘNG MỞ MODAL KHI CÓ URL PARAMS
+  useEffect(() => {
+    const autoOpenTask = async () => {
+      if (openTaskId && data) {
+        // Đảm bảo đã load xong data group
+        // Tìm task trong list hiện có của group (đỡ phải gọi API lại nếu có sẵn)
+        const existingTask = data.tasks.find((t) => t._id === openTaskId);
+
+        if (existingTask) {
+          // Nếu có sẵn thông tin cơ bản, gọi API lấy chi tiết full (để có comments, v.v.)
+          try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(
+              `http://localhost:5000/api/tasks/${openTaskId}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            if (res.data.success) {
+              setEditingTask(res.data.task);
+              setIsTaskModalOpen(true);
+            }
+          } catch (error) {
+            console.error('Lỗi mở task từ link:', error);
+          }
+        }
+      }
+    };
+    autoOpenTask();
+  }, [openTaskId, data]);
+
   // --- HANDLERS ---
+
+  // [MỚI] Hàm đóng modal đặc biệt: Xóa params URL
+  const handleCloseModal = () => {
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+    setSearchParams({}); // Xóa ?openTask=... để F5 không bị mở lại
+  };
 
   // 1. Thêm mới
   const handleAddTask = () => {
@@ -263,10 +306,10 @@ const Group: React.FC = () => {
       {/* TASK MODAL */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={handleCloseModal} // 👈 Sửa thành hàm đóng mới
         onSuccess={() => fetchGroupData()}
         groupId={groupId}
-        groupMembers={data.members}
+        groupMembers={data?.members || []} // Fix optional chaining
         taskToEdit={editingTask}
       />
     </div>

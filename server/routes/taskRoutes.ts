@@ -1,6 +1,6 @@
 import express from 'express';
-// 1. QUAN TRỌNG: Phải import thêm getTasks ở đây
 import {
+  getTask,
   getTasks,
   createTask,
   deleteTask,
@@ -14,6 +14,7 @@ const router = express.Router();
 
 // Routes cho User
 router.get('/', verifyToken, getTasks);
+router.get('/:id', verifyToken, getTask);
 router.post('/', verifyToken, upload.single('image'), createTask);
 router.put('/:id', verifyToken, upload.single('image'), updateTask);
 router.delete('/:id', verifyToken, deleteTask);
