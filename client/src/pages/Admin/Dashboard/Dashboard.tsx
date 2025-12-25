@@ -10,7 +10,8 @@ import {
   Trash2,
   TrendingUp,
   Calendar,
-  FileClock, // Icon cho Audit Log
+  FileClock,
+  Settings, // Icon Settings
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -45,7 +46,14 @@ ChartJS.register(
 
 const cx = classNames.bind(styles);
 
-type TabType = 'users' | 'tasks' | 'groups' | 'categories' | 'logs';
+// 👇 [CẬP NHẬT] Thêm 'settings' vào TabType
+type TabType =
+  | 'users'
+  | 'tasks'
+  | 'groups'
+  | 'categories'
+  | 'logs'
+  | 'settings';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>('users');
@@ -62,6 +70,17 @@ const AdminDashboard = () => {
     newToday: 0,
   });
 
+  // State cho Settings
+  const [sysConfig, setSysConfig] = useState({
+    globalBanner: {
+      isActive: false,
+      content: '',
+      type: 'info' as 'info' | 'warning' | 'error' | 'success',
+    },
+    maintenanceMode: false,
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
+
   // --- 1. FETCH DATA BASED ON TAB ---
   const fetchData = async () => {
     setLoading(true);
@@ -75,22 +94,31 @@ const AdminDashboard = () => {
       if (activeTab === 'groups') endpoint = '/api/groups/admin/all';
       if (activeTab === 'categories') endpoint = '/api/categories/admin/all';
       if (activeTab === 'logs') endpoint = '/api/admin/logs?limit=50';
+      // 👇 [MỚI] Endpoint cho Settings
+      if (activeTab === 'settings') endpoint = '/api/system';
 
       const res = await axios.get(`http://localhost:5000${endpoint}`, config);
 
       if (res.data.success) {
-        let list = [];
-        if (activeTab === 'users') list = res.data.users;
-        if (activeTab === 'tasks') list = res.data.tasks;
-        if (activeTab === 'groups') list = res.data.groups;
-        if (activeTab === 'categories') list = res.data.categories;
-        if (activeTab === 'logs') list = res.data.logs;
+        // Xử lý riêng cho tab Settings
+        if (activeTab === 'settings') {
+          setSysConfig(res.data.config);
+          setDataList([]); // Tab này không dùng bảng dataList
+        } else {
+          // Các tab dữ liệu thông thường
+          let list = [];
+          if (activeTab === 'users') list = res.data.users;
+          if (activeTab === 'tasks') list = res.data.tasks;
+          if (activeTab === 'groups') list = res.data.groups;
+          if (activeTab === 'categories') list = res.data.categories;
+          if (activeTab === 'logs') list = res.data.logs;
 
-        setDataList(list);
+          setDataList(list);
 
-        // Chỉ tính toán stats nếu KHÔNG PHẢI là logs
-        if (activeTab !== 'logs') {
-          calculateStats(list);
+          // Chỉ tính toán stats nếu KHÔNG PHẢI là logs (vì logs có logic khác)
+          if (activeTab !== 'logs') {
+            calculateStats(list);
+          }
         }
       }
     } catch (error) {
@@ -129,8 +157,8 @@ const AdminDashboard = () => {
 
   // --- 3. HANDLE ACTIONS ---
   const handleDelete = async (id: string) => {
-    // Không cho phép xóa Log từ giao diện này
-    if (activeTab === 'logs') return;
+    // Không cho phép xóa Log/Settings từ giao diện này
+    if (activeTab === 'logs' || activeTab === 'settings') return;
 
     if (!window.confirm('Bạn có chắc muốn xóa đối tượng này?')) return;
     try {
@@ -151,6 +179,22 @@ const AdminDashboard = () => {
       calculateStats(newList);
     } catch (error) {
       alert('Xóa thất bại!');
+    }
+  };
+
+  // 👇 [HÀM MỚI] Lưu Settings
+  const handleSaveSettings = async () => {
+    try {
+      setSavingConfig(true);
+      const token = localStorage.getItem('token');
+      await axios.put('http://localhost:5000/api/system', sysConfig, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Đã lưu cấu hình hệ thống!');
+    } catch (error) {
+      alert('Lỗi khi lưu cấu hình');
+    } finally {
+      setSavingConfig(false);
     }
   };
 
@@ -188,7 +232,6 @@ const AdminDashboard = () => {
     if (action === 'DELETE') type = 'delete';
     if (action === 'LOGIN') type = 'login';
 
-    // Class 'methodBadge' và các modifier cần được định nghĩa trong SCSS
     return <span className={cx('methodBadge', type)}>{action}</span>;
   };
 
@@ -226,17 +269,23 @@ const AdminDashboard = () => {
         >
           <Tag size={18} /> Categories
         </button>
-        {/* 👇 [MỚI] Nút Tab Audit Logs */}
         <button
           className={cx('tabItem', { active: activeTab === 'logs' })}
           onClick={() => setActiveTab('logs')}
         >
           <FileClock size={18} /> Audit Logs
         </button>
+        {/* 👇 [MỚI] Nút Tab Settings */}
+        <button
+          className={cx('tabItem', { active: activeTab === 'settings' })}
+          onClick={() => setActiveTab('settings')}
+        >
+          <Settings size={18} /> Settings
+        </button>
       </div>
 
-      {/* Stats Cards & Chart (Ẩn khi xem Logs) */}
-      {activeTab !== 'logs' && (
+      {/* Stats Cards & Chart (Ẩn khi xem Logs và Settings) */}
+      {activeTab !== 'logs' && activeTab !== 'settings' && (
         <>
           <div className={cx('statsGrid')}>
             <StatCard
@@ -367,7 +416,7 @@ const AdminDashboard = () => {
             ))}
           </div>
         ) : activeTab === 'logs' ? (
-          // 👇 [MỚI] --- VIEW CHO AUDIT LOGS ---
+          // --- VIEW CHO AUDIT LOGS ---
           <div className={cx('tableScrollContainer')}>
             <table className={cx('adminTable')}>
               <thead>
@@ -469,6 +518,95 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : activeTab === 'settings' ? (
+          // 👇 [VIEW MỚI] GIAO DIỆN SETTINGS
+          <div className={cx('settingsContainer')}>
+            <div className={cx('settingCard')}>
+              <h3 className={cx('cardTitle')}>
+                Global Banner (Thông báo hệ thống)
+              </h3>
+              <p className={cx('cardDesc')}>
+                Hiển thị một thanh thông báo chạy ngang trên đầu trang web của
+                tất cả người dùng.
+              </p>
+
+              <div className={cx('formGroup')}>
+                <label>Trạng thái</label>
+                <div className={cx('toggleRow')}>
+                  <label className={cx('switch')}>
+                    <input
+                      type="checkbox"
+                      checked={sysConfig.globalBanner.isActive}
+                      onChange={(e) =>
+                        setSysConfig({
+                          ...sysConfig,
+                          globalBanner: {
+                            ...sysConfig.globalBanner,
+                            isActive: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    <span className={cx('slider')}></span>
+                  </label>
+                  <span>
+                    {sysConfig.globalBanner.isActive ? 'Đang BẬT' : 'Đang TẮT'}
+                  </span>
+                </div>
+              </div>
+
+              <div className={cx('formGroup')}>
+                <label>Nội dung thông báo</label>
+                <input
+                  className={cx('input')}
+                  value={sysConfig.globalBanner.content}
+                  onChange={(e) =>
+                    setSysConfig({
+                      ...sysConfig,
+                      globalBanner: {
+                        ...sysConfig.globalBanner,
+                        content: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Ví dụ: Hệ thống bảo trì lúc 12:00..."
+                />
+              </div>
+
+              <div className={cx('formGroup')}>
+                <label>Loại thông báo (Màu sắc)</label>
+                <div className={cx('radioGroup')}>
+                  {['info', 'warning', 'error', 'success'].map((type) => (
+                    <div
+                      key={type}
+                      className={cx('radioItem', type, {
+                        active: sysConfig.globalBanner.type === type,
+                      })}
+                      onClick={() =>
+                        setSysConfig({
+                          ...sysConfig,
+                          globalBanner: {
+                            ...sysConfig.globalBanner,
+                            type: type as any,
+                          },
+                        })
+                      }
+                    >
+                      {type.toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                className={cx('saveBtn')}
+                onClick={handleSaveSettings}
+                disabled={savingConfig}
+              >
+                {savingConfig ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+              </button>
+            </div>
           </div>
         ) : (
           // --- VIEW CHO USERS, GROUPS, CATEGORIES (TABLE STYLE) ---
