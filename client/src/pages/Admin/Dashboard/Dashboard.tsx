@@ -10,6 +10,7 @@ import {
   Trash2,
   TrendingUp,
   Calendar,
+  FileClock, // Icon cho Audit Log
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -22,6 +23,7 @@ import {
   ArcElement,
   PointElement,
   LineElement,
+  Filler,
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import styles from './Dashboard.module.scss';
@@ -37,24 +39,25 @@ ChartJS.register(
   Legend,
   ArcElement,
   PointElement,
-  LineElement
+  LineElement,
+  Filler
 );
 
 const cx = classNames.bind(styles);
 
-type TabType = 'users' | 'tasks' | 'groups' | 'categories';
+type TabType = 'users' | 'tasks' | 'groups' | 'categories' | 'logs';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [loading, setLoading] = useState(false);
 
-  // Data State (Lưu trữ dữ liệu thô từ API)
+  // Data State
   const [dataList, setDataList] = useState<any[]>([]);
 
-  // Stats State (Lưu trữ số liệu thống kê tính toán được)
+  // Stats State
   const [stats, setStats] = useState({
     total: 0,
-    growth: 0, // Tăng trưởng tuần này so với tuần trước
+    growth: 0,
     active: 0,
     newToday: 0,
   });
@@ -67,24 +70,28 @@ const AdminDashboard = () => {
 
     try {
       let endpoint = '';
-      if (activeTab === 'users') endpoint = '/api/users'; // Admin API get all users
+      if (activeTab === 'users') endpoint = '/api/users';
       if (activeTab === 'tasks') endpoint = '/api/tasks/admin/all';
       if (activeTab === 'groups') endpoint = '/api/groups/admin/all';
       if (activeTab === 'categories') endpoint = '/api/categories/admin/all';
+      if (activeTab === 'logs') endpoint = '/api/admin/logs?limit=50';
 
-      // Lưu ý: Đảm bảo Backend trả về format chuẩn { success: true, [key]: [] }
       const res = await axios.get(`http://localhost:5000${endpoint}`, config);
 
       if (res.data.success) {
-        // Backend trả về key khác nhau tùy endpoint, ta chuẩn hóa lại
         let list = [];
         if (activeTab === 'users') list = res.data.users;
         if (activeTab === 'tasks') list = res.data.tasks;
         if (activeTab === 'groups') list = res.data.groups;
         if (activeTab === 'categories') list = res.data.categories;
+        if (activeTab === 'logs') list = res.data.logs;
 
         setDataList(list);
-        calculateStats(list);
+
+        // Chỉ tính toán stats nếu KHÔNG PHẢI là logs
+        if (activeTab !== 'logs') {
+          calculateStats(list);
+        }
       }
     } catch (error) {
       console.error('Fetch error:', error);
@@ -97,29 +104,24 @@ const AdminDashboard = () => {
     fetchData();
   }, [activeTab]);
 
-  // --- 2. CALCULATE STATS (Frontend Calculation) ---
+  // --- 2. CALCULATE STATS ---
   const calculateStats = (list: any[]) => {
     const total = list.length;
-
-    // Tính số lượng mới tạo hôm nay
     const today = new Date();
     const newToday = list.filter((item) =>
       isSameDay(new Date(item.createdAt), today)
     ).length;
 
-    // Logic giả lập Active/Inactive (Tùy nghiệp vụ)
-    // Ví dụ: Tasks active là 'in_progress', Users active là có avatar...
     let activeCount = 0;
     if (activeTab === 'tasks') {
       activeCount = list.filter((t) => t.status === 'in_progress').length;
     } else {
-      // Mặc định hiển thị 80% là active cho đẹp nếu không có logic cụ thể
       activeCount = Math.floor(total * 0.8);
     }
 
     setStats({
       total,
-      growth: Math.floor(Math.random() * 20), // Mockup tăng trưởng
+      growth: Math.floor(Math.random() * 20),
       active: activeCount,
       newToday,
     });
@@ -127,10 +129,12 @@ const AdminDashboard = () => {
 
   // --- 3. HANDLE ACTIONS ---
   const handleDelete = async (id: string) => {
+    // Không cho phép xóa Log từ giao diện này
+    if (activeTab === 'logs') return;
+
     if (!window.confirm('Bạn có chắc muốn xóa đối tượng này?')) return;
     try {
       const token = localStorage.getItem('token');
-      // Gọi API xóa tương ứng
       let endpoint = '';
       if (activeTab === 'users') endpoint = `/api/users/${id}`;
       if (activeTab === 'tasks') endpoint = `/api/tasks/${id}`;
@@ -156,7 +160,6 @@ const AdminDashboard = () => {
       format(subDays(new Date(), 6 - i), 'dd/MM')
     );
 
-    // Đếm số lượng tạo theo ngày cho biểu đồ
     const dataCounts = labels.map((dateLabel) => {
       return dataList.filter(
         (item) => format(new Date(item.createdAt), 'dd/MM') === dateLabel
@@ -172,10 +175,21 @@ const AdminDashboard = () => {
           backgroundColor: '#40a578',
           borderColor: '#40a578',
           tension: 0.4,
-          fill: activeTab === 'users', // Users dùng Line Chart fill
+          fill: activeTab === 'users',
         },
       ],
     };
+  };
+
+  // --- 5. HELPER: RENDER METHOD BADGE (Cho Audit Logs) ---
+  const renderMethodBadge = (action: string) => {
+    let type = 'update';
+    if (action === 'CREATE') type = 'create';
+    if (action === 'DELETE') type = 'delete';
+    if (action === 'LOGIN') type = 'login';
+
+    // Class 'methodBadge' và các modifier cần được định nghĩa trong SCSS
+    return <span className={cx('methodBadge', type)}>{action}</span>;
   };
 
   return (
@@ -212,77 +226,81 @@ const AdminDashboard = () => {
         >
           <Tag size={18} /> Categories
         </button>
+        {/* 👇 [MỚI] Nút Tab Audit Logs */}
+        <button
+          className={cx('tabItem', { active: activeTab === 'logs' })}
+          onClick={() => setActiveTab('logs')}
+        >
+          <FileClock size={18} /> Audit Logs
+        </button>
       </div>
 
-      {/* Stats Cards (Dynamic content based on Tab) */}
-      <div className={cx('statsGrid')}>
-        <StatCard
-          title={`Total ${activeTab}`}
-          value={stats.total}
-          icon={<Layers />}
-          color="blue"
-        />
-        <StatCard
-          title="New Today"
-          value={`+${stats.newToday}`}
-          icon={<Calendar />}
-          color="green"
-        />
-        <StatCard
-          title="Active"
-          value={stats.active}
-          icon={<TrendingUp />}
-          color="purple"
-        />
-        <StatCard
-          title="Growth"
-          value={`+${stats.growth}%`}
-          icon={<TrendingUp />}
-          color="yellow"
-        />
-      </div>
+      {/* Stats Cards & Chart (Ẩn khi xem Logs) */}
+      {activeTab !== 'logs' && (
+        <>
+          <div className={cx('statsGrid')}>
+            <StatCard
+              title={`Total ${activeTab}`}
+              value={stats.total}
+              icon={<Layers />}
+              color="blue"
+            />
+            <StatCard
+              title="New Today"
+              value={`+${stats.newToday}`}
+              icon={<Calendar />}
+              color="green"
+            />
+            <StatCard
+              title="Active"
+              value={stats.active}
+              icon={<TrendingUp />}
+              color="purple"
+            />
+            <StatCard
+              title="Growth"
+              value={`+${stats.growth}%`}
+              icon={<TrendingUp />}
+              color="yellow"
+            />
+          </div>
 
-      {/* Chart Section */}
-      <div className={cx('chartSection')}>
-        <h3>Thống kê tăng trưởng ({activeTab})</h3>
-        <div style={{ height: '300px', width: '100%' }}>
-          {activeTab === 'users' ? (
-            <Line
-              options={{
-                maintainAspectRatio: false,
-                responsive: true,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      stepSize: 1, // 👈 [FIX] Chỉ hiện số nguyên (1, 2, 3...)
-                      precision: 0, // Đảm bảo không hiện số thập phân
+          <div className={cx('chartSection')}>
+            <h3>Thống kê tăng trưởng ({activeTab})</h3>
+            <div style={{ height: '300px', width: '100%' }}>
+              {activeTab === 'users' ? (
+                <Line
+                  options={{
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 },
+                      },
                     },
-                  },
-                },
-              }}
-              data={getChartData()}
-            />
-          ) : (
-            <Bar
-              options={{
-                maintainAspectRatio: false,
-                responsive: true,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      stepSize: 1, // 👈 [FIX] Chỉ hiện số nguyên
-                      precision: 0,
+                  }}
+                  data={getChartData()}
+                />
+              ) : (
+                <Bar
+                  options={{
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, precision: 0 },
+                      },
                     },
-                  },
-                },
-              }}
-              data={getChartData()}
-            />
-          )}
-        </div>
-      </div>
+                  }}
+                  data={getChartData()}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Content Section (Table or Board) */}
       <div className={cx('contentSection')}>
@@ -347,6 +365,110 @@ const AdminDashboard = () => {
                   ))}
               </div>
             ))}
+          </div>
+        ) : activeTab === 'logs' ? (
+          // 👇 [MỚI] --- VIEW CHO AUDIT LOGS ---
+          <div className={cx('tableScrollContainer')}>
+            <table className={cx('adminTable')}>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Actor (User)</th>
+                  <th>Action</th>
+                  <th>Target (Collection)</th>
+                  <th>IP Address</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dataList.map((log) => (
+                  <tr key={log._id}>
+                    <td style={{ fontSize: '1.2rem', color: '#64748b' }}>
+                      {format(new Date(log.createdAt), 'dd/MM/yyyy - HH:mm:ss')}
+                    </td>
+                    <td>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {/* Avatar nhỏ */}
+                        <div
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: '#ccc',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {log.user?.avatar ? (
+                            <img
+                              src={`http://localhost:5000/${log.user.avatar}`}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 10,
+                              }}
+                            >
+                              {log.user?.username?.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontWeight: 500 }}>
+                          {log.user?.username || 'Unknown'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>{renderMethodBadge(log.action)}</td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: '#475569' }}>
+                        {log.collectionName}
+                      </span>
+                      {log.targetId && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: '#94a3b8',
+                            display: 'block',
+                          }}
+                        >
+                          #{log.targetId.slice(-6)}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={cx('ipText')}>
+                        {log.ipAddress || 'N/A'}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={cx(
+                          'logStatus',
+                          log.status === 'SUCCESS' ? 'success' : 'failure'
+                        )}
+                      >
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           // --- VIEW CHO USERS, GROUPS, CATEGORIES (TABLE STYLE) ---
