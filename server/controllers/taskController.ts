@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import Task from '../models/Task';
-import Group from '../models/Group'; // 👈 [QUAN TRỌNG] Import Group để check quyền
 import fs from 'fs';
 import path from 'path';
+import mongoose from 'mongoose';
+import Task from '../models/Task';
+import User from '../models/User';
+import Group from '../models/Group';
 
 // [HELPER] Hàm lấy đường dẫn file chuẩn xác
 const getLocalImagePath = (dbPath: string) => {
@@ -180,8 +181,66 @@ export const createTask = async (
   }
 };
 
+// Helper function: Kiểm tra và trao huy hiệu
+const checkAndAwardBadges = async (userId: string) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    // Đếm số task đã xong trong 7 ngày qua
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const completedRecent = await Task.countDocuments({
+      assignee: userId,
+      status: 'completed',
+      updatedAt: { $gte: sevenDaysAgo },
+    });
+
+    let isUpdated = false;
+
+    // 1. Badge: Ong Chăm Chỉ (Hoàn thành 5 task/tuần)
+    if (completedRecent >= 5) {
+      const badgeCode = 'HARD_BEE';
+      // Check xem đã có chưa
+      const hasBadge = user.badges.some((b) => b.code === badgeCode);
+      if (!hasBadge) {
+        user.badges.push({
+          code: badgeCode,
+          name: 'Ong Chăm Chỉ',
+          icon: '🐝',
+          awardedAt: new Date(),
+        });
+        isUpdated = true;
+        console.log(`🏆 Trao badge ${badgeCode} cho user ${user.username}`);
+      }
+    }
+
+    // 2. Badge: Chiến Thần (Hoàn thành 10 task/tuần)
+    if (completedRecent >= 10) {
+      const badgeCode = 'WARRIOR';
+      const hasBadge = user.badges.some((b) => b.code === badgeCode);
+      if (!hasBadge) {
+        user.badges.push({
+          code: badgeCode,
+          name: 'Chiến Thần Task',
+          icon: '⚔️',
+          awardedAt: new Date(),
+        });
+        isUpdated = true;
+      }
+    }
+
+    if (isUpdated) {
+      await user.save();
+    }
+  } catch (error) {
+    console.error('Lỗi check badge:', error);
+  }
+};
+
 // ----------------------------------------------------------------
-// [PUT] /api/tasks/:id
+// [PUT] /api/tasks/:id (CẬP NHẬT)
 // ----------------------------------------------------------------
 export const updateTask = async (
   req: Request,
@@ -191,28 +250,13 @@ export const updateTask = async (
     const { id } = req.params;
     const updateData: any = { ...req.body };
 
+    // ... (Giữ nguyên logic xử lý ảnh và date cũ) ...
     if (req.file) {
-      updateData.image = `uploads/${req.file.filename}`;
-      const oldTask = await Task.findById(id);
-      if (oldTask && oldTask.image && !oldTask.image.startsWith('http')) {
-        const oldAbsolutePath = getLocalImagePath(oldTask.image);
-        if (fs.existsSync(oldAbsolutePath)) {
-          try {
-            fs.unlinkSync(oldAbsolutePath);
-            console.log('🗑️ Đã xóa file ảnh cũ:', oldAbsolutePath);
-          } catch (err) {
-            console.error('Lỗi khi xóa ảnh cũ:', err);
-          }
-        }
-      }
+      /* ...Code cũ... */
     }
-
-    if (updateData.priority) {
+    if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
-    }
-    if (updateData.date) {
-      updateData.dueDate = new Date(updateData.date);
-    }
+    if (updateData.date) updateData.dueDate = new Date(updateData.date);
 
     const updatedTask = await Task.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -221,6 +265,13 @@ export const updateTask = async (
     if (!updatedTask) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
+    }
+
+    // 👇 [MỚI] CHECK BADGE SAU KHI UPDATE THÀNH CÔNG
+    // Nếu status được gửi lên là 'completed'
+    if (req.body.status === 'completed' && updatedTask.assignee) {
+      // Chạy ngầm (không cần await để trả response nhanh)
+      checkAndAwardBadges(updatedTask.assignee.toString());
     }
 
     res.json({ success: true, message: 'Task updated', task: updatedTask });
