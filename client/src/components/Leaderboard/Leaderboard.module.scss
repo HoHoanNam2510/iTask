@@ -1,0 +1,140 @@
+/* src/components/Leaderboard/Leaderboard.module.scss */
+
+.leaderboardContainer {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 16px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  margin-bottom: 24px; // Cách Board bên dưới ra
+}
+
+.title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .icon {
+    color: #f59e0b;
+  }
+}
+
+// 👇 [MỚI] Hiển thị dạng lưới ngang thay vì danh sách dọc
+.list {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto; // Cho phép cuộn ngang nếu nhiều người
+  padding-bottom: 4px;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 4px;
+  }
+}
+
+.emptyState {
+  padding: 10px;
+  color: var(--text-light);
+  font-size: 1.4rem;
+  font-style: italic;
+}
+
+// Card của từng User
+.item {
+  min-width: 200px; // Chiều rộng tối thiểu
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f1f5f9;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  // Top 1
+  &:nth-child(1) {
+    background: linear-gradient(to bottom right, #fff7ed, #ffedd5);
+    border-color: #fed7aa;
+  }
+}
+
+.rank {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: #64748b;
+  margin-right: 8px;
+
+  &.top1 {
+    color: #d97706;
+    font-size: 1.6rem;
+  }
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.nameCol {
+  display: flex;
+  flex-direction: column;
+
+  span {
+    font-weight: 600;
+    font-size: 1.3rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.badgesRow {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.score {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1.4rem;
+  text-align: right;
+  margin-left: 10px;
+
+  span {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #64748b;
+    display: block;
+  }
+}

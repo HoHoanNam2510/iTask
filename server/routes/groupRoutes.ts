@@ -7,6 +7,7 @@ import {
   joinGroupByCode,
   getAllGroupsAdmin,
   deleteGroupAdmin,
+  getGroupLeaderboard,
 } from '../controllers/groupController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
@@ -20,6 +21,7 @@ router.post('/join', joinGroupByCode);
 router.get('/my-groups', getMyGroups);
 router.get('/:groupId', getGroupDetails);
 router.post('/:groupId/invite', addMember);
+router.get('/:groupId/leaderboard', getGroupLeaderboard);
 
 // Routes cho Admin
 router.get('/admin/all', verifyToken, verifyAdmin, getAllGroupsAdmin);

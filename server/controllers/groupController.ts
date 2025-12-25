@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Group from '../models/Group';
 import Task from '../models/Task';
 import User from '../models/User';
@@ -216,5 +217,61 @@ export const deleteGroupAdmin = async (
     res
       .status(500)
       .json({ success: false, message: 'Lỗi server khi xóa nhóm' });
+  }
+};
+
+// 👇 [MỚI] API Lấy Bảng xếp hạng thành viên trong Group
+export const getGroupLeaderboard = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+
+    // Sử dụng Aggregation để thống kê
+    const leaderboard = await Task.aggregate([
+      // 1. Chỉ lấy task của Group này và đã Hoàn thành
+      {
+        $match: {
+          group: new mongoose.Types.ObjectId(groupId),
+          status: 'completed',
+        },
+      },
+      // 2. Nhóm theo người được giao việc (Assignee) và đếm
+      {
+        $group: {
+          _id: '$assignee',
+          completedCount: { $sum: 1 }, // Cộng 1 cho mỗi task
+        },
+      },
+      // 3. Sắp xếp giảm dần (Ai làm nhiều nhất lên đầu)
+      { $sort: { completedCount: -1 } },
+      // 4. Join với bảng Users để lấy tên và avatar
+      {
+        $lookup: {
+          from: 'users', // Tên collection trong DB (thường là số nhiều chữ thường)
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      // 5. Làm phẳng mảng userInfo
+      { $unwind: '$userInfo' },
+      // 6. Chọn các trường cần trả về
+      {
+        $project: {
+          _id: 1, // UserID
+          completedCount: 1,
+          username: '$userInfo.username',
+          avatar: '$userInfo.avatar',
+          badges: '$userInfo.badges', // Lấy luôn badge để hiển thị
+        },
+      },
+    ]);
+
+    res.json({ success: true, leaderboard });
+  } catch (error) {
+    console.error('Leaderboard Error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi lấy bảng xếp hạng' });
   }
 };
