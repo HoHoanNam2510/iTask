@@ -10,12 +10,16 @@ import connectDB from './config/db';
 import authRoutes from './routes/authRoutes';
 import taskRoutes from './routes/taskRoutes';
 import userRoutes from './routes/userRoutes';
+import adminRoutes from './routes/adminRoutes';
 import groupRoutes from './routes/groupRoutes';
 import commentRoutes from './routes/commentRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+
+// Import Audit Middleware
+import { auditLogger } from './middleware/auditMiddleware';
 
 const app = express();
 
@@ -30,7 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 // PUBLIC THƯ MỤC UPLOADS
 const uploadsPath = path.join(process.cwd(), '../uploads');
 
-// 4. LOGGER CỰC MẠNH (Để debug)
+// 4. LOGGER CỰC MẠNH (Để debug console)
 app.use((req, res, next) => {
   console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
   console.log('📦 Body:', JSON.stringify(req.body, null, 2));
@@ -40,10 +44,15 @@ app.use((req, res, next) => {
 // 5. STATIC FILES
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Đăng ký Audit Logger TẠI ĐÂY
+// Phải đặt TRƯỚC các Routes bên dưới để nó "bao bọc" được mọi request
+app.use('/api', auditLogger);
+
 // 6. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/categories', categoryRoutes);
