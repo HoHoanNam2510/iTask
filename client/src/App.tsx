@@ -11,6 +11,7 @@ import React, { Fragment } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import AdminRoute from './components/Routing/AdminRoute';
+import GlobalBanner from '~/components/GlobalBanner/GlobalBanner';
 
 // ProtectedRoute cho User
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -98,6 +99,7 @@ const App = () => {
     <AuthProvider>
       <ThemeProvider>
         <Router>
+          <GlobalBanner />
           <div className="app">
             <AppRoutes />
           </div>

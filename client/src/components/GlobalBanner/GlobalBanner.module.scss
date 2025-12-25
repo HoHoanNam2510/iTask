@@ -1,0 +1,83 @@
+/* src/components/GlobalBanner/GlobalBanner.module.scss */
+
+.bannerWrapper {
+  width: 100%;
+  padding: 12px 48px; // 👈 [SỬA] Tăng padding 2 bên để tránh text đè lên nút đóng
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Barlow', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  position: relative;
+  z-index: 9999;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: slideDown 0.4s ease-out;
+
+  // Các biến thể màu sắc (Giữ nguyên)
+  &.info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border-bottom: 1px solid #bfdbfe;
+  }
+  &.warning {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-bottom: 1px solid #fde68a;
+  }
+  &.error {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border-bottom: 1px solid #fecaca;
+  }
+  &.success {
+    background-color: #dcfce7;
+    color: #15803d;
+    border-bottom: 1px solid #bbf7d0;
+  }
+}
+
+.bannerContent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1200px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+// 👇 [MỚI] Style nút đóng
+.closeBtn {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit; // Ăn theo màu chữ của banner
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.05); // Hiệu ứng nền nhẹ khi hover
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
