@@ -3,9 +3,18 @@ import classNames from 'classnames/bind';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { Search, Bell, CalendarDays, CheckSquare, Trash2 } from 'lucide-react'; // 👈 [MỚI] Thêm Trash2
+import {
+  Search,
+  Bell,
+  CalendarDays,
+  CheckSquare,
+  Trash2,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import styles from './Header.module.scss';
+import useDebounce from '~/hooks/useDebounce';
 
 const cx = classNames.bind(styles);
 
@@ -23,6 +32,17 @@ interface INotification {
   createdAt: string;
 }
 
+// Interface cho kết quả search
+interface SearchResult {
+  _id: string;
+  title: string;
+  status: string;
+  group?: {
+    _id: string;
+    name: string;
+  };
+}
+
 const Header = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -33,8 +53,17 @@ const Header = () => {
   const [notifications, setNotifications] = useState<INotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // 👇 [STATE MỚI] Cho Search
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Áp dụng Debounce 1000ms (1 giây)
+  const debouncedQuery = useDebounce(query, 1000);
+
   const notiRef = useRef<HTMLDivElement | null>(null);
   const calRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLFormElement | null>(null); // Ref cho vùng search
 
   // Hàm gọi API lấy thông báo
   const fetchNotifications = async () => {
@@ -75,6 +104,56 @@ const Header = () => {
       }
       if (calRef.current && !calRef.current.contains(e.target as Node)) {
         setShowCalendar(false);
+      }
+    };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, []);
+
+  // 👇 [MỚI] Effect xử lý gọi API Search khi debouncedQuery thay đổi
+  useEffect(() => {
+    const fetchSearch = async () => {
+      if (!debouncedQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(
+          `http://localhost:5000/api/tasks/search?q=${encodeURIComponent(
+            debouncedQuery
+          )}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (res.data.success) {
+          setSearchResults(res.data.tasks);
+          setShowSearchResults(true);
+        }
+      } catch (error) {
+        console.error('Search error', error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    fetchSearch();
+  }, [debouncedQuery]);
+
+  // Handle click ra ngoài để đóng dropdown search
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (notiRef.current && !notiRef.current.contains(e.target as Node))
+        setShowNoti(false);
+      if (calRef.current && !calRef.current.contains(e.target as Node))
+        setShowCalendar(false);
+
+      // Đóng search result
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
       }
     };
     document.addEventListener('click', onDoc);
@@ -194,6 +273,25 @@ const Header = () => {
     });
   };
 
+  // 👇 [MỚI] Xử lý khi click vào kết quả tìm kiếm
+  const handleResultClick = (task: SearchResult) => {
+    setShowSearchResults(false);
+    setQuery('');
+
+    if (task.group) {
+      // Nếu thuộc nhóm -> Vào trang Group Detail
+      navigate(`/groups/${task.group._id}?openTask=${task._id}`);
+    } else {
+      // Nếu là task cá nhân -> Vào trang My Task
+      navigate(`/my-task?openTask=${task._id}`);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Nếu user nhấn Enter mà chưa có kết quả load xong, có thể force search hoặc bỏ qua
+  };
+
   return (
     <header className={cx('header')}>
       <div className={cx('left')} tabIndex={-1}>
@@ -206,16 +304,59 @@ const Header = () => {
       </div>
 
       <div className={cx('center')}>
-        <form className={cx('searchBar')} onSubmit={handleSearch}>
+        <form
+          className={cx('searchBar')}
+          onSubmit={handleSearchSubmit}
+          ref={searchRef}
+        >
           <input
             className={cx('searchInput')}
-            placeholder="Tìm kiếm tác vụ..."
+            placeholder="Tìm kiếm công việc..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (e.target.value === '') setShowSearchResults(false);
+            }}
+            onFocus={() => {
+              if (searchResults.length > 0) setShowSearchResults(true);
+            }}
           />
           <button className={cx('searchBtn')} type="submit">
-            <Search size={18} />
+            {isSearching ? (
+              <Loader2 size={18} className={cx('spin')} />
+            ) : (
+              <Search size={18} />
+            )}
           </button>
+
+          {/* 👇 DROPDOWN KẾT QUẢ TÌM KIẾM */}
+          {showSearchResults && query && (
+            <div className={cx('searchDropdown')}>
+              {searchResults.length === 0 && !isSearching ? (
+                <div className={cx('noResult')}>
+                  Không tìm thấy công việc nào
+                </div>
+              ) : (
+                searchResults.map((task) => (
+                  <div
+                    key={task._id}
+                    className={cx('searchItem')}
+                    onClick={() => handleResultClick(task)}
+                  >
+                    <div className={cx('searchInfo')}>
+                      <span className={cx('searchTitle')}>{task.title}</span>
+                      <span className={cx('searchGroup')}>
+                        {task.group
+                          ? `trong nhóm: ${task.group.name}`
+                          : '• Công việc cá nhân'}
+                      </span>
+                    </div>
+                    <ArrowRight size={14} className={cx('arrowIcon')} />
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </form>
       </div>
 
@@ -327,20 +468,9 @@ const Header = () => {
           >
             <CalendarDays size={20} />
           </button>
-
-          {showCalendar && (
-            <div className={cx('dropdown')}>
-              <div className={cx('dropdownItem')}>
-                Hôm nay: {formatDate(now)}
-              </div>
-              <div className={cx('dropdownItem')}>
-                <Link to="/calendar">Xem toàn bộ lịch</Link>
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className={cx('dateText')}>{formatDate(now)}</div>
+        <div className={cx('dateText')}>{format(now, 'dd/MM/yyyy')}</div>
       </div>
     </header>
   );
