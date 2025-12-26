@@ -1,5 +1,6 @@
 /* src/pages/MyTasks/MyTask.tsx */
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; // 👈 [MỚI] Import này quan trọng
 import axios from 'axios';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
@@ -21,31 +22,29 @@ const cx = classNames.bind(styles);
 
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return null;
-
-  // Nếu là link online hoặc blob thì giữ nguyên
   if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) {
     return imagePath;
   }
-
-  // Xử lý đường dẫn từ backend (sửa lỗi dấu gạch chéo ngược trên Windows)
   const cleanPath = imagePath.replace(/\\/g, '/');
-
-  // Trả về full URL (Backend chạy port 5000)
   return `http://localhost:5000/${cleanPath}`;
 };
 
 const MyTask = () => {
+  // 👇 [MỚI] Hook lấy query params từ URL
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openTaskId = searchParams.get('openTask');
+
   // --- STATE ---
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // [MỚI] State cho Modal Add/Edit
+  // Modal Add/Edit State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
 
-  // --- FETCH DATA ---
+  // --- FETCH DATA (List Tasks) ---
   const fetchTasks = async () => {
     setLoading(true);
     try {
@@ -67,6 +66,33 @@ const MyTask = () => {
     fetchTasks();
   }, []);
 
+  // 👇 [MỚI] EFFECT TỰ ĐỘNG MỞ MODAL KHI CÓ URL PARAMS (?openTask=...)
+  useEffect(() => {
+    const openTaskFromUrl = async () => {
+      if (openTaskId) {
+        try {
+          const token = localStorage.getItem('token');
+          // Gọi API lấy chi tiết task để đảm bảo có đủ dữ liệu (comments, subtasks...)
+          const res = await axios.get(
+            `http://localhost:5000/api/tasks/${openTaskId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          if (res.data.success) {
+            setTaskToEdit(res.data.task); // Set dữ liệu vào form
+            setIsModalOpen(true); // Bật modal lên
+          }
+        } catch (error) {
+          console.error('Lỗi mở task từ liên kết:', error);
+          // Nếu task bị xóa hoặc không quyền xem, xóa param trên URL đi
+          setSearchParams({});
+        }
+      }
+    };
+
+    openTaskFromUrl();
+  }, [openTaskId]);
+
   // --- HELPERS ---
   const selectedTask = tasks.find((t) => t._id === selectedTaskId);
 
@@ -84,13 +110,11 @@ const MyTask = () => {
     setIsFullScreen(false);
   };
 
-  // [MỚI] Mở Modal Thêm mới
   const handleAddTask = () => {
-    setTaskToEdit(null); // Reset task edit
+    setTaskToEdit(null);
     setIsModalOpen(true);
   };
 
-  // [MỚI] Mở Modal Chỉnh sửa
   const handleEditTask = () => {
     if (selectedTask) {
       setTaskToEdit(selectedTask);
@@ -98,10 +122,8 @@ const MyTask = () => {
     }
   };
 
-  // [MỚI] Xử lý Xóa Task
   const handleDeleteTask = async () => {
     if (!selectedTask) return;
-
     if (
       window.confirm(`Bạn có chắc muốn xóa công việc "${selectedTask.title}"?`)
     ) {
@@ -113,8 +135,6 @@ const MyTask = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-
-        // Xóa thành công: Reload list & đóng detail
         fetchTasks();
         handleCloseDetail();
       } catch (error) {
@@ -142,7 +162,6 @@ const MyTask = () => {
           <div className={cx('listPanel', { shrunk: !!selectedTaskId })}>
             <div className={cx('panelHeader')}>
               <h3>Danh sách công việc</h3>
-              {/* [MỚI] Nút Add Task */}
               <button
                 className={cx('addTaskBtn')}
                 onClick={handleAddTask}
@@ -204,7 +223,6 @@ const MyTask = () => {
 
             {/* DETAIL CONTENT */}
             <div className={cx('detailContent')}>
-              {/* 1. Title & Meta */}
               <div className={cx('mainHeader')}>
                 <h2 className={cx('bigTitle')}>{selectedTask.title}</h2>
                 <div className={cx('dateInfo')}>
@@ -225,16 +243,13 @@ const MyTask = () => {
                 </div>
               </div>
 
-              {/* 2. Split View */}
               <div className={cx('splitView')}>
-                {/* CỘT TRÁI: ẢNH */}
                 <div className={cx('imageColumn')}>
                   <div className={cx('coverImage')}>
                     {getImageUrl(selectedTask.image) ? (
                       <img
                         src={getImageUrl(selectedTask.image)!}
                         alt="Task cover"
-                        // Thêm dòng này để nếu ảnh lỗi thì tự ẩn đi
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                         }}
@@ -245,7 +260,6 @@ const MyTask = () => {
                   </div>
                 </div>
 
-                {/* CỘT PHẢI: CHI TIẾT */}
                 <div className={cx('infoColumn')}>
                   <div className={cx('tagsRow')}>
                     <span className={cx('tag', selectedTask.priority)}>
@@ -254,7 +268,6 @@ const MyTask = () => {
                     <span className={cx('tag', 'status')}>
                       {selectedTask.status.replace('_', ' ')}
                     </span>
-
                     {selectedTask.category && (
                       <span
                         className={cx('tag')}
@@ -268,7 +281,6 @@ const MyTask = () => {
                         {selectedTask.category.name}
                       </span>
                     )}
-
                     {selectedTask.group && (
                       <span
                         style={{
@@ -293,17 +305,16 @@ const MyTask = () => {
               </div>
             </div>
 
-            {/* Footer */}
             <div className={cx('detailFooter')}>
               <button
                 className={cx('footerBtn', 'delete')}
-                onClick={handleDeleteTask} // [MỚI] Gắn sự kiện Xóa
+                onClick={handleDeleteTask}
               >
                 Delete Task
               </button>
               <button
                 className={cx('footerBtn', 'edit')}
-                onClick={handleEditTask} // [MỚI] Gắn sự kiện Sửa
+                onClick={handleEditTask}
               >
                 Edit Task
               </button>
@@ -312,16 +323,19 @@ const MyTask = () => {
         )}
       </div>
 
-      {/* [MỚI] MODAL ADD/EDIT TASK */}
+      {/* MODAL ADD/EDIT TASK */}
       <TaskModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          fetchTasks(); // Reload list sau khi thêm/sửa thành công
-          // Nếu đang edit thì cần reload lại selectedTask (bằng cách fetchTasks sẽ tự update state tasks)
-          // Nếu muốn UX tốt hơn có thể update local state tasks luôn
+        onClose={() => {
+          setIsModalOpen(false);
+          setTaskToEdit(null);
+          // 👇 [MỚI] Xóa params trên URL khi đóng Modal để F5 không bị mở lại
+          setSearchParams({});
         }}
-        taskToEdit={taskToEdit} // Truyền task cần sửa (null nếu thêm mới)
+        onSuccess={() => {
+          fetchTasks();
+        }}
+        taskToEdit={taskToEdit}
       />
     </div>
   );

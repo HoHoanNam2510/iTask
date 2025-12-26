@@ -48,16 +48,19 @@
   max-width: 480px;
   background-color: var(--bg-hover);
   border: 1px solid var(--border-color);
-  border-radius: 99px;
+  border-radius: 20px; // Bo tròn ít hơn chút để khớp dropdown
   padding: 4px 6px 4px 16px;
   transition: all 0.2s ease;
+  position: relative; // Để neo dropdown
 
   &:focus-within {
     background-color: var(--white);
-    /* SỬA: Viền xanh lá */
     border-color: var(--primary);
-    /* SỬA: Box shadow xanh lá nhạt dùng biến RGB */
     box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+
+    // Khi mở dropdown thì bo góc dưới vuông lại chút (tùy chọn)
+    // border-bottom-left-radius: 0;
+    // border-bottom-right-radius: 0;
   }
 }
 
@@ -79,7 +82,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* SỬA: Nút xanh lá */
   background: var(--primary);
   color: var(--white);
   border: none;
@@ -91,9 +93,91 @@
   flex-shrink: 0;
 
   &:hover {
-    /* SỬA: Hover đậm hơn */
     background: var(--primary-dark);
   }
+}
+
+// 👇 [MỚI] Animation xoay cho Loading
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 👇 [MỚI] Search Dropdown Styles
+.searchDropdown {
+  position: absolute;
+  top: 110%; // Cách thanh search một chút
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 8px 0;
+  z-index: 60;
+  max-height: 400px;
+  overflow-y: auto;
+  animation: slideDown 0.2s ease-out;
+}
+
+.searchItem {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid var(--bg-hover);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: #f0fdf4; // Xanh nhạt
+
+    .arrowIcon {
+      transform: translateX(4px);
+      color: var(--primary);
+    }
+  }
+}
+
+.searchInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.searchTitle {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.searchGroup {
+  font-size: 1.2rem;
+  color: #64748b; // Màu xám nhẹ
+}
+
+.arrowIcon {
+  color: #cbd5e1;
+  transition: all 0.2s;
+}
+
+.noResult {
+  padding: 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 1.4rem;
 }
 
 /* --- RIGHT: Icons & Date --- */

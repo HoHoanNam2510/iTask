@@ -5,6 +5,7 @@ import {
   createTask,
   deleteTask,
   updateTask,
+  searchTasks,
   getAllTasksAdmin,
 } from '../controllers/taskController';
 import upload from '../middleware/upload';
@@ -14,6 +15,7 @@ const router = express.Router();
 
 // Routes cho User
 router.get('/', verifyToken, getTasks);
+router.get('/search', verifyToken, searchTasks);
 router.get('/:id', verifyToken, getTask);
 router.post('/', verifyToken, upload.single('image'), createTask);
 router.put('/:id', verifyToken, upload.single('image'), updateTask);

@@ -317,6 +317,44 @@ export const deleteTask = async (
   }
 };
 
+// 👇 [MỚI] API Search Task (Gợi ý cho Header)
+export const searchTasks = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { q } = req.query; // Query string
+    if (!q || typeof q !== 'string') {
+      res.json({ success: true, tasks: [] });
+      return;
+    }
+
+    const userId = (req as any).user._id;
+
+    // 1. Lấy danh sách nhóm của user (để check quyền)
+    const userGroups = await Group.find({ members: userId }).distinct('_id');
+
+    // 2. Tìm kiếm (Regex 'i' để không phân biệt hoa thường)
+    const tasks = await Task.find({
+      title: { $regex: q, $options: 'i' }, // Tìm theo tên gần đúng
+      $or: [
+        { creator: userId },
+        { assignee: userId },
+        { group: { $in: userGroups } },
+      ],
+    })
+      .select('title status group _id') // Chỉ lấy field cần thiết cho nhẹ
+      .populate('group', 'name') // Lấy tên nhóm để hiển thị context
+      .sort({ updatedAt: -1 }) // Ưu tiên task mới cập nhật
+      .limit(5); // Giới hạn 5 kết quả
+
+    res.json({ success: true, tasks });
+  } catch (error) {
+    console.error('Search Error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi tìm kiếm' });
+  }
+};
+
 // ----------------------------------------------------------------
 // [ADMIN] Get All Tasks
 // ----------------------------------------------------------------
