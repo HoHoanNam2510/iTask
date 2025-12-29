@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "shortid": "^2.2.17"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.2",
+    "@types/node-cron": "^3.0.11",
     "@types/shortid": "^2.2.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",

@@ -2,6 +2,7 @@ import React from 'react';
 
 // Pages
 import Help from '~/pages/Help/Help';
+import Trash from '~/pages/Trash/Trash';
 import Group from '~/pages/Group/Group';
 import MyTask from '~/pages/MyTask/MyTask';
 import Setting from '~/pages/Setting/Setting';
@@ -53,6 +54,7 @@ const privateRoutes: RouteType[] = [
   },
   { path: '/settings', component: Setting, layout: DefaultLayout },
   { path: '/groups/:groupId', component: Group, layout: DefaultLayout },
+  { path: '/trash', component: Trash },
 ];
 
 // 3. ADMIN ROUTES (Dảnh riêng cho Admin)

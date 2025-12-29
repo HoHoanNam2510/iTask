@@ -320,6 +320,7 @@ const Header = () => {
             onFocus={() => {
               if (searchResults.length > 0) setShowSearchResults(true);
             }}
+            spellCheck={false}
           />
           <button className={cx('searchBtn')} type="submit">
             {isSearching ? (
@@ -347,7 +348,7 @@ const Header = () => {
                       <span className={cx('searchTitle')}>{task.title}</span>
                       <span className={cx('searchGroup')}>
                         {task.group
-                          ? `trong nhóm: ${task.group.name}`
+                          ? `• Trong nhóm: ${task.group.name}`
                           : '• Công việc cá nhân'}
                       </span>
                     </div>

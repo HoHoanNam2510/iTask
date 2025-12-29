@@ -1,7 +1,7 @@
+/* server/controllers/taskController.ts */
 import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
-import mongoose from 'mongoose';
 import Task from '../models/Task';
 import User from '../models/User';
 import Group from '../models/Group';
@@ -12,33 +12,31 @@ const getLocalImagePath = (dbPath: string) => {
 };
 
 // ----------------------------------------------------------------
-// [GET] /api/tasks/:id (LẤY CHI TIẾT 1 TASK) -> Fix lỗi 404 khi click thông báo
+// [GET] /api/tasks/:id (LẤY CHI TIẾT 1 TASK)
 // ----------------------------------------------------------------
 export const getTask = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = (req as any).user._id;
 
-    // 1. Tìm Task
-    const task = await Task.findById(id);
+    // 👇 [SỬA LỖI] Dùng $ne: true để lấy cả task cũ chưa có trường isDeleted
+    const task = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
 
     if (!task) {
-      res.status(404).json({ success: false, message: 'Task not found' });
+      res
+        .status(404)
+        .json({ success: false, message: 'Task not found or deleted' });
       return;
     }
 
-    // 2. CHECK QUYỀN TRUY CẬP
+    // CHECK QUYỀN TRUY CẬP
     let hasAccess = false;
-
-    // - Nếu là người tạo (creator) hoặc người được giao (assignee) -> Có quyền
     if (
       task.creator?.toString() === userId.toString() ||
       task.assignee?.toString() === userId.toString()
     ) {
       hasAccess = true;
-    }
-    // - Nếu task thuộc nhóm -> Check xem user có trong nhóm đó không
-    else if (task.group) {
+    } else if (task.group) {
       const group = await Group.findById(task.group);
       if (group && group.members.includes(userId)) {
         hasAccess = true;
@@ -46,13 +44,10 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (!hasAccess) {
-      res
-        .status(403)
-        .json({ success: false, message: 'Bạn không có quyền xem task này' });
+      res.status(403).json({ success: false, message: 'No permission' });
       return;
     }
 
-    // 3. Populate dữ liệu cần thiết để hiển thị trên Modal
     await task.populate('category', 'name color');
     await task.populate('group', 'name members');
     await task.populate('assignee', 'username avatar email');
@@ -60,36 +55,32 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, task });
   } catch (error) {
-    console.error('Get Single Task Error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    console.error('Get Task Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // ----------------------------------------------------------------
-// [GET] /api/tasks (LẤY DANH SÁCH TASK) -> Đã update logic Group
+// [GET] /api/tasks (LẤY DANH SÁCH TASK)
 // ----------------------------------------------------------------
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
-
-    // 1. Tìm tất cả các nhóm mà user là thành viên
     const userGroups = await Group.find({ members: userId }).distinct('_id');
 
-    // 2. Tìm task thỏa mãn 1 trong 3 điều kiện:
-    // - User là người tạo
-    // - User là người được giao
-    // - Task thuộc về nhóm mà user tham gia
     const tasks = await Task.find({
       $or: [
         { creator: userId },
         { assignee: userId },
-        { group: { $in: userGroups } }, // 👈 Logic mới bổ sung
+        { group: { $in: userGroups } },
       ],
+      // 👇 [SỬA LỖI QUAN TRỌNG] Để hiện task cũ
+      isDeleted: { $ne: true },
     })
       .sort({ createdAt: -1 })
       .populate('category', 'name color')
       .populate('group', 'name')
-      .populate('assignee', 'username avatar'); // Hiện avatar người làm
+      .populate('assignee', 'username avatar');
 
     res.status(200).json({
       success: true,
@@ -98,30 +89,19 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Server Error fetching tasks' });
+    res.status(500).json({ success: false, message: 'Error fetching tasks' });
   }
 };
 
 // ----------------------------------------------------------------
-// [POST] /api/tasks
+// [POST] /api/tasks (TẠO MỚI)
 // ----------------------------------------------------------------
 export const createTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  console.log('👉 Đã nhận được request tạo Task!', req.body);
-
   try {
     const creatorId = (req as any).user?._id;
-    if (!creatorId) {
-      res
-        .status(401)
-        .json({ success: false, message: 'Unauthorized: User not found' });
-      return;
-    }
-
     const {
       title,
       description,
@@ -137,7 +117,7 @@ export const createTask = async (
     if (!title || !finalDate) {
       res
         .status(400)
-        .json({ success: false, message: 'Title and Date are required' });
+        .json({ success: false, message: 'Title and Date required' });
       return;
     }
 
@@ -161,81 +141,18 @@ export const createTask = async (
       assignee: assignee,
       group: group,
       category: categoryId || null,
+      isDeleted: false, // Mặc định
     });
 
     await newTask.save();
-    console.log(`✅ Đã lưu Task "${newTask.title}" với ID: ${newTask._id}`);
-
     res.status(201).json({
       success: true,
-      message: 'Task created successfully',
+      message: 'Task created',
       task: newTask,
     });
   } catch (error: any) {
     console.error('Create Task Error:', error);
-    if (error.name === 'ValidationError') {
-      res.status(400).json({ success: false, message: error.message });
-      return;
-    }
     res.status(500).json({ success: false, message: 'Server Error' });
-  }
-};
-
-// Helper function: Kiểm tra và trao huy hiệu
-const checkAndAwardBadges = async (userId: string) => {
-  try {
-    const user = await User.findById(userId);
-    if (!user) return;
-
-    // Đếm số task đã xong trong 7 ngày qua
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const completedRecent = await Task.countDocuments({
-      assignee: userId,
-      status: 'completed',
-      updatedAt: { $gte: sevenDaysAgo },
-    });
-
-    let isUpdated = false;
-
-    // 1. Badge: Ong Chăm Chỉ (Hoàn thành 5 task/tuần)
-    if (completedRecent >= 5) {
-      const badgeCode = 'HARD_BEE';
-      // Check xem đã có chưa
-      const hasBadge = user.badges.some((b) => b.code === badgeCode);
-      if (!hasBadge) {
-        user.badges.push({
-          code: badgeCode,
-          name: 'Ong Chăm Chỉ',
-          icon: '🐝',
-          awardedAt: new Date(),
-        });
-        isUpdated = true;
-        console.log(`🏆 Trao badge ${badgeCode} cho user ${user.username}`);
-      }
-    }
-
-    // 2. Badge: Chiến Thần (Hoàn thành 10 task/tuần)
-    if (completedRecent >= 10) {
-      const badgeCode = 'WARRIOR';
-      const hasBadge = user.badges.some((b) => b.code === badgeCode);
-      if (!hasBadge) {
-        user.badges.push({
-          code: badgeCode,
-          name: 'Chiến Thần Task',
-          icon: '⚔️',
-          awardedAt: new Date(),
-        });
-        isUpdated = true;
-      }
-    }
-
-    if (isUpdated) {
-      await user.save();
-    }
-  } catch (error) {
-    console.error('Lỗi check badge:', error);
   }
 };
 
@@ -250,28 +167,25 @@ export const updateTask = async (
     const { id } = req.params;
     const updateData: any = { ...req.body };
 
-    // ... (Giữ nguyên logic xử lý ảnh và date cũ) ...
     if (req.file) {
-      /* ...Code cũ... */
+      updateData.image = `uploads/${req.file.filename}`;
     }
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
 
-    const updatedTask = await Task.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+    // 👇 [SỬA LỖI] Để sửa được task cũ
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true } },
+      updateData,
+      { new: true }
+    );
 
     if (!updatedTask) {
-      res.status(404).json({ success: false, message: 'Task not found' });
+      res
+        .status(404)
+        .json({ success: false, message: 'Task not found or deleted' });
       return;
-    }
-
-    // 👇 [MỚI] CHECK BADGE SAU KHI UPDATE THÀNH CÔNG
-    // Nếu status được gửi lên là 'completed'
-    if (req.body.status === 'completed' && updatedTask.assignee) {
-      // Chạy ngầm (không cần await để trả response nhanh)
-      checkAndAwardBadges(updatedTask.assignee.toString());
     }
 
     res.json({ success: true, message: 'Task updated', task: updatedTask });
@@ -282,7 +196,7 @@ export const updateTask = async (
 };
 
 // ----------------------------------------------------------------
-// [DELETE] /api/tasks/:id
+// [DELETE] /api/tasks/:id (SOFT DELETE - Đưa vào thùng rác)
 // ----------------------------------------------------------------
 export const deleteTask = async (
   req: Request,
@@ -290,68 +204,149 @@ export const deleteTask = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const taskToDelete = await Task.findById(id);
 
-    if (!taskToDelete) {
+    // 👇 [SỬA LỖI] Để xóa được task cũ
+    const task = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
+
+    if (!task) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
 
-    if (taskToDelete.image && !taskToDelete.image.startsWith('http')) {
-      const imagePath = getLocalImagePath(taskToDelete.image);
-      if (fs.existsSync(imagePath)) {
-        try {
-          fs.unlinkSync(imagePath);
-          console.log('🗑️ Đã dọn dẹp ảnh của task bị xóa:', imagePath);
-        } catch (err) {
-          console.error('Lỗi dọn dẹp ảnh:', err);
-        }
-      }
-    }
+    // Đánh dấu đã xóa và lưu thời gian
+    task.isDeleted = true;
+    task.deletedAt = new Date(); // Dùng trường này để tính 30 ngày Cronjob
+    await task.save();
 
-    await Task.findByIdAndDelete(id);
-    res.json({ success: true, message: 'Task deleted successfully' });
+    res.json({ success: true, message: 'Moved task to trash' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Delete failed' });
   }
 };
 
-// 👇 [MỚI] API Search Task (Gợi ý cho Header)
+// ----------------------------------------------------------------
+// [GET] /api/tasks/trash/all (LẤY DANH SÁCH THÙNG RÁC)
+// ----------------------------------------------------------------
+export const getTrashTasks = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = (req as any).user._id;
+
+    // Lấy các task do user tạo mà đã bị xóa mềm
+    const tasks = await Task.find({
+      creator: userId,
+      isDeleted: true,
+    })
+      .sort({ deletedAt: -1 }) // Mới xóa lên đầu
+      .populate('group', 'name');
+
+    res.json({ success: true, tasks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching trash' });
+  }
+};
+
+// ----------------------------------------------------------------
+// [PUT] /api/tasks/:id/restore (KHÔI PHỤC TASK)
+// ----------------------------------------------------------------
+export const restoreTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Tìm trong thùng rác
+    const task = await Task.findOne({ _id: id, isDeleted: true });
+
+    if (!task) {
+      res
+        .status(404)
+        .json({ success: false, message: 'Task not found in trash' });
+      return;
+    }
+
+    // Khôi phục
+    task.isDeleted = false;
+    task.deletedAt = null;
+    await task.save();
+
+    res.json({ success: true, message: 'Task restored successfully', task });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Restore failed' });
+  }
+};
+
+// ----------------------------------------------------------------
+// [DELETE] /api/tasks/:id/force (XÓA VĨNH VIỄN)
+// ----------------------------------------------------------------
+export const forceDeleteTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const task = await Task.findById(id);
+
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    // Xóa file ảnh (nếu có và không phải link online)
+    if (task.image && !task.image.startsWith('http')) {
+      const imagePath = getLocalImagePath(task.image);
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (e) {}
+      }
+    }
+
+    // Xóa vĩnh viễn khỏi DB
+    await Task.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Task permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Force delete failed' });
+  }
+};
+
+// ----------------------------------------------------------------
+// [GET] Search Task (Gợi ý cho Header)
+// ----------------------------------------------------------------
 export const searchTasks = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const { q } = req.query; // Query string
+    const { q } = req.query;
     if (!q || typeof q !== 'string') {
       res.json({ success: true, tasks: [] });
       return;
     }
 
     const userId = (req as any).user._id;
-
-    // 1. Lấy danh sách nhóm của user (để check quyền)
     const userGroups = await Group.find({ members: userId }).distinct('_id');
 
-    // 2. Tìm kiếm (Regex 'i' để không phân biệt hoa thường)
     const tasks = await Task.find({
-      title: { $regex: q, $options: 'i' }, // Tìm theo tên gần đúng
+      title: { $regex: q, $options: 'i' },
+      isDeleted: { $ne: true }, // 👈 [SỬA LỖI]
       $or: [
         { creator: userId },
         { assignee: userId },
         { group: { $in: userGroups } },
       ],
     })
-      .select('title status group _id') // Chỉ lấy field cần thiết cho nhẹ
-      .populate('group', 'name') // Lấy tên nhóm để hiển thị context
-      .sort({ updatedAt: -1 }) // Ưu tiên task mới cập nhật
-      .limit(5); // Giới hạn 5 kết quả
+      .select('title status group _id')
+      .populate('group', 'name')
+      .limit(5);
 
     res.json({ success: true, tasks });
   } catch (error) {
-    console.error('Search Error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi tìm kiếm' });
+    res.status(500).json({ success: false, message: 'Search error' });
   }
 };
 
@@ -363,6 +358,7 @@ export const getAllTasksAdmin = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Admin có thể xem tất cả (kể cả đã xóa nếu muốn, ở đây để xem hết)
     const tasks = await Task.find()
       .populate('creator', 'username email avatar')
       .populate('category', 'name color')
@@ -376,8 +372,6 @@ export const getAllTasksAdmin = async (
     });
   } catch (error) {
     console.error('Admin Get Tasks Error:', error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi lấy danh sách tasks' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

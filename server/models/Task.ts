@@ -19,6 +19,10 @@ export interface ITask extends Document {
 
   createdAt: Date;
   updatedAt: Date;
+
+  // 👇 [MỚI] Fields cho tính năng Thùng rác (Soft Delete)
+  isDeleted: boolean; // Đánh dấu đã xóa hay chưa
+  deletedAt: Date | null; // Thời điểm xóa (để tính hạn 30 ngày)
 }
 
 // 2. Định nghĩa Schema cho Mongoose
@@ -81,6 +85,16 @@ const TaskSchema: Schema = new Schema(
       ref: 'Group',
       default: null, // Mặc định null là Personal Task
     },
+
+    // 👇 [MỚI] Cấu hình Soft Delete
+    isDeleted: {
+      type: Boolean,
+      default: false, // Mặc định là chưa xóa
+    },
+    deletedAt: {
+      type: Date,
+      default: null, // Mặc định là null
+    },
   },
   {
     timestamps: true, // Tự động tạo createdAt, updatedAt
@@ -90,5 +104,7 @@ const TaskSchema: Schema = new Schema(
 // Tối ưu Query: Tạo index để tìm kiếm nhanh hơn
 TaskSchema.index({ creator: 1, status: 1 }); // Tìm task của tôi theo trạng thái
 TaskSchema.index({ group: 1 }); // Tìm task của một nhóm
+// 👇 [MỚI] Index cho trường isDeleted để lọc task nhanh hơn
+TaskSchema.index({ isDeleted: 1 });
 
 export default mongoose.model<ITask>('Task', TaskSchema);
