@@ -1,0 +1,186 @@
+/* src/pages/Trash/Trash.module.scss */
+.wrapper {
+  height: 100%;
+  padding: 24px;
+  animation: fadeIn 0.3s ease-out;
+  background-color: var(--bg-hover); // Nền xám nhạt
+}
+
+.header {
+  margin-bottom: 32px;
+
+  h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+  }
+
+  p {
+    font-size: 1.4rem;
+    color: var(--text-light);
+  }
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  background-color: var(--white);
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-light);
+  gap: 16px;
+
+  p {
+    font-size: 1.6rem;
+    font-weight: 500;
+  }
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.taskRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--white);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.3rem;
+      color: var(--text-light);
+
+      .badge {
+        text-transform: capitalize;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 1.1rem;
+
+        &.low {
+          background-color: #d1fae5;
+          color: #059669;
+        }
+        &.moderate {
+          background-color: #dbeafe;
+          color: #2563eb;
+        }
+        &.extreme {
+          background-color: #fee2e2;
+          color: #dc2626;
+        }
+      }
+
+      .groupName {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #f3f4f6;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #4b5563;
+      }
+
+      .deletedDate {
+        font-size: 1.2rem;
+        color: #9ca3af;
+        font-style: italic;
+      }
+    }
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 1.3rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.2s;
+
+      &.restore {
+        background-color: #e0f2fe;
+        color: #0284c7;
+
+        &:hover {
+          background-color: #bae6fd;
+        }
+      }
+
+      &.delete {
+        background-color: #fee2e2;
+        color: #dc2626;
+
+        &:hover {
+          background-color: #fecaca;
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive cho màn hình nhỏ
+@media (max-width: 768px) {
+  .taskRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+
+    .actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+}

@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   LogIn,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import styles from './Sidebar.module.scss';
 import { useAuth } from '~/context/AuthContext';
@@ -67,6 +68,7 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
       public: false,
     },
     { path: '/calendar', label: 'Calendar', icon: Calendar, public: false },
+    { path: '/trash', label: 'Trash', icon: Trash2, public: false },
     { path: '/settings', label: 'Settings', icon: Settings, public: false },
     { path: '/help', label: 'Help', icon: HelpCircle, public: false },
   ];

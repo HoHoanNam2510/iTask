@@ -1,9 +1,12 @@
+/* server/index.ts */
 import dotenv from 'dotenv';
-dotenv.config(); // 1. Load env đầu tiên
+dotenv.config();
 
 import express from 'express';
+import fs from 'fs';
 import cors from 'cors';
 import path from 'path';
+import cron from 'node-cron';
 
 // Import các file nội bộ
 import connectDB from './config/db';
@@ -19,6 +22,9 @@ import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 
+// 👇 [FIX] Import Model Task để dùng trong Cronjob
+import Task from './models/Task';
+
 // Import Audit Middleware
 import { auditLogger } from './middleware/auditMiddleware';
 
@@ -27,26 +33,24 @@ const app = express();
 // 2. KẾT NỐI DB
 connectDB();
 
-// 3. MIDDLEWARE (BẮT BUỘC PHẢI Ở ĐÂY)
+// 3. MIDDLEWARE
 app.use(cors());
-app.use(express.json()); // Để đọc được req.body
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// PUBLIC THƯ MỤC UPLOADS
 const uploadsPath = path.join(process.cwd(), '../uploads');
 
-// 4. LOGGER CỰC MẠNH (Để debug console)
+// 4. LOGGER
 app.use((req, res, next) => {
   console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+  console.log('📦 Body:', JSON.stringify(req.body, null, 2)); // Uncomment nếu cần debug kỹ
   next();
 });
 
 // 5. STATIC FILES
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Đăng ký Audit Logger TẠI ĐÂY
-// Phải đặt TRƯỚC các Routes bên dưới để nó "bao bọc" được mọi request
+// Audit Logger
 app.use('/api', auditLogger);
 
 // 6. ROUTES
@@ -62,7 +66,48 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// 7. GLOBAL ERROR HANDLER (Chặn lỗi crash app)
+// 👇 [CRON JOB] Dọn dẹp thùng rác lúc 00:00 mỗi ngày
+cron.schedule('0 0 * * *', async () => {
+  console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  try {
+    // Tìm các task đã xóa mềm quá 30 ngày
+    const tasksToDelete = await Task.find({
+      isDeleted: true,
+      deletedAt: { $lt: thirtyDaysAgo },
+    });
+
+    if (tasksToDelete.length > 0) {
+      console.log(
+        `🗑️ Tìm thấy ${tasksToDelete.length} tasks hết hạn. Đang xóa...`
+      );
+
+      for (const task of tasksToDelete) {
+        // Xóa ảnh
+        if (task.image && !task.image.startsWith('http')) {
+          const imagePath = path.join(process.cwd(), '../', task.image);
+          if (fs.existsSync(imagePath)) {
+            try {
+              fs.unlinkSync(imagePath);
+            } catch (e) {}
+          }
+        }
+        // Xóa DB
+        await Task.findByIdAndDelete(task._id);
+      }
+      console.log('✅ Dọn dẹp hoàn tất.');
+    } else {
+      console.log('✨ Không có gì để dọn.');
+    }
+  } catch (error) {
+    console.error('❌ Lỗi Cronjob:', error);
+  }
+});
+
+// 7. ERROR HANDLER
 app.use(
   (
     err: any,
