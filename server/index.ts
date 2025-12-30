@@ -53,6 +53,15 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Audit Logger
 app.use('/api', auditLogger);
 
+// Health check endpoint for Docker
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // 6. ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
