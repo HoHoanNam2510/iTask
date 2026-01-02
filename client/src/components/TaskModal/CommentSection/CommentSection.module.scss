@@ -1,0 +1,312 @@
+/* src/components/TaskModal/CommentSection/CommentSection.module.scss */
+.divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 20px -24px; // Kéo dài ra sát mép modal
+}
+
+.sectionTitle {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.commentSection {
+  margin-top: 10px;
+}
+
+.commentList {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 8px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+  }
+}
+
+.emptyComment {
+  font-size: 1.3rem;
+  color: var(--text-light);
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.commentItem {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  &:hover .cmtActions {
+    opacity: 1;
+  }
+
+  .cmtAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .cmtAvatarPlaceholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .cmtContentWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cmtContentBox {
+    background-color: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 0 12px 12px 12px;
+    width: 100%;
+
+    .cmtHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+
+      .cmtUser {
+        font-weight: 600;
+        font-size: 1.3rem;
+        color: var(--text-main);
+      }
+
+      .cmtTime {
+        font-size: 1.1rem;
+        color: var(--text-light);
+      }
+    }
+
+    .cmtBody {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .cmtText {
+      font-size: 1.4rem;
+      color: var(--text-main);
+      line-height: 1.4;
+      white-space: pre-wrap;
+      flex: 1;
+      word-break: break-word;
+      margin: 0;
+    }
+  }
+
+  .cmtActions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    .cmtContentBox:hover & {
+      opacity: 1;
+    }
+
+    button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+
+      &.editBtn {
+        color: #22c55e;
+        &:hover {
+          background-color: #dcfce7;
+        }
+      }
+
+      &.delBtn {
+        color: #ef4444;
+        &:hover {
+          background-color: #fee2e2;
+        }
+      }
+    }
+  }
+
+  .editModeBox {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+
+    .editInput {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 1.4rem;
+      outline: none;
+      &:focus {
+        border-color: var(--primary);
+      }
+    }
+
+    .editActions {
+      display: flex;
+      gap: 4px;
+
+      button {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: white;
+      }
+
+      .saveEditBtn {
+        background-color: var(--primary);
+      }
+
+      .cancelEditBtn {
+        background-color: #94a3b8;
+      }
+    }
+  }
+}
+
+.commentInputWrapper {
+  position: relative;
+  margin-top: auto;
+}
+
+.commentInputBox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-hover);
+  padding: 4px 4px 4px 16px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: var(--primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  }
+
+  input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 1.4rem;
+    padding: 8px 0;
+  }
+
+  button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: var(--primary-dark);
+    }
+
+    &:disabled {
+      background-color: #cbd5e1;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.mentionHighlight {
+  color: var(--primary);
+  font-weight: 700;
+  background-color: rgba(var(--primary-rgb), 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.mentionPopup {
+  position: absolute;
+  bottom: 100%;
+  left: 20px;
+  width: 200px;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+  z-index: 10;
+  overflow: hidden;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 1.3rem;
+  color: var(--text-main);
+
+  &:hover {
+    background-color: var(--bg-hover);
+    color: var(--primary);
+  }
+}
+
+.mentionAvatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+}
