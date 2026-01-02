@@ -1,3 +1,4 @@
+/* client/src/pages/Calendar/Calendar.tsx */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -21,22 +22,32 @@ import {
   Trash2,
   X,
   Edit2,
+  Users,
+  User,
+  Layers,
 } from 'lucide-react';
+import classNames from 'classnames/bind';
 import styles from './Calendar.module.scss';
-import TaskModal from '~/components/TaskModal/TaskModal'; // Import Modal mới
+import TaskModal from '~/components/TaskModal/TaskModal';
 import type { ITaskResponse } from '~/types/task';
+
+const cx = classNames.bind(styles);
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
   // State quản lý Modal
-  const [isListModalOpen, setIsListModalOpen] = useState(false); // Modal xem danh sách task trong ngày
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); // Modal thêm mới task
+  const [isListModalOpen, setIsListModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
-  // [MỚI] State lưu task đang muốn sửa
   const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
+
+  // 👇 [MỚI] State bộ lọc: 'all' | 'personal' | 'group'
+  const [filterMode, setFilterMode] = useState<'all' | 'personal' | 'group'>(
+    'all'
+  );
 
   // --- FETCH DATA ---
   const fetchTasks = async () => {
@@ -55,6 +66,18 @@ const Calendar: React.FC = () => {
     fetchTasks();
   }, []);
 
+  // --- LOGIC LỌC TASK THEO MODE ---
+  const getFilteredTasks = () => {
+    return tasks.filter((task) => {
+      if (filterMode === 'all') return true;
+      if (filterMode === 'personal') return !task.group; // Không có group -> Cá nhân
+      if (filterMode === 'group') return !!task.group; // Có group -> Nhóm
+      return true;
+    });
+  };
+
+  const filteredTasks = getFilteredTasks();
+
   // --- LOGIC LỊCH ---
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -69,33 +92,28 @@ const Calendar: React.FC = () => {
 
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
-    setIsListModalOpen(true); // Mở danh sách xem trước
+    setIsListModalOpen(true);
   };
 
   const handleOpenAddForm = () => {
-    setEditingTask(null); // Đảm bảo clear task cũ để ra form thêm mới
-    setIsListModalOpen(false); // Đóng list view
-    setIsTaskModalOpen(true); // Mở form thêm mới
+    setEditingTask(null);
+    setIsListModalOpen(false);
+    setIsTaskModalOpen(true);
   };
 
-  // [MỚI] Hàm mở form Edit
   const handleOpenEditForm = (task: ITaskResponse) => {
-    setEditingTask(task); // Lưu task cần sửa
-    setIsListModalOpen(false); // Đóng list
-    setIsTaskModalOpen(true); // Mở form modal
+    setEditingTask(task);
+    setIsListModalOpen(false);
+    setIsTaskModalOpen(true);
   };
 
-  // [MỚI] Hàm Xóa thật
   const handleDeleteTask = async (id: string) => {
     if (window.confirm('Bạn có chắc muốn xóa vĩnh viễn?')) {
       try {
         const token = localStorage.getItem('token');
-        // Gọi API xóa
         await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        // Xóa thành công -> Load lại list task
         fetchTasks();
       } catch (error) {
         console.error('Lỗi xóa task:', error);
@@ -104,15 +122,15 @@ const Calendar: React.FC = () => {
     }
   };
 
-  // Filter task cho ngày đang chọn
-  const tasksForSelectedDate = tasks.filter(
+  // Filter task cho ngày đang chọn (dựa trên list đã lọc theo mode)
+  const tasksForSelectedDate = filteredTasks.filter(
     (t) => selectedDate && isSameDay(new Date(t.dueDate), selectedDate)
   );
 
-  // --- RENDER LIST VIEW (Modal nhỏ xem danh sách) ---
+  // --- RENDER LIST VIEW ---
   const renderListView = () => (
     <>
-      <div className={styles.modalHeader}>
+      <div className={cx('modalHeader')}>
         <h3>
           Công việc ngày {selectedDate && format(selectedDate, 'dd/MM/yyyy')}
         </h3>
@@ -121,26 +139,49 @@ const Calendar: React.FC = () => {
         </button>
       </div>
 
-      <div className={styles.listViewHeader}>
-        <span>{tasksForSelectedDate.length} công việc</span>
-        <button className={styles.addNewBtn} onClick={handleOpenAddForm}>
+      <div className={cx('listViewHeader')}>
+        <span>
+          {tasksForSelectedDate.length} công việc (
+          {filterMode === 'all' ? 'Tất cả' : filterMode})
+        </span>
+        <button className={cx('addNewBtn')} onClick={handleOpenAddForm}>
           <Plus size={16} /> Thêm mới
         </button>
       </div>
 
-      <ul className={styles.taskList}>
+      <ul className={cx('taskList')}>
         {tasksForSelectedDate.length === 0 && (
-          <p className={styles.emptyText}>Chưa có công việc nào.</p>
+          <p className={cx('emptyText')}>
+            Không có công việc nào trong danh mục này.
+          </p>
         )}
         {tasksForSelectedDate.map((task) => (
-          <li key={task._id} className={styles.taskItem}>
+          <li key={task._id} className={cx('taskItem')}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{task.title}</div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                {task.title}
+                {/* Badge phân loại trong list */}
+                {task.group ? (
+                  <span className={cx('typeBadge', 'group')}>
+                    Group: {(task.group as any).name}
+                  </span>
+                ) : (
+                  <span className={cx('typeBadge', 'personal')}>Personal</span>
+                )}
+              </div>
               <div
                 style={{
                   fontSize: 12,
                   color: '#64748b',
                   textTransform: 'capitalize',
+                  marginTop: 4,
                 }}
               >
                 {task.priority} •{' '}
@@ -161,18 +202,14 @@ const Calendar: React.FC = () => {
               />
             )}
             <div style={{ display: 'flex', gap: '8px' }}>
-              {/* NÚT EDIT */}
               <button
-                className={styles.deleteBtn} // Tái sử dụng class hoặc tạo class mới .editBtn
-                style={{ color: '#3b82f6' }} // Màu xanh dương cho nút sửa
+                className={cx('actionBtn', 'edit')}
                 onClick={() => handleOpenEditForm(task)}
               >
                 <Edit2 size={16} />
               </button>
-
-              {/* NÚT DELETE */}
               <button
-                className={styles.deleteBtn}
+                className={cx('actionBtn', 'delete')}
                 onClick={() => handleDeleteTask(task._id)}
               >
                 <Trash2 size={16} />
@@ -184,15 +221,40 @@ const Calendar: React.FC = () => {
     </>
   );
 
-  // --- MAIN RENDER ---
   return (
-    <div className={styles.calendarContainer}>
+    <div className={cx('calendarContainer')}>
       {/* HEADER */}
-      <div className={styles.header}>
-        <div className={styles.headerTitle}>
+      <div className={cx('header')}>
+        <div className={cx('headerTitle')}>
           <h2>{format(currentDate, 'MMMM yyyy', { locale: vi })}</h2>
         </div>
-        <div className={styles.navButtons}>
+
+        {/* 👇 [MỚI] BỘ LỌC VIEW MODE */}
+        <div className={cx('filterControls')}>
+          <button
+            className={cx({ active: filterMode === 'all' })}
+            onClick={() => setFilterMode('all')}
+            title="Tất cả"
+          >
+            <Layers size={16} /> All
+          </button>
+          <button
+            className={cx({ active: filterMode === 'personal' })}
+            onClick={() => setFilterMode('personal')}
+            title="Cá nhân"
+          >
+            <User size={16} /> Personal
+          </button>
+          <button
+            className={cx({ active: filterMode === 'group' })}
+            onClick={() => setFilterMode('group')}
+            title="Nhóm"
+          >
+            <Users size={16} /> Group
+          </button>
+        </div>
+
+        <div className={cx('navButtons')}>
           <button onClick={prevMonth}>
             <ChevronLeft size={20} />
           </button>
@@ -204,85 +266,86 @@ const Calendar: React.FC = () => {
       </div>
 
       {/* WEEKDAYS */}
-      <div className={styles.weekDaysGrid}>
+      <div className={cx('weekDaysGrid')}>
         {weekDays.map((day) => (
-          <div key={day} className={styles.weekDayCell}>
+          <div key={day} className={cx('weekDayCell')}>
             {day}
           </div>
         ))}
       </div>
 
       {/* DAYS GRID */}
-      <div className={styles.daysGrid}>
+      <div className={cx('daysGrid')}>
         {calendarDays.map((day, index) => {
-          const dayTasks = tasks.filter((t) =>
+          // Lấy task của ngày đó (đã qua bộ lọc)
+          const dayTasks = filteredTasks.filter((t) =>
             isSameDay(new Date(t.dueDate), day)
           );
           const isCurrentMonth = isSameMonth(day, monthStart);
-
-          // Tính số lượng task dư ra
           const moreCount = dayTasks.length - 2;
 
           return (
             <div
               key={index}
-              className={`${styles.dayCell} ${
-                !isCurrentMonth ? styles.disabled : ''
-              } ${isToday(day) ? styles.today : ''}`}
+              className={cx('dayCell', {
+                disabled: !isCurrentMonth,
+                today: isToday(day),
+              })}
               onClick={() => handleDayClick(day)}
             >
-              {/* 👇 [SỬA] Bọc DateNumber và MoreCount vào 1 Header row */}
-              <div className={styles.dayHeader}>
-                <div className={styles.dateNumber}>{format(day, 'd')}</div>
-
-                {/* Nếu có hơn 2 task thì hiện số lượng dư ở góc phải */}
+              <div className={cx('dayHeader')}>
+                <div className={cx('dateNumber')}>{format(day, 'd')}</div>
                 {moreCount > 0 && (
-                  <div className={styles.moreCount}>+{moreCount} nữa</div>
+                  <div className={cx('moreCount')}>+{moreCount}</div>
                 )}
               </div>
 
-              <div className={styles.taskPreviewList}>
+              <div className={cx('taskPreviewList')}>
                 {dayTasks.slice(0, 2).map((t) => (
-                  <div key={t._id} className={styles.taskDot} title={t.title}>
+                  <div
+                    key={t._id}
+                    // 👇 [MỚI] Thêm class 'groupTask' nếu là task nhóm để đổi màu
+                    className={cx('taskDot', { groupTask: !!t.group })}
+                    title={t.title}
+                  >
                     {t.title}
                   </div>
                 ))}
-                {/* ❌ ĐÃ XÓA đoạn render moreTasks cũ ở dưới này */}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* MODAL 1: Xem danh sách task trong ngày */}
+      {/* MODAL LIST VIEW */}
       {isListModalOpen && selectedDate && (
         <div
-          className={styles.modalOverlay}
+          className={cx('modalOverlay')}
           onClick={() => setIsListModalOpen(false)}
         >
           <div
-            className={styles.modalContent}
+            className={cx('modalContent')}
             onClick={(e) => e.stopPropagation()}
-            style={{ height: 'auto', maxHeight: '600px' }} // Override height cho modal list
+            style={{ height: 'auto', maxHeight: '600px' }}
           >
             {renderListView()}
           </div>
         </div>
       )}
 
-      {/* MODAL 2: Truyền thêm prop taskToEdit */}
+      {/* MODAL ADD/EDIT TASK */}
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => {
           setIsTaskModalOpen(false);
-          setEditingTask(null); // Reset khi đóng
+          setEditingTask(null);
         }}
         onSuccess={() => {
           fetchTasks();
-          setIsListModalOpen(true); // Mở lại list để xem kết quả
+          setIsListModalOpen(true);
         }}
         defaultDate={selectedDate || new Date()}
-        taskToEdit={editingTask} // <--- Truyền task cần sửa vào đây
+        taskToEdit={editingTask}
       />
     </div>
   );

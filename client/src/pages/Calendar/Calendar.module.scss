@@ -1,5 +1,4 @@
 /* src/pages/Calendar/Calendar.module.scss */
-
 // --- 1. CALENDAR CONTAINER & HEADER ---
 .calendarContainer {
   width: 100%;
@@ -7,7 +6,7 @@
   display: flex;
   flex-direction: column;
   padding: 20px;
-  background-color: var(--white);
+  background-color: var(--bg-hover);
   overflow: hidden;
   font-family: 'Barlow', sans-serif;
 }
@@ -20,12 +19,49 @@
   flex-shrink: 0;
 }
 
-.headerTitle h2 {
-  margin: 0;
-  font-size: 1.8rem;
-  text-transform: capitalize;
-  font-weight: 700;
-  color: var(--text-main);
+.headerTitle {
+  flex: 1; // Để đẩy các phần tử kia sang phải
+  h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    text-transform: capitalize;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+}
+
+// 👇 [MỚI] Style cho bộ lọc
+.filterControls {
+  display: flex;
+  background-color: var(--white);
+  padding: 4px;
+  border-radius: 8px;
+  margin-right: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &.active {
+      background-color: var(--bg-hover); // Hoặc màu primary nhạt
+      color: var(--primary);
+    }
+
+    &:hover:not(.active) {
+      background-color: #f8fafc;
+    }
+  }
 }
 
 .navButtons {
@@ -33,7 +69,7 @@
   gap: 10px;
 
   button {
-    background: var(--bg-hover);
+    background: var(--white);
     border: none;
     padding: 8px 12px;
     border-radius: 8px;
@@ -50,7 +86,7 @@
   }
 }
 
-// --- 2. GRID LAYOUT (TUẦN & NGÀY) ---
+// --- 2. GRID LAYOUT ---
 .weekDaysGrid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -98,7 +134,7 @@
   flex-direction: column;
   gap: 4px;
   transition: background 0.2s;
-  min-height: 100px; // Đảm bảo chiều cao tối thiểu để đẹp hơn
+  min-height: 100px;
 
   &:hover {
     background-color: var(--bg-hover);
@@ -120,12 +156,11 @@
   }
 }
 
-// 👇 [MỚI] Header chứa Ngày và Số lượng dư
 .dayHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px; // Tạo khoảng cách với list task bên dưới
+  margin-bottom: 4px;
 }
 
 .dateNumber {
@@ -140,12 +175,11 @@
   color: var(--text-main);
 }
 
-// 👇 [MỚI] Style cho số lượng task dư (+2)
 .moreCount {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-light);
-  background-color: #f1f5f9; // Nền xám nhạt
+  background-color: #f1f5f9;
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -155,23 +189,29 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  // margin-top: 4px; -> Xóa hoặc giảm margin vì đã có margin-bottom ở dayHeader
 }
 
 .taskDot {
-  font-size: 1.3rem;
-  background-color: #e2e8f0;
+  font-size: 1.2rem;
+  background-color: var(--primary-bg);
   color: var(--text-main);
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid var(--primary); // Mặc định xanh (Personal)
+
+  // 👇 [MỚI] Style cho Task Nhóm
+  &.groupTask {
+    border-left-color: #8b5cf6; // Tím (Violet)
+    background-color: #f3e8ff; // Tím nhạt
+    color: #6b21a8;
+  }
 }
 
-// --- 4. MODAL OVERLAY (Cho List View) ---
+// --- 4. MODAL ---
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -188,7 +228,7 @@
 
 .modalContent {
   background: var(--white);
-  width: 500px; /* Nhỏ hơn so với form add task */
+  width: 500px;
   max-width: 95vw;
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
@@ -231,7 +271,7 @@
   }
 }
 
-// --- 5. LIST VIEW STYLES ---
+// --- 5. LIST VIEW ---
 .listViewHeader {
   padding: 16px 24px 0 24px;
   display: flex;
@@ -285,16 +325,44 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   }
 
-  .deleteBtn {
+  // 👇 [MỚI] Badge phân loại
+  .typeBadge {
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+
+    &.personal {
+      background-color: #d1fae5;
+      color: #059669;
+    }
+    &.group {
+      background-color: #ede9fe;
+      color: #7c3aed;
+    }
+  }
+
+  .actionBtn {
     background: none;
     border: none;
-    color: var(--text-light);
     cursor: pointer;
     padding: 8px;
     border-radius: 6px;
-    &:hover {
-      background-color: #fee2e2;
-      color: var(--danger);
+
+    &.edit {
+      color: #3b82f6;
+      &:hover {
+        background-color: #dbeafe;
+      }
+    }
+
+    &.delete {
+      color: var(--text-light);
+      &:hover {
+        background-color: #fee2e2;
+        color: var(--danger);
+      }
     }
   }
 }
