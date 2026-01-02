@@ -2,38 +2,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import {
-  X,
-  Send,
-  Check,
-  Edit2,
-  Trash2,
-  MessageSquare,
-  Image as ImageIcon,
-} from 'lucide-react';
+import { Check, Image as ImageIcon } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
 import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
+// 👇 IMPORT COMPONENT MỚI
+import CommentSection from './CommentSection/CommentSection';
 
 const cx = classNames.bind(styles);
 
 interface ICategory {
   _id: string;
   name: string;
-}
-
-// [MỚI] Interface cho Comment
-interface IComment {
-  _id: string;
-  content: string;
-  user: {
-    _id: string;
-    username: string;
-    avatar?: string;
-  };
-  createdAt: string;
 }
 
 interface TaskModalProps {
@@ -62,7 +44,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [assigneeId, setAssigneeId] = useState('');
 
-  // Form State
+  // Form State (Giữ nguyên)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -73,23 +55,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
     imageFile: null as File | null,
   });
 
-  // [MỚI] State cho Comments
-  const [comments, setComments] = useState<IComment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [isCommentLoading, setIsCommentLoading] = useState(false);
-  // 👇 [STATE MỚI] Cho Autocomplete Mention
-  const [showMentionList, setShowMentionList] = useState(false);
-  const [filteredMembers, setFilteredMembers] = useState<UserBasic[]>([]);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const commentsEndRef = useRef<HTMLDivElement>(null);
-
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-
   const dateString = format(defaultDate, 'yyyy-MM-dd');
 
-  // --- USE EFFECT KHỞI TẠO ---
+  // --- INIT ---
   useEffect(() => {
     if (isOpen) {
       let targetCategoryId = defaultCategoryId;
@@ -121,33 +90,23 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       fetchCategories();
 
+      // Logic set Assignee
       if (taskToEdit) {
-        // Kiểm tra nếu assignee là Object thì lấy _id, nếu là string thì lấy trực tiếp
         if (taskToEdit.assignee) {
           if (typeof taskToEdit.assignee === 'object') {
-            // Ép kiểu any để lấy _id vì TypeScript có thể chưa hiểu structure populate
             setAssigneeId((taskToEdit.assignee as any)._id);
           } else {
             setAssigneeId(taskToEdit.assignee as string);
           }
         } else {
-          // Trường hợp không có assignee (Chính tôi)
           setAssigneeId('');
         }
-        fetchComments(); // [MỚI] Tải comment nếu đang edit
       } else {
         setAssigneeId('');
-        setComments([]); // [MỚI] Reset comment nếu tạo mới
       }
     }
   }, [isOpen, taskToEdit, defaultCategoryId, dateString]);
 
-  // [MỚI] Cuộn xuống comment mới nhất
-  useEffect(() => {
-    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [comments]);
-
-  // --- API CALLS ---
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -157,180 +116,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setCategories(res.data.categories || []);
     } catch (error) {
       console.error('Lỗi tải categories:', error);
-    }
-  };
-
-  // [MỚI] API Lấy comments
-  const fetchComments = async () => {
-    if (!taskToEdit) return;
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `http://localhost:5000/api/comments/${taskToEdit._id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (res.data.success) {
-        setComments(res.data.comments);
-      }
-    } catch (error) {
-      console.error('Lỗi tải comment', error);
-    }
-  };
-
-  // - Điều kiện 1: Phải có groupId (đang ở trong Group).
-  // - Điều kiện 2: Phải có danh sách thành viên.
-  // - LỌC: Loại bỏ chính bản thân user đang đăng nhập ra khỏi danh sách.
-  const mentionableUsers =
-    groupId && groupMembers.length > 0
-      ? groupMembers.filter((member) => member._id !== user?._id)
-      : [];
-
-  // 👇 [HÀM MỚI] Xử lý khi gõ phím để detect @
-  const handleCommentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setNewComment(val);
-
-    // Logic detect @ ở cuối câu
-    const lastWord = val.split(' ').pop();
-
-    // SỬA: Thay "groupMembers" bằng "mentionableUsers"
-    if (lastWord && lastWord.startsWith('@') && mentionableUsers.length > 0) {
-      const query = lastWord.slice(1).toLowerCase(); // Bỏ dấu @
-
-      // SỬA: Thay "groupMembers" bằng "mentionableUsers"
-      const matches = mentionableUsers.filter((m) =>
-        m.username.toLowerCase().includes(query)
-      );
-
-      if (matches.length > 0) {
-        setFilteredMembers(matches);
-        setShowMentionList(true);
-        return;
-      }
-    }
-    setShowMentionList(false);
-  };
-
-  // 👇 [HÀM MỚI] Chọn user từ list gợi ý
-  const handleSelectMention = (username: string) => {
-    // Thay thế từ @cuối cùng bằng @username + khoảng trắng
-    const words = newComment.split(' ');
-    words.pop(); // Bỏ từ @dang_go
-    const newVal = [...words, `@${username} `].join(' '); // Thêm tên đầy đủ
-    setNewComment(newVal);
-    setShowMentionList(false);
-
-    // Focus lại vào input (tùy chọn)
-  };
-
-  // 👇 [HÀM MỚI] Render nội dung có highlight @Username
-  const renderCommentContent = (content: string) => {
-    // Regex tìm các từ bắt đầu bằng @
-    const parts = content.split(/(@\w+)/g);
-
-    return parts.map((part, index) => {
-      if (part.startsWith('@')) {
-        return (
-          <span key={index} className={cx('mentionHighlight')}>
-            {part}
-          </span>
-        );
-      }
-      return part;
-    });
-  };
-
-  // [MỚI] API Gửi comment
-  const handleSendComment = async () => {
-    if (!newComment.trim() || !taskToEdit) return;
-
-    try {
-      setIsCommentLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        'http://localhost:5000/api/comments',
-        { taskId: taskToEdit._id, content: newComment },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.data.success) {
-        setComments([...comments, res.data.comment]);
-        setNewComment('');
-      }
-    } catch (error) {
-      console.error('Lỗi gửi comment', error);
-    } finally {
-      setIsCommentLoading(false);
-    }
-  };
-
-  // 👇 [HÀM MỚI] Bắt đầu sửa comment
-  const handleStartEdit = (comment: IComment) => {
-    setEditingCommentId(comment._id);
-    setEditContent(comment.content);
-  };
-
-  // 👇 [HÀM MỚI] Hủy sửa
-  const handleCancelEdit = () => {
-    setEditingCommentId(null);
-    setEditContent('');
-  };
-
-  // 👇 [HÀM MỚI] Gọi API update comment
-  const handleUpdateComment = async (commentId: string) => {
-    if (!editContent.trim()) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.put(
-        `http://localhost:5000/api/comments/${commentId}`,
-        { content: editContent },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.data.success) {
-        // Cập nhật lại list comments ở state
-        setComments((prev) =>
-          prev.map((c) => (c._id === commentId ? res.data.comment : c))
-        );
-        handleCancelEdit();
-      }
-    } catch (error) {
-      console.error('Lỗi update comment:', error);
-      alert('Không thể sửa bình luận');
-    }
-  };
-
-  // 👇 [HÀM MỚI] Gọi API delete comment
-  const handleDeleteComment = async (commentId: string) => {
-    if (!window.confirm('Bạn có chắc muốn xóa bình luận này?')) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.delete(
-        `http://localhost:5000/api/comments/${commentId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (res.data.success) {
-        // Xóa khỏi state
-        setComments((prev) => prev.filter((c) => c._id !== commentId));
-      }
-    } catch (error) {
-      console.error('Lỗi xóa comment:', error);
-      alert('Không thể xóa bình luận');
-    }
-  };
-
-  // [MỚI] Xử lý phím Enter
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendComment();
     }
   };
 
@@ -416,7 +201,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
         {/* Body */}
         <div className={cx('formBody')}>
-          {/* ... Form Inputs (Title, Date, Category...) GIỮ NGUYÊN ... */}
+          {/* Title Input */}
           <div className={cx('formGroup')}>
             <label>Title</label>
             <input
@@ -430,6 +215,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             />
           </div>
 
+          {/* Date & Category */}
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')} style={{ flex: 1 }}>
               <div className={cx('formGroup')}>
@@ -464,6 +250,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
+          {/* Assignee */}
           {groupMembers.length > 0 && (
             <div className={cx('formGroup')}>
               <label>Giao việc cho (Assignee)</label>
@@ -473,8 +260,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 className={cx('input')}
               >
                 <option value="">Chính tôi (Mặc định)</option>
-
-                {/* 👇 LỌC BỎ CHÍNH MÌNH RA KHỎI LIST */}
                 {groupMembers
                   .filter((u) => u._id !== user?._id)
                   .map((u) => (
@@ -486,6 +271,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           )}
 
+          {/* Priority */}
           <div className={cx('formGroup')}>
             <label>Priority</label>
             <div className={cx('priorityGroup')}>
@@ -518,6 +304,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
+          {/* Description & Upload */}
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')}>
               <div className={cx('formGroup')}>
@@ -573,162 +360,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
             {isLoading ? 'Saving...' : 'Done'}
           </button>
 
-          {/* 👇 [PHẦN MỚI] KHU VỰC BÌNH LUẬN (Chỉ hiện khi đang Edit Task) */}
+          {/* 👇 [ĐÃ TÁCH] COMPONENT COMMENT MỚI */}
           {taskToEdit && (
-            <div className={cx('commentSection')}>
-              <div className={cx('divider')}></div>
-              <h4 className={cx('sectionTitle')}>
-                <MessageSquare size={18} /> Bình luận & Trao đổi
-              </h4>
-
-              <div className={cx('commentList')}>
-                {comments.length === 0 ? (
-                  <p className={cx('emptyComment')}>
-                    Chưa có bình luận nào. Hãy bắt đầu trao đổi!
-                  </p>
-                ) : (
-                  comments.map((comment) => (
-                    <div key={comment._id} className={cx('commentItem')}>
-                      {/* Avatar giữ nguyên */}
-                      {comment.user.avatar ? (
-                        <img
-                          src={`http://localhost:5000/${comment.user.avatar.replace(
-                            /\\/g,
-                            '/'
-                          )}`}
-                          className={cx('cmtAvatar')}
-                          alt="avt"
-                        />
-                      ) : (
-                        <div className={cx('cmtAvatarPlaceholder')}>
-                          {comment.user.username.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-
-                      <div className={cx('cmtContentWrapper')}>
-                        <div className={cx('cmtContentBox')}>
-                          {/* Header (Tên + Giờ) giữ nguyên */}
-                          <div className={cx('cmtHeader')}>
-                            <span className={cx('cmtUser')}>
-                              {comment.user.username}
-                            </span>
-                            <span className={cx('cmtTime')}>
-                              {format(
-                                new Date(comment.createdAt),
-                                'dd/MM/yyyy - HH:mm'
-                              )}
-                            </span>
-                          </div>
-
-                          {/* 👇 [LOGIC UI SỬA ĐỔI] */}
-                          {editingCommentId === comment._id ? (
-                            // Giao diện khi đang Sửa (Input) - GIỮ NGUYÊN
-                            <div className={cx('editModeBox')}>
-                              <input
-                                autoFocus
-                                className={cx('editInput')}
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter')
-                                    handleUpdateComment(comment._id);
-                                  if (e.key === 'Escape') handleCancelEdit();
-                                }}
-                              />
-                              <div className={cx('editActions')}>
-                                <button
-                                  onClick={() =>
-                                    handleUpdateComment(comment._id)
-                                  }
-                                  className={cx('saveEditBtn')}
-                                >
-                                  <Check size={14} />
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className={cx('cancelEditBtn')}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            // 👇 [MỚI] Bọc Text và Action vào cmtBody để căn 2 bên
-                            <div className={cx('cmtBody')}>
-                              <p className={cx('cmtText')}>
-                                {renderCommentContent(comment.content)}
-                              </p>
-
-                              {/* 👇 [DI CHUYỂN VÀO ĐÂY] Nút Action nằm cùng dòng text */}
-                              {user?._id === comment.user._id && (
-                                <div className={cx('cmtActions')}>
-                                  <button
-                                    onClick={() => handleStartEdit(comment)}
-                                    title="Sửa"
-                                    className={cx('editBtn')}
-                                  >
-                                    <Edit2 size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteComment(comment._id)
-                                    }
-                                    title="Xóa"
-                                    className={cx('delBtn')}
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={commentsEndRef} />
-              </div>
-
-              {/* Input Comment Box */}
-              <div className={cx('commentInputWrapper')}>
-                {' '}
-                {/* Đổi tên class cha để dễ CSS position relative */}
-                {/* 👇 [MỚI] Popup gợi ý Mention */}
-                {showMentionList && (
-                  <div className={cx('mentionPopup')}>
-                    {filteredMembers.map((user) => (
-                      <div
-                        key={user._id}
-                        className={cx('mentionItem')}
-                        onClick={() => handleSelectMention(user.username)}
-                      >
-                        <div className={cx('mentionAvatar')}>
-                          {user.username.charAt(0).toUpperCase()}
-                        </div>
-                        <span>{user.username}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Input cũ */}
-                <div className={cx('commentInputBox')}>
-                  <input
-                    type="text"
-                    placeholder="Viết bình luận... (gõ @ để tag tên)"
-                    value={newComment}
-                    onChange={handleCommentChange} // Dùng hàm mới
-                    onKeyDown={handleKeyDown}
-                    disabled={isCommentLoading}
-                  />
-                  <button onClick={handleSendComment} /* ... */>
-                    <Send size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <CommentSection
+              taskId={taskToEdit._id}
+              currentUser={user}
+              groupMembers={groupMembers}
+              groupId={groupId}
+            />
           )}
-          {/* 👆 [HẾT PHẦN MỚI] */}
         </div>
       </div>
     </div>
