@@ -1,7 +1,15 @@
+/* src/components/TaskItem/TaskItem.tsx */
 import React from 'react';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
-import { MoreHorizontal, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import {
+  MoreHorizontal,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Paperclip,
+  CheckSquare,
+} from 'lucide-react';
 import styles from './TaskItem.module.scss';
 import type { ITaskResponse } from '~/types/task';
 
@@ -14,6 +22,11 @@ interface TaskItemProps {
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
+  // Logic đếm Checklist
+  const totalSubtasks = task.subtasks?.length || 0;
+  const completedSubtasks =
+    task.subtasks?.filter((t) => t.isCompleted).length || 0;
+
   // Helper render icon status
   const renderStatusIcon = () => {
     switch (task.status) {
@@ -50,6 +63,31 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
           : 'No description'}
       </p>
 
+      {/* 👇 [MỚI] Hiển thị Metadata (File, Checklist) */}
+      {(totalSubtasks > 0 ||
+        (task.attachments && task.attachments.length > 0)) && (
+        <div className={cx('taskMetaInfo')}>
+          {totalSubtasks > 0 && (
+            <div
+              className={cx('metaItem', {
+                done: completedSubtasks === totalSubtasks,
+              })}
+            >
+              <CheckSquare size={14} />
+              <span>
+                {completedSubtasks}/{totalSubtasks}
+              </span>
+            </div>
+          )}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className={cx('metaItem')}>
+              <Paperclip size={14} />
+              <span>{task.attachments.length}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={cx('cardFooter')}>
         <div className={cx('footerLeft')}>
           {/* Priority */}
@@ -57,7 +95,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
             <span className={cx('value', task.priority)}>{task.priority}</span>
           </div>
 
-          {/* [MỚI] Category Badge */}
+          {/* Category Badge */}
           {task.category && (
             <div
               className={cx('categoryBadge')}
