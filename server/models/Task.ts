@@ -1,46 +1,51 @@
+/* server/models/Task.ts */
 import mongoose, { Schema, Document } from 'mongoose';
 
-// 1. Định nghĩa Interface cho TypeScript (giúp code gợi ý lệnh chính xác)
+// 1. Định nghĩa Interface (Chỉ khai báo kiểu dữ liệu, KHÔNG chứa logic code)
 export interface ITask extends Document {
   title: string;
   description?: string;
-  image?: string; // URL của ảnh upload
+  image?: string;
   status: 'todo' | 'in_progress' | 'completed';
-  priority: 'low' | 'moderate' | 'extreme'; // Khớp với UI: Low, Moderate, Extreme
+  priority: 'low' | 'moderate' | 'extreme';
   dueDate: Date;
 
-  // Quan hệ dữ liệu (Relations)
-  category?: mongoose.Types.ObjectId; // Optional
-
-  // Logic phân biệt Personal/Group
-  creator: mongoose.Types.ObjectId; // Người tạo task (luôn luôn có)
-  assignee?: mongoose.Types.ObjectId; // Người được giao việc (Optional nếu là Personal)
-  group?: mongoose.Types.ObjectId; // Nếu null -> Personal Task. Có ID -> Group Task.
+  // Relations
+  category?: mongoose.Types.ObjectId;
+  creator: mongoose.Types.ObjectId;
+  assignee?: mongoose.Types.ObjectId;
+  group?: mongoose.Types.ObjectId;
 
   createdAt: Date;
   updatedAt: Date;
 
-  // 👇 [MỚI] Fields cho tính năng Thùng rác (Soft Delete)
-  isDeleted: boolean; // Đánh dấu đã xóa hay chưa
-  deletedAt: Date | null; // Thời điểm xóa (để tính hạn 30 ngày)
+  // Soft Delete
+  isDeleted: boolean;
+  deletedAt: Date | null;
+
+  // 👇 [MỚI] 1. Checklist / Subtasks
+  subtasks: {
+    _id?: string;
+    title: string;
+    isCompleted: boolean;
+  }[];
+
+  // 👇 [MỚI] 2. File Attachments (Đã sửa lại cho đúng chuẩn TypeScript Interface)
+  attachments: {
+    _id?: string;
+    name: string;
+    url: string;
+    type: string; // Tên field là 'type'
+    uploadDate: Date; // Kiểu dữ liệu là Date
+  }[];
 }
 
-// 2. Định nghĩa Schema cho Mongoose
+// 2. Định nghĩa Schema (Nơi cấu hình Mongoose, default value, validation)
 const TaskSchema: Schema = new Schema(
   {
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    image: {
-      type: String,
-      default: '', // Lưu URL ảnh (VD: /uploads/task-123.jpg)
-    },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, default: '' },
+    image: { type: String, default: '' },
     status: {
       type: String,
       enum: ['todo', 'in_progress', 'completed'],
@@ -48,63 +53,48 @@ const TaskSchema: Schema = new Schema(
     },
     priority: {
       type: String,
-      enum: ['low', 'moderate', 'extreme'], // Khớp với checkbox UI
+      enum: ['low', 'moderate', 'extreme'],
       default: 'moderate',
     },
-    dueDate: {
-      type: Date,
-      required: true,
-    },
+    dueDate: { type: Date, required: true },
 
-    // --- RELATIONS ---
-    category: {
-      type: Schema.Types.ObjectId,
-      ref: 'Category',
-      default: null,
-    },
+    category: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
+    creator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    assignee: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    group: { type: Schema.Types.ObjectId, ref: 'Group', default: null },
 
-    // Người tạo ra task này (User đang login)
-    creator: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+    // Soft Delete
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
 
-    // Người thực hiện:
-    // - Nếu Personal: Thường backend tự gán = creator
-    // - Nếu Group: Chọn từ list member
-    assignee: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
+    // 👇 [MỚI] Subtasks Schema
+    subtasks: [
+      {
+        title: { type: String, required: true },
+        isCompleted: { type: Boolean, default: false },
+      },
+    ],
 
-    // Điểm quyết định Personal hay Group Task
-    group: {
-      type: Schema.Types.ObjectId,
-      ref: 'Group',
-      default: null, // Mặc định null là Personal Task
-    },
+    // 👇 [MỚI] Attachments Schema (Đã fix lỗi CastError và type conflict)
+    attachments: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
 
-    // 👇 [MỚI] Cấu hình Soft Delete
-    isDeleted: {
-      type: Boolean,
-      default: false, // Mặc định là chưa xóa
-    },
-    deletedAt: {
-      type: Date,
-      default: null, // Mặc định là null
-    },
+        // 🔥 QUAN TRỌNG: Khắc phục lỗi CastError do từ khóa 'type'
+        type: { type: String },
+
+        // Dùng Date.now làm default value
+        uploadDate: { type: Date, default: Date.now },
+      },
+    ],
   },
-  {
-    timestamps: true, // Tự động tạo createdAt, updatedAt
-  }
+  { timestamps: true }
 );
 
-// Tối ưu Query: Tạo index để tìm kiếm nhanh hơn
-TaskSchema.index({ creator: 1, status: 1 }); // Tìm task của tôi theo trạng thái
-TaskSchema.index({ group: 1 }); // Tìm task của một nhóm
-// 👇 [MỚI] Index cho trường isDeleted để lọc task nhanh hơn
+// Indexes
+TaskSchema.index({ creator: 1, status: 1 });
+TaskSchema.index({ group: 1 });
 TaskSchema.index({ isDeleted: 1 });
 
 export default mongoose.model<ITask>('Task', TaskSchema);

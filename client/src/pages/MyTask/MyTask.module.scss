@@ -1,5 +1,4 @@
 /* src/pages/MyTasks/MyTask.module.scss */
-
 // Layout chung
 .wrapper {
   padding: 2.4rem 4rem;
@@ -8,7 +7,7 @@
   flex-direction: column;
   background-color: var(--bg-hover); // Nền xám nhạt
   font-family: 'Barlow', sans-serif;
-  overflow: hidden; // Quan trọng để scroll bên trong container con
+  overflow: hidden;
 
   @media (max-width: 768px) {
     padding: 1.6rem;
@@ -38,30 +37,22 @@
   display: flex;
   gap: 2.4rem;
   flex: 1;
-  overflow: hidden; // Để scroll nằm trong từng panel
+  overflow: hidden;
   position: relative;
 }
 
 // --- PANEL DANH SÁCH (LEFT) ---
 .listPanel {
-  /* [QUAN TRỌNG] 
-     Mặc định flex: 1 giúp nó chiếm toàn bộ không gian khi chưa có detailPanel.
-     Khi detailPanel xuất hiện, nó sẽ co lại nếu có class .shrunk
-  */
   flex: 1;
   overflow-y: auto;
   padding-right: 0.8rem;
-
-  /* Hiệu ứng trượt mượt mà khi thay đổi kích thước */
   transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 
-  // Khi có task được chọn (Detail hiện ra), panel này thu nhỏ lại
   &.shrunk {
-    flex: 0 0 400px; // Cố định chiều rộng list khi xem chi tiết
-    max-width: 400px; // Đảm bảo không bị giãn
+    flex: 0 0 400px;
+    max-width: 400px;
 
     @media (max-width: 1024px) {
-      // Trên màn hình nhỏ, ẩn list luôn để detail chiếm trọn
       display: none;
     }
   }
@@ -81,7 +72,6 @@
       padding-bottom: 0.4rem;
     }
 
-    // [MỚI] Style cho nút thêm nhanh
     .addTaskBtn {
       background: var(--primary);
       color: var(--white);
@@ -119,10 +109,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Animation trượt vào từ bên phải */
   animation: slideInRight 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
 
-  // Sửa lại animation
   @keyframes slideInRight {
     from {
       opacity: 0;
@@ -134,9 +122,8 @@
     }
   }
 
-  // Khi mở rộng full màn hình
   &.fullWidth {
-    position: absolute; // Đè lên list
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
@@ -184,7 +171,6 @@
     flex-direction: column;
     gap: 2rem;
 
-    // 1. Tiêu đề to đùng nằm trên cùng
     .mainHeader {
       border-bottom: 1px solid var(--bg-hover);
       padding-bottom: 1.6rem;
@@ -205,18 +191,16 @@
       }
     }
 
-    // 2. Layout Chia Đôi (Split View)
     .splitView {
       display: flex;
       gap: 2.4rem;
 
       @media (max-width: 900px) {
-        flex-direction: column; // Màn hình nhỏ thì xếp dọc lại
+        flex-direction: column;
       }
 
-      // Cột Trái: Ảnh (40%)
       .imageColumn {
-        flex: 0 0 40%; // Fix cứng 40%
+        flex: 0 0 40%;
         max-width: 40%;
 
         @media (max-width: 900px) {
@@ -226,23 +210,20 @@
 
         .coverImage {
           width: 100%;
-          // Aspect ratio giúp ảnh đẹp hơn: 4/3 hoặc 1/1 tùy ý
           aspect-ratio: 4/3;
           border-radius: 1.2rem;
           overflow: hidden;
-          position: relative; // Để định vị các thành phần con nếu cần
-          border: 2px solid transparent; // Chuẩn bị viền cho hover
+          position: relative;
+          border: 2px solid transparent;
           transition: all 0.2s ease;
 
-          // 1. Style cho thẻ IMG để ảnh không bị vỡ
           img {
             width: 100%;
             height: 100%;
-            object-fit: cover; // QUAN TRỌNG: Giữ tỷ lệ ảnh, cắt bớt phần thừa thay vì kéo dãn
+            object-fit: cover;
             display: block;
           }
 
-          // 2. Style cho Placeholder (khi chưa có ảnh)
           .placeholder {
             width: 100%;
             height: 100%;
@@ -257,17 +238,15 @@
             transition: all 0.2s;
           }
 
-          // 3. Hiệu ứng Hover: Để người dùng biết khu vực này bấm vào được (Upload)
           &:hover {
-            border-color: var(--primary); // Hiện viền xanh khi rê chuột vào
+            border-color: var(--primary);
 
             .placeholder {
-              background-color: #cbd5e1; // Làm tối màu nền placeholder chút
+              background-color: #cbd5e1;
               color: var(--primary);
             }
-
             img {
-              opacity: 0.9; // Làm mờ ảnh nhẹ để biết đang focus
+              opacity: 0.9;
             }
           }
         }
@@ -310,19 +289,117 @@
           }
         }
 
+        // Section chung
         .section {
           h3 {
             font-size: 1.4rem;
             font-weight: 600;
             color: var(--text-light);
             text-transform: uppercase;
-            margin-bottom: 0.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
           }
           p {
             font-size: 1.5rem;
             color: var(--text-main);
             line-height: 1.6;
             text-align: justify;
+          }
+
+          // 👇 STYLE CHO CHECKLIST
+          .checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+
+            .checkItem {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+              padding: 0.6rem 0;
+
+              .icon {
+                color: var(--text-light);
+                &.done {
+                  color: var(--primary);
+                  fill: var(--primary);
+                  opacity: 0.2;
+                }
+              }
+
+              .subTitle {
+                font-size: 1.4rem;
+                color: var(--text-main);
+
+                &.done {
+                  text-decoration: line-through;
+                  color: var(--text-light);
+                }
+              }
+            }
+          }
+
+          // 👇 STYLE CHO ATTACHMENTS
+          .fileList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.2rem;
+
+            .fileItem {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+              padding: 1rem;
+              background: var(--bg-hover);
+              border-radius: 0.8rem;
+              text-decoration: none;
+              transition: all 0.2s;
+              border: 1px solid transparent;
+
+              &:hover {
+                background: #e0e7ff; // Xanh nhạt
+                border-color: var(--primary);
+
+                .fileIcon {
+                  color: var(--primary);
+                }
+                .downloadIcon {
+                  opacity: 1;
+                }
+              }
+
+              .fileIcon {
+                color: var(--text-light);
+                transition: color 0.2s;
+              }
+
+              .fileInfo {
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+
+                .fileName {
+                  font-size: 1.3rem;
+                  font-weight: 600;
+                  color: var(--text-main);
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+                .fileDate {
+                  font-size: 1.1rem;
+                  color: var(--text-light);
+                }
+              }
+
+              .downloadIcon {
+                color: var(--text-light);
+                opacity: 0.5;
+              }
+            }
           }
         }
       }

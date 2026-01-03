@@ -1,3 +1,4 @@
+/* server/controllers/groupController.ts */
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Group from '../models/Group';
@@ -46,7 +47,11 @@ export const getGroupDetails = async (
     }
 
     // 2. Lấy tất cả Task của nhóm này để vẽ lên Kanban Board
-    const tasks = await Task.find({ group: groupId })
+    // 👇 [FIXED] Thêm điều kiện isDeleted: { $ne: true } để ẩn task đã xóa
+    const tasks = await Task.find({
+      group: groupId,
+      isDeleted: { $ne: true },
+    })
       .populate('assignee', 'username avatar email') // Để hiện tên người làm
       .sort({ createdAt: -1 });
 
@@ -235,6 +240,8 @@ export const getGroupLeaderboard = async (
         $match: {
           group: new mongoose.Types.ObjectId(groupId),
           status: 'completed',
+          // 👇 [FIXED] Không tính điểm cho task đã xóa
+          isDeleted: { $ne: true },
         },
       },
       // 2. Nhóm theo người được giao việc (Assignee) và đếm

@@ -1,6 +1,6 @@
 /* src/pages/MyTasks/MyTask.tsx */
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom'; // 👈 [MỚI] Import này quan trọng
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
@@ -9,8 +9,11 @@ import {
   Maximize2,
   Minimize2,
   X,
-  Image as ImageIcon,
   Plus,
+  CheckCircle2,
+  Circle,
+  FileText,
+  DownloadCloud,
 } from 'lucide-react';
 
 import styles from './MyTask.module.scss';
@@ -30,7 +33,6 @@ const getImageUrl = (imagePath?: string) => {
 };
 
 const MyTask = () => {
-  // 👇 [MỚI] Hook lấy query params từ URL
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
 
@@ -66,25 +68,23 @@ const MyTask = () => {
     fetchTasks();
   }, []);
 
-  // 👇 [MỚI] EFFECT TỰ ĐỘNG MỞ MODAL KHI CÓ URL PARAMS (?openTask=...)
+  // EFFECT TỰ ĐỘNG MỞ MODAL KHI CÓ URL PARAMS (?openTask=...)
   useEffect(() => {
     const openTaskFromUrl = async () => {
       if (openTaskId) {
         try {
           const token = localStorage.getItem('token');
-          // Gọi API lấy chi tiết task để đảm bảo có đủ dữ liệu (comments, subtasks...)
           const res = await axios.get(
             `http://localhost:5000/api/tasks/${openTaskId}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
           if (res.data.success) {
-            setTaskToEdit(res.data.task); // Set dữ liệu vào form
-            setIsModalOpen(true); // Bật modal lên
+            setTaskToEdit(res.data.task);
+            setIsModalOpen(true);
           }
         } catch (error) {
           console.error('Lỗi mở task từ liên kết:', error);
-          // Nếu task bị xóa hoặc không quyền xem, xóa param trên URL đi
           setSearchParams({});
         }
       }
@@ -295,12 +295,89 @@ const MyTask = () => {
                     )}
                   </div>
 
+                  {/* 1. DESCRIPTION */}
                   <div className={cx('section')}>
                     <h3>Description</h3>
                     <p>
                       {selectedTask.description || 'Không có mô tả chi tiết.'}
                     </p>
                   </div>
+
+                  {/* 👇 [MỚI] 2. CHECKLIST (Subtasks) */}
+                  {selectedTask.subtasks &&
+                    selectedTask.subtasks.length > 0 && (
+                      <div className={cx('section')}>
+                        <h3>
+                          Checklist (
+                          {
+                            selectedTask.subtasks.filter((t) => t.isCompleted)
+                              .length
+                          }
+                          /{selectedTask.subtasks.length})
+                        </h3>
+                        <div className={cx('checklist')}>
+                          {selectedTask.subtasks.map((sub, index) => (
+                            <div key={index} className={cx('checkItem')}>
+                              {sub.isCompleted ? (
+                                <CheckCircle2
+                                  size={18}
+                                  className={cx('icon', 'done')}
+                                />
+                              ) : (
+                                <Circle size={18} className={cx('icon')} />
+                              )}
+                              <span
+                                className={cx('subTitle', {
+                                  done: sub.isCompleted,
+                                })}
+                              >
+                                {sub.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* 👇 [MỚI] 3. ATTACHMENTS */}
+                  {selectedTask.attachments &&
+                    selectedTask.attachments.length > 0 && (
+                      <div className={cx('section')}>
+                        <h3>Attachments ({selectedTask.attachments.length})</h3>
+                        <div className={cx('fileList')}>
+                          {selectedTask.attachments.map((file, index) => (
+                            <a
+                              key={index}
+                              href={getImageUrl(file.url)!}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={cx('fileItem')}
+                            >
+                              <div className={cx('fileIcon')}>
+                                <FileText size={20} />
+                              </div>
+                              <div className={cx('fileInfo')}>
+                                <span className={cx('fileName')}>
+                                  {file.name}
+                                </span>
+                                <span className={cx('fileDate')}>
+                                  {file.uploadDate
+                                    ? format(
+                                        new Date(file.uploadDate),
+                                        'dd/MM/yyyy'
+                                      )
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                              <DownloadCloud
+                                size={16}
+                                className={cx('downloadIcon')}
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
@@ -323,13 +400,11 @@ const MyTask = () => {
         )}
       </div>
 
-      {/* MODAL ADD/EDIT TASK */}
       <TaskModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setTaskToEdit(null);
-          // 👇 [MỚI] Xóa params trên URL khi đóng Modal để F5 không bị mở lại
           setSearchParams({});
         }}
         onSuccess={() => {
