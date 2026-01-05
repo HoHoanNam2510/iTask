@@ -201,6 +201,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
+  border: 1px solid var(--primary);
   border-left: 3px solid var(--primary); // Mặc định xanh (Personal)
 
   // 👇 [MỚI] Style cho Task Nhóm

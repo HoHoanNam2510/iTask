@@ -5,8 +5,25 @@ import path from 'path';
 import Task from '../models/Task';
 import Group from '../models/Group';
 
-const getLocalImagePath = (dbPath: string) => {
-  return path.join(process.cwd(), '../', dbPath); // Điều chỉnh path tùy cấu trúc folder của bạn
+// 👇 [MỚI] Helper: Lấy đường dẫn file vật lý và Xóa an toàn
+const getLocalPath = (dbPath: string) => {
+  // Giả sử structure: /root/server (cwd) và /root/uploads
+  // ../uploads sẽ trỏ ra folder uploads nằm ngang hàng với server
+  return path.join(process.cwd(), '../', dbPath);
+};
+
+const safeDeleteFile = (dbPath: string | undefined) => {
+  if (!dbPath || dbPath.startsWith('http')) return;
+
+  try {
+    const absolutePath = getLocalPath(dbPath);
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+      console.log(`🗑️ Deleted file: ${dbPath}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error deleting file ${dbPath}:`, error);
+  }
 };
 
 // --- GET TASK ---
@@ -120,7 +137,7 @@ export const createTask = async (
       }));
     }
 
-    // 3. Xử lý Subtasks (Do gửi qua FormData nên nó là chuỗi JSON)
+    // 3. Xử lý Subtasks
     let subtasksData = [];
     if (req.body.subtasks) {
       try {
@@ -161,31 +178,44 @@ export const updateTask = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+
+    // 👇 [BƯỚC 1] Lấy task cũ trước khi update để so sánh file
+    const oldTask = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
+    if (!oldTask) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
     const updateData: any = { ...req.body };
 
-    // 1. Format dữ liệu cơ bản
+    // Format dữ liệu cơ bản
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    // 2. Xử lý Ảnh bìa (Image)
+    // 👇 [BƯỚC 2] Xử lý Ảnh bìa (Image) & Cleanup
     if (files && files['image'] && files['image'][0]) {
+      // Set ảnh mới
       updateData.image = `uploads/${files['image'][0].filename}`;
-    }
 
-    // 3. Xử lý Subtasks (Parse JSON)
-    if (updateData.subtasks) {
-      try {
-        updateData.subtasks = JSON.parse(updateData.subtasks);
-      } catch (e) {
-        // Nếu lỗi parse thì bỏ qua
+      // 🧹 [CLEANUP] Nếu task cũ đã có ảnh thì xóa đi
+      if (oldTask.image) {
+        safeDeleteFile(oldTask.image);
       }
     }
 
-    // 4. Xử lý Attachments (QUAN TRỌNG: Logic Gộp & Xóa)
-    // Bước A: Lấy danh sách file cũ người dùng muốn giữ lại (từ JSON string)
+    // Xử lý Subtasks
+    if (updateData.subtasks) {
+      try {
+        updateData.subtasks = JSON.parse(updateData.subtasks);
+      } catch (e) {}
+    }
+
+    // 👇 [BƯỚC 3] Xử lý Attachments & Cleanup
+
+    // A. Parse danh sách file cũ người dùng muốn GIỮ LẠI
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
@@ -193,11 +223,10 @@ export const updateTask = async (
       } catch (e) {
         console.error('Parse existingAttachments error', e);
       }
-      // Xóa field này khỏi updateData để không bị lỗi query vào DB
-      delete updateData.existingAttachments;
+      delete updateData.existingAttachments; // Xóa field này để tránh lỗi khi save DB
     }
 
-    // Bước B: Xử lý file mới upload
+    // B. Tạo danh sách file MỚI upload
     let newFiles: any[] = [];
     if (files && files['attachments']) {
       newFiles = files['attachments'].map((file) => ({
@@ -208,24 +237,29 @@ export const updateTask = async (
       }));
     }
 
-    // Bước C: Gộp File Cũ + File Mới = Danh sách cuối cùng
-    // 👇 Logic này sẽ thay thế toàn bộ mảng attachments trong DB,
-    // giúp loại bỏ những file mà người dùng đã bấm X (vì chúng không có trong existingAttachments)
+    // C. Gộp lại thành mảng cuối cùng
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
 
-    // 5. Thực hiện Update
-    // Sử dụng findOneAndUpdate với $set (đã bao gồm trong updateData)
-    const updatedTask = await Task.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
-      { $set: updateData }, // $set sẽ ghi đè toàn bộ mảng attachments
+    // 🧹 [CLEANUP] Xóa các file đính kèm đã bị người dùng gỡ bỏ (không có trong finalAttachments)
+    if (oldTask.attachments && oldTask.attachments.length > 0) {
+      // Tạo Set các URL được giữ lại để tra cứu O(1)
+      const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
+
+      oldTask.attachments.forEach((oldAtt: any) => {
+        // Nếu URL cũ không nằm trong danh sách giữ lại -> XÓA
+        if (!keptFileUrls.has(oldAtt.url)) {
+          safeDeleteFile(oldAtt.url);
+        }
+      });
+    }
+
+    // 4. Update DB
+    const updatedTask = await Task.findByIdAndUpdate(
+      id,
+      { $set: updateData },
       { new: true }
     );
-
-    if (!updatedTask) {
-      res.status(404).json({ success: false, message: 'Task not found' });
-      return;
-    }
 
     res.json({ success: true, task: updatedTask });
   } catch (error) {
@@ -234,23 +268,27 @@ export const updateTask = async (
   }
 };
 
-// --- DELETE TASK ---
+// --- DELETE TASK (Soft Delete) ---
 export const deleteTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const task = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
+    // Soft delete: Chỉ đánh dấu đã xóa, KHÔNG xóa file vật lý
+    const task = await Task.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true } },
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      { new: true }
+    );
 
     if (!task) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
-
-    task.isDeleted = true;
-    task.deletedAt = new Date();
-    await task.save();
 
     res.json({ success: true, message: 'Moved task to trash' });
   } catch (error) {
@@ -294,6 +332,7 @@ export const restoreTask = async (
   }
 };
 
+// --- FORCE DELETE (Xóa vĩnh viễn & Dọn sạch file) ---
 export const forceDeleteTask = async (
   req: Request,
   res: Response
@@ -305,24 +344,16 @@ export const forceDeleteTask = async (
       res.status(404).json({ success: false, message: 'Not found' });
       return;
     }
-    // Xóa ảnh cover
-    if (task.image && !task.image.startsWith('http')) {
-      const imagePath = getLocalImagePath(task.image);
-      if (fs.existsSync(imagePath))
-        try {
-          fs.unlinkSync(imagePath);
-        } catch (e) {}
+
+    // 🧹 [CLEANUP] Xóa ảnh cover
+    if (task.image) {
+      safeDeleteFile(task.image);
     }
-    // Xóa file attachments
+
+    // 🧹 [CLEANUP] Xóa file attachments
     if (task.attachments && task.attachments.length > 0) {
       task.attachments.forEach((att) => {
-        if (att.url && !att.url.startsWith('http')) {
-          const attPath = getLocalImagePath(att.url);
-          if (fs.existsSync(attPath))
-            try {
-              fs.unlinkSync(attPath);
-            } catch (e) {}
-        }
+        safeDeleteFile(att.url);
       });
     }
 

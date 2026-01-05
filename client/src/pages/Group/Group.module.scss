@@ -2,8 +2,7 @@
 
 .wrapper {
   padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  background-color: var(--bg-hover);
 
   // 👇 [FIX QUAN TRỌNG] Thiết lập chiều cao và thanh cuộn riêng cho trang Group
   height: 100%;
@@ -24,7 +23,7 @@
 .header {
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -150,7 +149,7 @@
 }
 
 .column {
-  background-color: #f1f5f9; // Màu nền cột nhẹ nhàng hơn
+  background-color: hsl(210, 40%, 90%); // Màu nền cột nhẹ nhàng hơn
   padding: 16px;
   border-radius: 12px;
   min-height: 200px;
