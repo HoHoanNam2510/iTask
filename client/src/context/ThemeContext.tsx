@@ -1,3 +1,4 @@
+/* src/context/ThemeContext.tsx */
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface ThemeContextType {
@@ -29,6 +30,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const applyTheme = (colorHex: string) => {
+    // 👇 [MỚI] Validate mã màu Hex trước khi áp dụng để tránh lỗi tính toán
+    const isValidHex = /^#([0-9A-F]{3}){1,2}$/i.test(colorHex);
+    if (!isValidHex) return;
+
     const root = document.documentElement;
 
     // 1. Set màu chủ đạo

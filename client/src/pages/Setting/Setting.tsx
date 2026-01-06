@@ -10,6 +10,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Hash, // Icon cho ô nhập Hex
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -31,13 +32,21 @@ const Setting = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-  // --- [MỚI] STATE CHO PASSWORD ---
+  // --- STATE CHO PASSWORD ---
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isPassLoading, setIsPassLoading] = useState(false);
+
+  // --- [MỚI] STATE CHO MÀU TÙY CHỈNH ---
+  const [customColor, setCustomColor] = useState(currentColor);
+
+  // Sync customColor khi theme thay đổi (ví dụ khi user click chọn màu có sẵn)
+  useEffect(() => {
+    setCustomColor(currentColor);
+  }, [currentColor]);
 
   // Load dữ liệu user ban đầu
   useEffect(() => {
@@ -97,7 +106,7 @@ const Setting = () => {
     }
   };
 
-  // --- [MỚI] HÀM ĐỔI MẬT KHẨU ---
+  // HÀM ĐỔI MẬT KHẨU
   const handleChangePassword = async () => {
     const { currentPassword, newPassword } = passwordData;
 
@@ -123,7 +132,6 @@ const Setting = () => {
 
       if (res.data.success) {
         alert('Đổi mật khẩu thành công!');
-        // Reset form
         setPasswordData({ currentPassword: '', newPassword: '' });
       }
     } catch (error: any) {
@@ -133,6 +141,13 @@ const Setting = () => {
     } finally {
       setIsPassLoading(false);
     }
+  };
+
+  // --- [MỚI] XỬ LÝ ĐỔI MÀU TÙY CHỈNH ---
+  const handleCustomColorChange = (newColor: string) => {
+    setCustomColor(newColor);
+    // Gọi đổi theme ngay lập tức (context sẽ lo validate)
+    changeTheme(newColor);
   };
 
   return (
@@ -229,7 +244,7 @@ const Setting = () => {
           </div>
         </div>
 
-        {/* 👇 [MỚI] SECTION 2: SECURITY / CHANGE PASSWORD */}
+        {/* SECTION 2: SECURITY / CHANGE PASSWORD */}
         <div className={cx('card')}>
           <div className={cx('cardHeader')}>
             <Lock size={20} className={cx('icon')} />
@@ -254,7 +269,6 @@ const Setting = () => {
                       })
                     }
                   />
-                  {/* Nút toggle ẩn hiện pass */}
                   <div
                     className={cx('eyeIcon')}
                     onClick={() => setShowPassword(!showPassword)}
@@ -319,7 +333,7 @@ const Setting = () => {
                   className={cx('themeItem', {
                     active: currentColor === theme.value,
                   })}
-                  onClick={() => changeTheme(theme.value)}
+                  onClick={() => handleCustomColorChange(theme.value)}
                 >
                   <div
                     className={cx('colorCircle')}
@@ -328,6 +342,40 @@ const Setting = () => {
                   <span className={cx('themeName')}>{theme.name}</span>
                 </div>
               ))}
+            </div>
+
+            {/* 👇 [MỚI] Khu vực chọn màu tùy chỉnh */}
+            <div className={cx('customThemeSection')}>
+              <p className={cx('label')}>Hoặc chọn màu tùy chỉnh</p>
+              <div className={cx('customColorControl')}>
+                {/* 1. Color Picker Circle */}
+                <div className={cx('colorPickerWrapper')}>
+                  <input
+                    type="color"
+                    id="colorPicker"
+                    value={customColor}
+                    onChange={(e) => handleCustomColorChange(e.target.value)}
+                  />
+                  <label
+                    htmlFor="colorPicker"
+                    style={{ backgroundColor: customColor }}
+                  />
+                </div>
+
+                {/* 2. Hex Text Input */}
+                <div className={cx('inputWithIcon')}>
+                  <Hash size={16} />
+                  <input
+                    type="text"
+                    value={customColor.replace('#', '')}
+                    onChange={(e) =>
+                      handleCustomColorChange('#' + e.target.value)
+                    }
+                    maxLength={7}
+                    placeholder="Mã màu (VD: 40a578)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
