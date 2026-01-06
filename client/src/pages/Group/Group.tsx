@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Video } from 'lucide-react'; // 👈 [MỚI] Import icon Video
 import classNames from 'classnames/bind';
 import {
   DragDropContext,
@@ -14,6 +14,8 @@ import {
 import styles from './Group.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
+import { useAuth } from '~/context/AuthContext'; // 👈 [MỚI] Để lấy userId
+import VideoRoom from '~/components/VideoRoom/VideoRoom'; // 👈 [MỚI] Import Component Video
 
 const cx = classNames.bind(styles);
 
@@ -39,7 +41,6 @@ interface Task {
   status: 'todo' | 'in_progress' | 'completed';
   assignee: UserBasic;
   priority?: string;
-  // Thêm các field khác nếu cần
 }
 
 interface GroupData {
@@ -55,6 +56,7 @@ const Group: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
+  const { user } = useAuth(); // 👈 [MỚI] Lấy user hiện tại
 
   const [data, setData] = useState<GroupData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -62,6 +64,9 @@ const Group: React.FC = () => {
   // Modal State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+
+  // 👇 [MỚI] State kiểm soát Meeting
+  const [isMeetingActive, setIsMeetingActive] = useState(false);
 
   // State dùng để kích hoạt refresh Leaderboard
   const [refreshKey, setRefreshKey] = useState(0);
@@ -208,6 +213,11 @@ const Group: React.FC = () => {
     }
   };
 
+  // 👇 [MỚI] Hàm tham gia Meeting
+  const handleJoinMeeting = () => {
+    setIsMeetingActive(true);
+  };
+
   if (loading) return <div className={cx('wrapper')}>Đang tải dữ liệu...</div>;
   if (!data) return <div className={cx('wrapper')}>Không tìm thấy nhóm</div>;
 
@@ -216,6 +226,15 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
+      {/* 👇 [MỚI] Hiển thị Giao diện Video Call nếu active */}
+      {isMeetingActive && user && groupId && (
+        <VideoRoom
+          roomId={groupId}
+          userId={user._id}
+          onLeave={() => setIsMeetingActive(false)}
+        />
+      )}
+
       {/* 1. Header */}
       <header className={cx('header')}>
         <div className={cx('info')}>
@@ -232,7 +251,6 @@ const Group: React.FC = () => {
                 alt={m.username}
                 title={m.username}
                 onError={(e) => {
-                  // Fallback nếu ảnh lỗi
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement!.innerHTML += `<div class="${cx(
                     'avatar'
@@ -251,6 +269,16 @@ const Group: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* 👇 [MỚI] Nút Call Group */}
+          <button
+            className={cx('add-task-btn')}
+            style={{ backgroundColor: '#e11d48' }}
+            onClick={handleJoinMeeting}
+          >
+            <Video size={16} /> Meeting
+          </button>
+
           <button className={cx('add-task-btn')} onClick={handleAddTask}>
             <Plus size={16} /> New Task
           </button>

@@ -1,14 +1,19 @@
+/* client/src/main.tsx */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import App from './App.tsx';
 import GlobalStyles from '~/components/GlobalStyles';
+import { SocketProvider } from '~/context/SocketContext'; // 👈 [MỚI] Import SocketProvider
 
 createRoot(document.getElementById('root')!).render(
   // <StrictMode>
   <GlobalStyles>
-    <App />
+    {/* 👇 [MỚI] Bọc SocketProvider ở đây để toàn bộ App có thể dùng socket */}
+    <SocketProvider>
+      <App />
+    </SocketProvider>
   </GlobalStyles>
   // </StrictMode>
 );

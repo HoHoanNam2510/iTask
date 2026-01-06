@@ -47,7 +47,7 @@ const Header = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [showNoti, setShowNoti] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false); // Vẫn giữ state để tránh lỗi logic cũ
   const [now, setNow] = useState(new Date());
 
   const [notifications, setNotifications] = useState<INotification[]>([]);
@@ -459,13 +459,12 @@ const Header = () => {
         </div>
 
         {/* Calendar */}
+        {/* 👇 [ĐÃ SỬA] Click vào đây để điều hướng trang Calendar */}
         <div className={cx('iconWrapper')} ref={calRef}>
           <button
-            className={cx('iconBtn', { active: showCalendar })}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowCalendar((s) => !s);
-            }}
+            className={cx('iconBtn')}
+            onClick={() => navigate('/calendar')}
+            title="Lịch"
           >
             <CalendarDays size={20} />
           </button>
