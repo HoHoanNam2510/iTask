@@ -9,6 +9,7 @@ import {
   Clock,
   Paperclip,
   CheckSquare,
+  Users, // 👇 Import icon Users
 } from 'lucide-react';
 import styles from './TaskItem.module.scss';
 import type { ITaskResponse } from '~/types/task';
@@ -22,12 +23,10 @@ interface TaskItemProps {
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
-  // Logic đếm Checklist
   const totalSubtasks = task.subtasks?.length || 0;
   const completedSubtasks =
     task.subtasks?.filter((t) => t.isCompleted).length || 0;
 
-  // Helper render icon status
   const renderStatusIcon = () => {
     switch (task.status) {
       case 'todo':
@@ -63,7 +62,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
           : 'No description'}
       </p>
 
-      {/* 👇 [MỚI] Hiển thị Metadata (File, Checklist) */}
+      {/* Metadata Row */}
       {(totalSubtasks > 0 ||
         (task.attachments && task.attachments.length > 0)) && (
         <div className={cx('taskMetaInfo')}>
@@ -103,6 +102,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
               title={task.category.name}
             >
               {task.category.name}
+            </div>
+          )}
+
+          {/* 👇 [MỚI] Group Badge */}
+          {task.group && (
+            <div className={cx('groupBadge')}>
+              <Users size={12} />
+              <span>{(task.group as any).name || 'Group'}</span>
             </div>
           )}
         </div>

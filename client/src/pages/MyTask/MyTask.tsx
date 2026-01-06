@@ -14,6 +14,10 @@ import {
   Circle,
   FileText,
   DownloadCloud,
+  // 👇 [MỚI] Icons cho Tabs
+  Layers,
+  User,
+  Users,
 } from 'lucide-react';
 
 import styles from './MyTask.module.scss';
@@ -32,6 +36,9 @@ const getImageUrl = (imagePath?: string) => {
   return `http://localhost:5000/${cleanPath}`;
 };
 
+// Định nghĩa các loại Tab
+type TabType = 'all' | 'personal' | 'group';
+
 const MyTask = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
@@ -42,6 +49,9 @@ const MyTask = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
+  // 👇 [MỚI] State quản lý Tab
+  const [activeTab, setActiveTab] = useState<TabType>('all');
+
   // Modal Add/Edit State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
@@ -51,6 +61,7 @@ const MyTask = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      // API này lấy cả Task cá nhân và Task nhóm được assign
       const res = await axios.get('http://localhost:5000/api/tasks', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -68,7 +79,6 @@ const MyTask = () => {
     fetchTasks();
   }, []);
 
-  // EFFECT TỰ ĐỘNG MỞ MODAL KHI CÓ URL PARAMS (?openTask=...)
   useEffect(() => {
     const openTaskFromUrl = async () => {
       if (openTaskId) {
@@ -94,6 +104,14 @@ const MyTask = () => {
   }, [openTaskId]);
 
   // --- HELPERS ---
+
+  // 👇 [MỚI] Logic lọc task theo Tab
+  const filteredTasks = tasks.filter((task) => {
+    if (activeTab === 'personal') return !task.group; // Task không có group là Personal
+    if (activeTab === 'group') return !!task.group; // Task có group
+    return true; // All
+  });
+
   const selectedTask = tasks.find((t) => t._id === selectedTaskId);
 
   // --- HANDLERS ---
@@ -161,7 +179,28 @@ const MyTask = () => {
         {!isFullScreen && (
           <div className={cx('listPanel', { shrunk: !!selectedTaskId })}>
             <div className={cx('panelHeader')}>
-              <h3>Danh sách công việc</h3>
+              {/* 👇 [MỚI] Tabs Filter */}
+              <div className={cx('tabsContainer')}>
+                <button
+                  className={cx('tabBtn', { active: activeTab === 'all' })}
+                  onClick={() => setActiveTab('all')}
+                >
+                  <Layers size={14} /> All
+                </button>
+                <button
+                  className={cx('tabBtn', { active: activeTab === 'personal' })}
+                  onClick={() => setActiveTab('personal')}
+                >
+                  <User size={14} /> Personal
+                </button>
+                <button
+                  className={cx('tabBtn', { active: activeTab === 'group' })}
+                  onClick={() => setActiveTab('group')}
+                >
+                  <Users size={14} /> Group
+                </button>
+              </div>
+
               <button
                 className={cx('addTaskBtn')}
                 onClick={handleAddTask}
@@ -178,14 +217,13 @@ const MyTask = () => {
                 >
                   Đang tải...
                 </p>
-              ) : tasks.length === 0 ? (
-                <p
-                  style={{ textAlign: 'center', color: '#888', marginTop: 20 }}
-                >
-                  Chưa có công việc nào.
-                </p>
+              ) : filteredTasks.length === 0 ? (
+                <div className={cx('emptyState')}>
+                  <p>Không có công việc nào trong mục này.</p>
+                </div>
               ) : (
-                tasks.map((task) => (
+                // 👇 Render filteredTasks thay vì tasks
+                filteredTasks.map((task) => (
                   <TaskItem
                     key={task._id}
                     task={task}
@@ -281,16 +319,14 @@ const MyTask = () => {
                         {selectedTask.category.name}
                       </span>
                     )}
+                    {/* Hiển thị Group trong chi tiết */}
                     {selectedTask.group && (
                       <span
-                        style={{
-                          fontSize: 16,
-                          color: '#666',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
+                        className={cx('tag')}
+                        style={{ background: '#e2e8f0', color: '#475569' }}
                       >
-                        Group: {selectedTask.group.name}
+                        <Users size={12} style={{ marginRight: 4 }} />
+                        {(selectedTask.group as any).name || 'Group Task'}
                       </span>
                     )}
                   </div>
@@ -303,7 +339,7 @@ const MyTask = () => {
                     </p>
                   </div>
 
-                  {/* 👇 [MỚI] 2. CHECKLIST (Subtasks) */}
+                  {/* 2. CHECKLIST */}
                   {selectedTask.subtasks &&
                     selectedTask.subtasks.length > 0 && (
                       <div className={cx('section')}>
@@ -339,7 +375,7 @@ const MyTask = () => {
                       </div>
                     )}
 
-                  {/* 👇 [MỚI] 3. ATTACHMENTS */}
+                  {/* 3. ATTACHMENTS */}
                   {selectedTask.attachments &&
                     selectedTask.attachments.length > 0 && (
                       <div className={cx('section')}>
