@@ -103,6 +103,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap; // Để nếu nhiều badge quá thì xuống dòng
   }
 
   .meta {
@@ -135,8 +136,27 @@
     text-overflow: ellipsis;
   }
 
+  // 👇 [MỚI] Style cho Group Badge
+  .groupBadge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 1rem;
+    color: #475569;
+    background-color: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid #e2e8f0;
+  }
+
   .date {
     color: var(--text-light);
     font-size: 1.2rem;
+    white-space: nowrap;
   }
 }

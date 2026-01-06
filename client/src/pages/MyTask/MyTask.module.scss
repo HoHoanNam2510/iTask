@@ -62,6 +62,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px; // Khoảng cách nếu màn hình nhỏ
 
     h3 {
       font-size: 1.8rem;
@@ -72,20 +73,56 @@
       padding-bottom: 0.4rem;
     }
 
+    // 👇 [MỚI] Style cho Tab Container
+    .tabsContainer {
+      display: flex;
+      background-color: #e2e8f0;
+      padding: 4px;
+      border-radius: 8px;
+      gap: 4px;
+
+      .tabBtn {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text-light);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+
+        &:hover {
+          color: var(--text-main);
+        }
+
+        &.active {
+          background-color: var(--white);
+          color: var(--primary);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+      }
+    }
+
     .addTaskBtn {
       background: var(--primary);
       color: var(--white);
       border: none;
-      padding: 1rem 2rem;
+      padding: 0.8rem 1.6rem; // Chỉnh lại padding chút cho cân đối
       border-radius: 0.8rem;
       display: flex;
       gap: 0.4rem;
       align-items: center;
       justify-content: center;
-      font-size: 1.4rem;
+      font-size: 1.3rem;
+      font-weight: 600;
       cursor: pointer;
       transition: background 0.2s;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      white-space: nowrap;
 
       &:hover {
         background: var(--primary-dark);
@@ -98,6 +135,13 @@
     flex-direction: column;
     gap: 1.6rem;
   }
+}
+
+.emptyState {
+  text-align: center;
+  color: #94a3b8;
+  margin-top: 40px;
+  font-size: 1.4rem;
 }
 
 // --- PANEL CHI TIẾT (RIGHT) ---
