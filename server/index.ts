@@ -7,6 +7,9 @@ import fs from 'fs';
 import cors from 'cors';
 import path from 'path';
 import cron from 'node-cron';
+import http from 'http'; // 👈 [MỚI] Import HTTP
+import { Server as SocketIOServer } from 'socket.io'; // 👈 [MỚI] Import Socket.io
+import { ExpressPeerServer } from 'peer'; // 👈 [MỚI] Import PeerServer
 
 // Import các file nội bộ
 import connectDB from './config/db';
@@ -22,6 +25,9 @@ import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 
+// Import Socket Handler
+import { socketHandler } from './socket';
+
 // 👇 [FIX] Import Model Task để dùng trong Cronjob
 import Task from './models/Task';
 
@@ -29,6 +35,7 @@ import Task from './models/Task';
 import { auditLogger } from './middleware/auditMiddleware';
 
 const app = express();
+const httpServer = http.createServer(app); // 👈 [MỚI] Wrap Express app bằng HTTP Server
 
 // 2. KẾT NỐI DB
 connectDB();
@@ -43,7 +50,7 @@ const uploadsPath = path.join(process.cwd(), '../uploads');
 // 4. LOGGER
 app.use((req, res, next) => {
   console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  console.log('📦 Body:', JSON.stringify(req.body, null, 2)); // Uncomment nếu cần debug kỹ
+  // console.log('📦 Body:', JSON.stringify(req.body, null, 2));
   next();
 });
 
@@ -66,6 +73,21 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// 👇 [MỚI] CẤU HÌNH SOCKET.IO
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: '*', // Cho phép mọi origin (hoặc set cụ thể client url)
+    methods: ['GET', 'POST'],
+  },
+});
+socketHandler(io); // Kích hoạt logic socket
+
+// 👇 [MỚI] CẤU HÌNH PEER SERVER (Dùng cho Video Call P2P)
+const peerServer = ExpressPeerServer(httpServer, {
+  path: '/myapp',
+});
+app.use('/peerjs', peerServer);
+
 // 👇 [CRON JOB] Dọn dẹp thùng rác lúc 00:00 mỗi ngày
 cron.schedule('0 0 * * *', async () => {
   console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
@@ -74,7 +96,6 @@ cron.schedule('0 0 * * *', async () => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   try {
-    // Tìm các task đã xóa mềm quá 30 ngày
     const tasksToDelete = await Task.find({
       isDeleted: true,
       deletedAt: { $lt: thirtyDaysAgo },
@@ -86,7 +107,6 @@ cron.schedule('0 0 * * *', async () => {
       );
 
       for (const task of tasksToDelete) {
-        // Xóa ảnh
         if (task.image && !task.image.startsWith('http')) {
           const imagePath = path.join(process.cwd(), '../', task.image);
           if (fs.existsSync(imagePath)) {
@@ -95,7 +115,6 @@ cron.schedule('0 0 * * *', async () => {
             } catch (e) {}
           }
         }
-        // Xóa DB
         await Task.findByIdAndDelete(task._id);
       }
       console.log('✅ Dọn dẹp hoàn tất.');
@@ -125,4 +144,7 @@ app.use(
 );
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// 👇 [SỬA] Đổi app.listen thành httpServer.listen
+httpServer.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT} (Socket & Peer ready)`)
+);
