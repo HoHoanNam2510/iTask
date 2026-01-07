@@ -69,10 +69,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   >([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
-  const [existingAttachments, setExistingAttachments] = useState<any[]>([]); // File cũ từ DB
-  const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]); // File mới chọn
+  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]);
 
-  // 👇 [MỚI] State để quản lý hiệu ứng khi kéo thả ảnh cover
+  // State Drag & Drop Image
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,10 +117,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
       }
       setNewAttachmentFiles([]);
       setNewSubtaskTitle('');
-      setIsDragOver(false); // Reset drag state
+      setIsDragOver(false);
 
       fetchCategories();
 
+      // 👇 [FIXED] Assignee Logic: Luôn đảm bảo có ID, nếu không thì lấy user hiện tại
       if (taskToEdit) {
         if (taskToEdit.assignee) {
           if (typeof taskToEdit.assignee === 'object') {
@@ -129,13 +130,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
             setAssigneeId(taskToEdit.assignee as string);
           }
         } else {
-          setAssigneeId('');
+          // Nếu edit task mà chưa có assignee -> Mặc định là mình
+          setAssigneeId(user?._id || '');
         }
       } else {
-        setAssigneeId('');
+        // Nếu tạo mới -> Mặc định là mình
+        setAssigneeId(user?._id || '');
       }
     }
-  }, [isOpen, taskToEdit, defaultCategoryId, dateString]);
+  }, [isOpen, taskToEdit, defaultCategoryId, dateString, user?._id]);
 
   const fetchCategories = async () => {
     try {
@@ -157,72 +160,62 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // 👇 [MỚI] Các hàm xử lý Drag & Drop cho Cover Image
+  // Drag & Drop handlers...
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
   };
-
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
   };
-
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
-
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      // Kiểm tra xem có phải file ảnh không
       if (file.type.startsWith('image/')) {
         const url = URL.createObjectURL(file);
         setFormData({ ...formData, imagePreview: url, imageFile: file });
       } else {
-        // Có thể thêm toast thông báo lỗi ở đây
         alert('Vui lòng chỉ thả file ảnh!');
       }
     }
   };
 
-  // Logic Attachments
+  // Attachments handlers...
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
       setNewAttachmentFiles((prev) => [...prev, ...filesArray]);
     }
   };
-
   const removeNewAttachment = (index: number) => {
     setNewAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
   };
-
   const handleRemoveExisting = (attId: string) => {
     setExistingAttachments((prev) => prev.filter((item) => item._id !== attId));
   };
 
-  // Logic Checklist
+  // Checklist handlers...
   const addSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
     setSubtasks([...subtasks, { title: newSubtaskTitle, isCompleted: false }]);
     setNewSubtaskTitle('');
   };
-
   const toggleSubtask = (index: number) => {
     const newSubtasks = [...subtasks];
     newSubtasks[index].isCompleted = !newSubtasks[index].isCompleted;
     setSubtasks(newSubtasks);
   };
-
   const deleteSubtask = (index: number) => {
     const newSubtasks = subtasks.filter((_, i) => i !== index);
     setSubtasks(newSubtasks);
   };
-
   const calculateProgress = () => {
     if (subtasks.length === 0) return 0;
     const completed = subtasks.filter((t) => t.isCompleted).length;
@@ -250,12 +243,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       if (groupId) {
         data.append('groupId', groupId);
+        // Bây giờ assigneeId luôn có giá trị (hoặc là ID của người khác, hoặc ID của mình)
         if (assigneeId) data.append('assignee', assigneeId);
       }
 
       data.append('subtasks', JSON.stringify(subtasks));
       data.append('existingAttachments', JSON.stringify(existingAttachments));
-
       newAttachmentFiles.forEach((file) => {
         data.append('attachments', file);
       });
@@ -307,7 +300,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         </div>
 
         <div className={cx('formBody')}>
-          {/* 1. Title */}
+          {/* Title */}
           <div className={cx('formGroup')}>
             <label>Title</label>
             <input
@@ -321,7 +314,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             />
           </div>
 
-          {/* 2. Date & Category */}
+          {/* Date & Category */}
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')} style={{ flex: 1 }}>
               <div className={cx('formGroup')}>
@@ -356,7 +349,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Assignee */}
+          {/* Assignee */}
           {groupMembers.length > 0 && (
             <div className={cx('formGroup')}>
               <label>Giao việc cho (Assignee)</label>
@@ -365,7 +358,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className={cx('input')}
               >
-                <option value="">Chính tôi (Mặc định)</option>
+                {/* 👇 [FIXED] Sửa value="" thành ID thật của user */}
+                <option value={user?._id}>Chính tôi ({user?.username})</option>
                 {groupMembers
                   .filter((u) => u._id !== user?._id)
                   .map((u) => (
@@ -377,7 +371,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           )}
 
-          {/* 4. Priority */}
+          {/* Priority */}
           <div className={cx('formGroup')}>
             <label>Priority</label>
             <div className={cx('priorityGroup')}>
@@ -410,7 +404,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* 5. CHECKLIST (SUBTASKS) */}
+          {/* Checklist */}
           <div className={cx('formGroup')}>
             <div className={cx('sectionLabel')}>
               <label>Checklist</label>
@@ -420,7 +414,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </span>
               )}
             </div>
-
             <div className={cx('progressBarContainer')}>
               {subtasks.length > 0 && (
                 <div
@@ -429,7 +422,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 ></div>
               )}
             </div>
-
             <div className={cx('subtaskList')}>
               {subtasks.map((st, index) => (
                 <div key={index} className={cx('subtaskItem')}>
@@ -450,7 +442,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               ))}
             </div>
-
             <div className={cx('addSubtaskBox')}>
               <input
                 type="text"
@@ -465,9 +456,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* 6. Description & Images & Attachments */}
+          {/* Description & Attachments & Image */}
           <div className={cx('formRow')}>
-            {/* CỘT TRÁI: Description + Attachment List */}
             <div className={cx('leftColumn')}>
               <div className={cx('formGroup')}>
                 <label>Task Description</label>
@@ -479,12 +469,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   }
                 />
               </div>
-
-              {/* Attachments Section */}
               <div className={cx('formGroup')}>
                 <label>File Attachments</label>
-
-                {/* File cũ */}
                 {existingAttachments.map((att) => (
                   <div key={att._id} className={cx('attachmentItem')}>
                     <FileText size={16} className={cx('fileIcon')} />
@@ -517,8 +503,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     </div>
                   </div>
                 ))}
-
-                {/* File mới chọn */}
                 {newAttachmentFiles.map((file, idx) => (
                   <div key={idx} className={cx('attachmentItem', 'new')}>
                     <Paperclip size={16} className={cx('fileIcon')} />
@@ -532,7 +516,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     </button>
                   </div>
                 ))}
-
                 <button
                   className={cx('uploadAttachmentBtn')}
                   onClick={() => attachmentInputRef.current?.click()}
@@ -549,12 +532,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
               </div>
             </div>
 
-            {/* CỘT PHẢI: Cover Image (Đã thêm Drag & Drop) */}
             <div className={cx('rightColumn')}>
               <div className={cx('formGroup')}>
                 <label>Cover Image</label>
                 <div
-                  // 👇 [MỚI] Thêm class dragOver và các sự kiện Drag
                   className={cx('uploadBox', { dragOver: isDragOver })}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
