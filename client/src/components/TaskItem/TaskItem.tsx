@@ -9,7 +9,8 @@ import {
   Clock,
   Paperclip,
   CheckSquare,
-  Users, // 👇 Import icon Users
+  Users,
+  MessageSquare, // 👈 [MỚI] Import icon MessageSquare
 } from 'lucide-react';
 import styles from './TaskItem.module.scss';
 import type { ITaskResponse } from '~/types/task';
@@ -26,6 +27,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
   const totalSubtasks = task.subtasks?.length || 0;
   const completedSubtasks =
     task.subtasks?.filter((t) => t.isCompleted).length || 0;
+
+  // 👇 [MỚI] Đếm số lượng comment
+  const totalComments = task.comments?.length || 0;
 
   const renderStatusIcon = () => {
     switch (task.status) {
@@ -62,15 +66,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
           : 'No description'}
       </p>
 
-      {/* Metadata Row */}
+      {/* Metadata Row: Checklist | Attachments | Comments */}
       {(totalSubtasks > 0 ||
-        (task.attachments && task.attachments.length > 0)) && (
+        (task.attachments && task.attachments.length > 0) ||
+        totalComments > 0) && (
         <div className={cx('taskMetaInfo')}>
+          {/* Checklist Count */}
           {totalSubtasks > 0 && (
             <div
               className={cx('metaItem', {
                 done: completedSubtasks === totalSubtasks,
               })}
+              title="Checklist completion"
             >
               <CheckSquare size={14} />
               <span>
@@ -78,10 +85,20 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
               </span>
             </div>
           )}
+
+          {/* Attachment Count */}
           {task.attachments && task.attachments.length > 0 && (
-            <div className={cx('metaItem')}>
+            <div className={cx('metaItem')} title="Attachments">
               <Paperclip size={14} />
               <span>{task.attachments.length}</span>
+            </div>
+          )}
+
+          {/* 👇 [MỚI] Comment Count */}
+          {totalComments > 0 && (
+            <div className={cx('metaItem')} title="Comments">
+              <MessageSquare size={14} />
+              <span>{totalComments}</span>
             </div>
           )}
         </div>
@@ -105,7 +122,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
             </div>
           )}
 
-          {/* 👇 [MỚI] Group Badge */}
+          {/* Group Badge */}
           {task.group && (
             <div className={cx('groupBadge')}>
               <Users size={12} />

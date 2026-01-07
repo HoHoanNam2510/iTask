@@ -60,6 +60,9 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
     await task.populate('assignee', 'username avatar email');
     await task.populate('creator', 'username avatar');
 
+    // 👇 [QUAN TRỌNG] Populate comments (chỉ lấy _id để check length cho nhẹ)
+    await task.populate({ path: 'comments', select: '_id' });
+
     res.json({ success: true, task });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -83,7 +86,9 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       .sort({ createdAt: -1 })
       .populate('category', 'name color')
       .populate('group', 'name')
-      .populate('assignee', 'username avatar');
+      .populate('assignee', 'username avatar')
+      // 👇 [QUAN TRỌNG] Populate comments để Frontend check length > 0
+      .populate({ path: 'comments', select: '_id' });
 
     res.status(200).json({ success: true, count: tasks.length, tasks });
   } catch (error) {

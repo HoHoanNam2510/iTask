@@ -5,25 +5,27 @@ import axios from 'axios';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
 import {
+  X,
+  Plus,
+  User,
+  Users,
+  Layers,
+  Circle,
+  FileText,
   Calendar,
   Maximize2,
   Minimize2,
-  X,
-  Plus,
   CheckCircle2,
-  Circle,
-  FileText,
   DownloadCloud,
-  // 👇 [MỚI] Icons cho Tabs
-  Layers,
-  User,
-  Users,
 } from 'lucide-react';
 
 import styles from './MyTask.module.scss';
 import TaskItem from '~/components/TaskItem/TaskItem';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import type { ITaskResponse } from '~/types/task';
+// 👇 [MỚI] Import CommentSection & Auth
+import CommentSection from '~/components/TaskModal/CommentSection/CommentSection';
+import { useAuth } from '~/context/AuthContext';
 
 const cx = classNames.bind(styles);
 
@@ -40,6 +42,7 @@ const getImageUrl = (imagePath?: string) => {
 type TabType = 'all' | 'personal' | 'group';
 
 const MyTask = () => {
+  const { user } = useAuth(); // 👇 [MỚI] Lấy user hiện tại
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
 
@@ -49,7 +52,7 @@ const MyTask = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // 👇 [MỚI] State quản lý Tab
+  // State quản lý Tab
   const [activeTab, setActiveTab] = useState<TabType>('all');
 
   // Modal Add/Edit State
@@ -104,12 +107,10 @@ const MyTask = () => {
   }, [openTaskId]);
 
   // --- HELPERS ---
-
-  // 👇 [MỚI] Logic lọc task theo Tab
   const filteredTasks = tasks.filter((task) => {
-    if (activeTab === 'personal') return !task.group; // Task không có group là Personal
-    if (activeTab === 'group') return !!task.group; // Task có group
-    return true; // All
+    if (activeTab === 'personal') return !task.group;
+    if (activeTab === 'group') return !!task.group;
+    return true;
   });
 
   const selectedTask = tasks.find((t) => t._id === selectedTaskId);
@@ -179,7 +180,7 @@ const MyTask = () => {
         {!isFullScreen && (
           <div className={cx('listPanel', { shrunk: !!selectedTaskId })}>
             <div className={cx('panelHeader')}>
-              {/* 👇 [MỚI] Tabs Filter */}
+              {/* Tabs Filter */}
               <div className={cx('tabsContainer')}>
                 <button
                   className={cx('tabBtn', { active: activeTab === 'all' })}
@@ -222,7 +223,6 @@ const MyTask = () => {
                   <p>Không có công việc nào trong mục này.</p>
                 </div>
               ) : (
-                // 👇 Render filteredTasks thay vì tasks
                 filteredTasks.map((task) => (
                   <TaskItem
                     key={task._id}
@@ -319,7 +319,6 @@ const MyTask = () => {
                         {selectedTask.category.name}
                       </span>
                     )}
-                    {/* Hiển thị Group trong chi tiết */}
                     {selectedTask.group && (
                       <span
                         className={cx('tag')}
@@ -331,7 +330,7 @@ const MyTask = () => {
                     )}
                   </div>
 
-                  {/* 1. DESCRIPTION */}
+                  {/* DESCRIPTION */}
                   <div className={cx('section')}>
                     <h3>Description</h3>
                     <p>
@@ -339,7 +338,7 @@ const MyTask = () => {
                     </p>
                   </div>
 
-                  {/* 2. CHECKLIST */}
+                  {/* CHECKLIST */}
                   {selectedTask.subtasks &&
                     selectedTask.subtasks.length > 0 && (
                       <div className={cx('section')}>
@@ -375,7 +374,7 @@ const MyTask = () => {
                       </div>
                     )}
 
-                  {/* 3. ATTACHMENTS */}
+                  {/* ATTACHMENTS */}
                   {selectedTask.attachments &&
                     selectedTask.attachments.length > 0 && (
                       <div className={cx('section')}>
@@ -416,6 +415,22 @@ const MyTask = () => {
                     )}
                 </div>
               </div>
+
+              {/* PHẦN BÌNH LUẬN TRONG TAB DETAIL */}
+              {selectedTask.comments && selectedTask.comments.length > 0 && (
+                <div className={cx('commentWrapper')}>
+                  <CommentSection
+                    taskId={selectedTask._id}
+                    currentUser={user}
+                    groupMembers={[]} // MyTask view không có context group members đầy đủ
+                    groupId={
+                      typeof selectedTask.group === 'object'
+                        ? selectedTask.group._id
+                        : selectedTask.group
+                    }
+                  />
+                </div>
+              )}
             </div>
 
             <div className={cx('detailFooter')}>
