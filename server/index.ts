@@ -7,9 +7,9 @@ import fs from 'fs';
 import cors from 'cors';
 import path from 'path';
 import cron from 'node-cron';
-import http from 'http'; // 👈 [MỚI] Import HTTP
-import { Server as SocketIOServer } from 'socket.io'; // 👈 [MỚI] Import Socket.io
-import { ExpressPeerServer } from 'peer'; // 👈 [MỚI] Import PeerServer
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import { ExpressPeerServer } from 'peer';
 
 // Import các file nội bộ
 import connectDB from './config/db';
@@ -25,23 +25,27 @@ import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 
-// Import Socket Handler
 import { socketHandler } from './socket';
-
-// 👇 [FIX] Import Model Task để dùng trong Cronjob
 import Task from './models/Task';
-
-// Import Audit Middleware
 import { auditLogger } from './middleware/auditMiddleware';
 
 const app = express();
-const httpServer = http.createServer(app); // 👈 [MỚI] Wrap Express app bằng HTTP Server
+const httpServer = http.createServer(app);
 
 // 2. KẾT NỐI DB
 connectDB();
 
-// 3. MIDDLEWARE
-app.use(cors());
+// 👇 [FIXED] Cấu hình CORS chặt chẽ hơn để hỗ trợ credentials
+const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
+app.use(
+  cors({
+    origin: allowedOrigins, // Chỉ cho phép client cụ thể
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true, // Cho phép gửi cookie/token
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -49,8 +53,9 @@ const uploadsPath = path.join(process.cwd(), '../uploads');
 
 // 4. LOGGER
 app.use((req, res, next) => {
-  console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  // console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+  if (!req.url.includes('socket.io')) {
+    console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -73,53 +78,45 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// 👇 [MỚI] CẤU HÌNH SOCKET.IO
+// 👇 [FIXED] CẤU HÌNH SOCKET.IO CORS ĐỒNG BỘ
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: '*', // Cho phép mọi origin (hoặc set cụ thể client url)
+    origin: allowedOrigins, // Phải khớp với Express CORS
     methods: ['GET', 'POST'],
+    credentials: true, // Quan trọng: Cho phép client gửi credentials
   },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
 });
-socketHandler(io); // Kích hoạt logic socket
+socketHandler(io);
 
-// 👇 [MỚI] CẤU HÌNH PEER SERVER (Dùng cho Video Call P2P)
+// 👇 CẤU HÌNH PEER SERVER
 const peerServer = ExpressPeerServer(httpServer, {
   path: '/myapp',
 });
 app.use('/peerjs', peerServer);
 
-// 👇 [CRON JOB] Dọn dẹp thùng rác lúc 00:00 mỗi ngày
+// [CRON JOB] Dọn dẹp thùng rác
 cron.schedule('0 0 * * *', async () => {
   console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
-
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
   try {
     const tasksToDelete = await Task.find({
       isDeleted: true,
       deletedAt: { $lt: thirtyDaysAgo },
     });
-
     if (tasksToDelete.length > 0) {
-      console.log(
-        `🗑️ Tìm thấy ${tasksToDelete.length} tasks hết hạn. Đang xóa...`
-      );
-
+      console.log(`🗑️ Tìm thấy ${tasksToDelete.length} tasks hết hạn.`);
       for (const task of tasksToDelete) {
         if (task.image && !task.image.startsWith('http')) {
-          const imagePath = path.join(process.cwd(), '../', task.image);
-          if (fs.existsSync(imagePath)) {
-            try {
-              fs.unlinkSync(imagePath);
-            } catch (e) {}
-          }
+          try {
+            fs.unlinkSync(path.join(process.cwd(), '../', task.image));
+          } catch (e) {}
         }
         await Task.findByIdAndDelete(task._id);
       }
       console.log('✅ Dọn dẹp hoàn tất.');
-    } else {
-      console.log('✨ Không có gì để dọn.');
     }
   } catch (error) {
     console.error('❌ Lỗi Cronjob:', error);
@@ -144,7 +141,7 @@ app.use(
 );
 
 const PORT = process.env.PORT || 5000;
-// 👇 [SỬA] Đổi app.listen thành httpServer.listen
+
 httpServer.listen(PORT, () =>
   console.log(`🚀 Server running on port ${PORT} (Socket & Peer ready)`)
 );

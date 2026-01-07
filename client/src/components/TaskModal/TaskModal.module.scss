@@ -218,7 +218,7 @@
     }
   }
 
-  // 👇 [MỚI] Group chứa các nút hành động (Download & Delete)
+  // 👇 [MỚI] Style cho nút download
   .actionGroup {
     display: flex;
     align-items: center;
@@ -256,17 +256,11 @@
     }
   }
 
-  // Nút xóa file mới (dấu X)
   .removeFileBtn {
     background: none;
     border: none;
     color: #ef4444;
     cursor: pointer;
-    padding: 4px;
-    &:hover {
-      background-color: #fee2e2;
-      border-radius: 4px;
-    }
   }
 }
 
@@ -404,10 +398,29 @@
   padding: 20px;
   cursor: pointer;
   background-color: #f8fafc;
+  transition: all 0.2s ease; // Thêm transition cho mượt
 
   &:hover {
     border-color: var(--primary);
     background-color: var(--primary-bg);
+  }
+
+  // 👇 [MỚI] Style khi đang kéo file vào (Drag Over)
+  &.dragOver {
+    border: 2px solid var(--primary); // Viền đậm hơn
+    background-color: #e0e7ff; // Màu nền xanh nhạt
+    transform: scale(1.02); // Phóng to nhẹ
+
+    .uploadIcon {
+      color: var(--primary);
+      transform: scale(1.2); // Icon to lên
+      transition: all 0.2s;
+    }
+
+    p {
+      color: var(--primary);
+      font-weight: 600;
+    }
   }
 
   .previewImage {
