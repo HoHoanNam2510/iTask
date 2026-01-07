@@ -1,4 +1,15 @@
 /* src/types/task.ts */
+export interface IComment {
+  _id: string;
+  content: string;
+  user: {
+    _id: string;
+    username: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
+
 export interface ITaskResponse {
   _id: string;
   title: string;
@@ -15,21 +26,27 @@ export interface ITaskResponse {
     color: string;
   };
 
-  group?: {
-    _id: string;
-    name: string;
-  };
+  group?:
+    | {
+        _id: string;
+        name: string;
+      }
+    | string;
 
-  assignee?: string;
+  assignee?:
+    | string
+    | {
+        _id: string;
+        username: string;
+        avatar: string;
+      };
 
-  // 👇 [MỚI] Checklist
   subtasks?: {
     _id: string;
     title: string;
     isCompleted: boolean;
   }[];
 
-  // 👇 [MỚI] File đính kèm
   attachments?: {
     _id: string;
     name: string;
@@ -37,4 +54,7 @@ export interface ITaskResponse {
     type: string;
     uploadDate: string;
   }[];
+
+  // 👇 [FIX] Thêm field comments để không bị lỗi type
+  comments?: (string | IComment)[] | any[];
 }

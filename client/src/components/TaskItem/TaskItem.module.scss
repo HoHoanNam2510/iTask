@@ -68,7 +68,7 @@
   overflow: hidden;
 }
 
-// 👇 [MỚI] Metadata Row (Checklist, Attachment)
+// Metadata Row (Checklist, Attachment, Comment)
 .taskMetaInfo {
   display: flex;
   gap: 12px;
@@ -136,7 +136,6 @@
     text-overflow: ellipsis;
   }
 
-  // 👇 [MỚI] Style cho Group Badge
   .groupBadge {
     display: flex;
     align-items: center;
