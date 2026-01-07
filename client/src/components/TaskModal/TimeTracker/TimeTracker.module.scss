@@ -1,0 +1,169 @@
+/* client/src/components/TaskModal/TimeTracker/TimeTracker.module.scss */
+.timeTracker {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+
+  h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .totalTimeBadge {
+    background-color: #f1f5f9;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--primary);
+  }
+}
+
+.trackerBox {
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  .timerDisplay {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--text-main);
+
+    &.active {
+      color: #ef4444; // Màu đỏ khi đang chạy
+      animation: pulse 2s infinite;
+    }
+  }
+
+  .actionBtn {
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.4rem;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+
+    &.start {
+      background-color: var(--primary);
+      color: white;
+      &:hover {
+        filter: brightness(1.1);
+      }
+    }
+
+    &.stop {
+      background-color: #fee2e2;
+      color: #ef4444;
+      &:hover {
+        background-color: #fecaca;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .historyItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: white;
+    border: 1px solid var(--bg-hover);
+    border-radius: 8px;
+    font-size: 1.3rem;
+
+    .userInfo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background-color: #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: bold;
+        color: #64748b;
+
+        img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      .name {
+        font-weight: 500;
+        color: var(--text-main);
+      }
+    }
+
+    .timeRange {
+      color: var(--text-light);
+      font-size: 1.2rem;
+    }
+
+    .duration {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}

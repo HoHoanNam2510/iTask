@@ -1,4 +1,4 @@
-/* src/types/task.ts */
+/* client/src/types/task.ts */
 export interface IComment {
   _id: string;
   content: string;
@@ -55,6 +55,19 @@ export interface ITaskResponse {
     uploadDate: string;
   }[];
 
-  // 👇 [FIX] Thêm field comments để không bị lỗi type
   comments?: (string | IComment)[] | any[];
+
+  // 👇 [MỚI] Time Tracking Data
+  totalTime?: number; // Tổng thời gian (ms)
+  timeEntries?: {
+    _id: string;
+    user: {
+      _id: string;
+      username: string;
+      avatar?: string;
+    };
+    startTime: string;
+    endTime?: string; // null nếu đang chạy
+    duration: number;
+  }[];
 }

@@ -38,6 +38,16 @@ export interface ITask extends Document {
     type: string;
     uploadDate: Date;
   }[];
+
+  // 👇 [MỚI] Time Tracking Data
+  totalTime: number; // Tổng thời gian đã làm (milliseconds)
+  timeEntries: {
+    _id?: string;
+    user: mongoose.Types.ObjectId; // Ai bấm giờ
+    startTime: Date;
+    endTime?: Date; // null nghĩa là đang chạy
+    duration: number; // Thời lượng session này (ms)
+  }[];
 }
 
 // 2. Định nghĩa Schema
@@ -84,10 +94,20 @@ const TaskSchema: Schema = new Schema(
         uploadDate: { type: Date, default: Date.now },
       },
     ],
+
+    // 👇 [MỚI] Time Tracking Fields
+    totalTime: { type: Number, default: 0 }, // Tổng ms
+    timeEntries: [
+      {
+        user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        startTime: { type: Date, required: true },
+        endTime: { type: Date, default: null }, // Mặc định null khi Start
+        duration: { type: Number, default: 0 },
+      },
+    ],
   },
   {
     timestamps: true,
-    // 👇 [QUAN TRỌNG] Bật tính năng Virtuals để field 'comments' hiển thị khi query
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
@@ -98,12 +118,12 @@ TaskSchema.index({ creator: 1, status: 1 });
 TaskSchema.index({ group: 1 });
 TaskSchema.index({ isDeleted: 1 });
 
-// 👇 [FIX] Thiết lập quan hệ ảo tới bảng Comment
+// Virtuals
 TaskSchema.virtual('comments', {
-  ref: 'Comment', // Model tham chiếu
-  localField: '_id', // Field ID của Task
-  foreignField: 'task', // 👈 [ĐÃ SỬA] Phải là 'task' (khớp với field trong Comment.ts)
-  justOne: false, // Một Task có nhiều Comment
+  ref: 'Comment',
+  localField: '_id',
+  foreignField: 'task',
+  justOne: false,
 });
 
 export default mongoose.model<ITask>('Task', TaskSchema);

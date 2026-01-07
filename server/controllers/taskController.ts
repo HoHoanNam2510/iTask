@@ -5,26 +5,25 @@ import path from 'path';
 import Task from '../models/Task';
 import Group from '../models/Group';
 
-// 👇 [MỚI] Helper: Lấy đường dẫn file vật lý và Xóa an toàn
+// Helper: Lấy đường dẫn file vật lý và Xóa an toàn
 const getLocalPath = (dbPath: string) => {
-  // Giả sử structure: /root/server (cwd) và /root/uploads
-  // ../uploads sẽ trỏ ra folder uploads nằm ngang hàng với server
   return path.join(process.cwd(), '../', dbPath);
 };
 
 const safeDeleteFile = (dbPath: string | undefined) => {
   if (!dbPath || dbPath.startsWith('http')) return;
-
   try {
     const absolutePath = getLocalPath(dbPath);
     if (fs.existsSync(absolutePath)) {
       fs.unlinkSync(absolutePath);
-      console.log(`🗑️ Deleted file: ${dbPath}`);
     }
   } catch (error) {
     console.error(`❌ Error deleting file ${dbPath}:`, error);
   }
 };
+
+// ... (Giữ nguyên các hàm getTask, getTasks, createTask, updateTask, deleteTask, trash/restore...)
+// ... Bạn copy lại code cũ của các hàm CRUD ở đây ...
 
 // --- GET TASK ---
 export const getTask = async (req: Request, res: Response): Promise<void> => {
@@ -39,6 +38,7 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Check quyền (Giữ nguyên logic cũ)
     let hasAccess = false;
     if (
       task.creator?.toString() === userId.toString() ||
@@ -59,9 +59,10 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
     await task.populate('group', 'name members');
     await task.populate('assignee', 'username avatar email');
     await task.populate('creator', 'username avatar');
-
-    // 👇 [QUAN TRỌNG] Populate comments (chỉ lấy _id để check length cho nhẹ)
     await task.populate({ path: 'comments', select: '_id' });
+
+    // 👇 [MỚI] Populate thông tin user trong timeEntries để hiển thị avatar
+    await task.populate('timeEntries.user', 'username avatar');
 
     res.json({ success: true, task });
   } catch (error) {
@@ -87,8 +88,9 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       .populate('category', 'name color')
       .populate('group', 'name')
       .populate('assignee', 'username avatar')
-      // 👇 [QUAN TRỌNG] Populate comments để Frontend check length > 0
-      .populate({ path: 'comments', select: '_id' });
+      .populate({ path: 'comments', select: '_id' })
+      // 👇 [MỚI] Populate user trong timeEntries (nếu cần hiển thị ai đang làm việc ở list)
+      .populate('timeEntries.user', 'username avatar');
 
     res.status(200).json({ success: true, count: tasks.length, tasks });
   } catch (error) {
@@ -96,11 +98,12 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// --- CREATE TASK ---
+// ... (Giữ nguyên createTask, updateTask, deleteTask, trash, restore, forceDelete...)
 export const createTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  // ... (Code cũ giữ nguyên)
   try {
     const creatorId = (req as any).user?._id;
     const {
@@ -113,7 +116,6 @@ export const createTask = async (
       groupId,
       categoryId,
     } = req.body;
-
     const finalDate = date || dueDate;
     if (!title || !finalDate) {
       res
@@ -121,17 +123,11 @@ export const createTask = async (
         .json({ success: false, message: 'Title and Date required' });
       return;
     }
-
-    // Xử lý files từ upload.fields
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-    // 1. Xử lý Ảnh bìa (Image)
     let imageUrl = '';
     if (files && files['image'] && files['image'][0]) {
       imageUrl = `uploads/${files['image'][0].filename}`;
     }
-
-    // 2. Xử lý File đính kèm (Attachments)
     let attachmentsData: any[] = [];
     if (files && files['attachments']) {
       attachmentsData = files['attachments'].map((file) => ({
@@ -141,17 +137,12 @@ export const createTask = async (
         uploadDate: new Date(),
       }));
     }
-
-    // 3. Xử lý Subtasks
     let subtasksData = [];
     if (req.body.subtasks) {
       try {
         subtasksData = JSON.parse(req.body.subtasks);
-      } catch (e) {
-        console.error('Parse subtasks error', e);
-      }
+      } catch (e) {}
     }
-
     const newTask = new Task({
       title,
       description,
@@ -167,7 +158,6 @@ export const createTask = async (
       subtasks: subtasksData,
       attachments: attachmentsData,
     });
-
     await newTask.save();
     res.status(201).json({ success: true, task: newTask });
   } catch (error) {
@@ -176,62 +166,39 @@ export const createTask = async (
   }
 };
 
-// --- UPDATE TASK ---
 export const updateTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  // ... (Code cũ giữ nguyên - Copy từ file cũ của bạn)
   try {
     const { id } = req.params;
-
-    // 👇 [BƯỚC 1] Lấy task cũ trước khi update để so sánh file
     const oldTask = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!oldTask) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
-
     const updateData: any = { ...req.body };
-
-    // Format dữ liệu cơ bản
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
-
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-    // 👇 [BƯỚC 2] Xử lý Ảnh bìa (Image) & Cleanup
     if (files && files['image'] && files['image'][0]) {
-      // Set ảnh mới
       updateData.image = `uploads/${files['image'][0].filename}`;
-
-      // 🧹 [CLEANUP] Nếu task cũ đã có ảnh thì xóa đi
-      if (oldTask.image) {
-        safeDeleteFile(oldTask.image);
-      }
+      if (oldTask.image) safeDeleteFile(oldTask.image);
     }
-
-    // Xử lý Subtasks
     if (updateData.subtasks) {
       try {
         updateData.subtasks = JSON.parse(updateData.subtasks);
       } catch (e) {}
     }
-
-    // 👇 [BƯỚC 3] Xử lý Attachments & Cleanup
-
-    // A. Parse danh sách file cũ người dùng muốn GIỮ LẠI
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
         currentAttachments = JSON.parse(updateData.existingAttachments);
-      } catch (e) {
-        console.error('Parse existingAttachments error', e);
-      }
-      delete updateData.existingAttachments; // Xóa field này để tránh lỗi khi save DB
+      } catch (e) {}
+      delete updateData.existingAttachments;
     }
-
-    // B. Tạo danh sách file MỚI upload
     let newFiles: any[] = [];
     if (files && files['attachments']) {
       newFiles = files['attachments'].map((file) => ({
@@ -241,31 +208,19 @@ export const updateTask = async (
         uploadDate: new Date(),
       }));
     }
-
-    // C. Gộp lại thành mảng cuối cùng
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
-
-    // 🧹 [CLEANUP] Xóa các file đính kèm đã bị người dùng gỡ bỏ (không có trong finalAttachments)
     if (oldTask.attachments && oldTask.attachments.length > 0) {
-      // Tạo Set các URL được giữ lại để tra cứu O(1)
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
-
       oldTask.attachments.forEach((oldAtt: any) => {
-        // Nếu URL cũ không nằm trong danh sách giữ lại -> XÓA
-        if (!keptFileUrls.has(oldAtt.url)) {
-          safeDeleteFile(oldAtt.url);
-        }
+        if (!keptFileUrls.has(oldAtt.url)) safeDeleteFile(oldAtt.url);
       });
     }
-
-    // 4. Update DB
     const updatedTask = await Task.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true }
     );
-
     res.json({ success: true, task: updatedTask });
   } catch (error) {
     console.error('Update Task Error:', error);
@@ -273,35 +228,28 @@ export const updateTask = async (
   }
 };
 
-// --- DELETE TASK (Soft Delete) ---
 export const deleteTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    // Soft delete: Chỉ đánh dấu đã xóa, KHÔNG xóa file vật lý
     const task = await Task.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
-      {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
+      { isDeleted: true, deletedAt: new Date() },
       { new: true }
     );
-
     if (!task) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
-
     res.json({ success: true, message: 'Moved task to trash' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Delete failed' });
   }
 };
 
-// --- TRASH & OTHER ACTIONS ---
+// ... Các hàm trash/restore/search giữ nguyên ...
 export const getTrashTasks = async (
   req: Request,
   res: Response
@@ -337,7 +285,6 @@ export const restoreTask = async (
   }
 };
 
-// --- FORCE DELETE (Xóa vĩnh viễn & Dọn sạch file) ---
 export const forceDeleteTask = async (
   req: Request,
   res: Response
@@ -349,19 +296,12 @@ export const forceDeleteTask = async (
       res.status(404).json({ success: false, message: 'Not found' });
       return;
     }
-
-    // 🧹 [CLEANUP] Xóa ảnh cover
-    if (task.image) {
-      safeDeleteFile(task.image);
-    }
-
-    // 🧹 [CLEANUP] Xóa file attachments
+    if (task.image) safeDeleteFile(task.image);
     if (task.attachments && task.attachments.length > 0) {
       task.attachments.forEach((att) => {
         safeDeleteFile(att.url);
       });
     }
-
     await Task.findByIdAndDelete(id);
     res.json({ success: true, message: 'Permanently deleted' });
   } catch (error) {
@@ -381,7 +321,6 @@ export const searchTasks = async (
     }
     const userId = (req as any).user._id;
     const userGroups = await Group.find({ members: userId }).distinct('_id');
-
     const tasks = await Task.find({
       title: { $regex: q, $options: 'i' },
       isDeleted: { $ne: true },
@@ -394,7 +333,6 @@ export const searchTasks = async (
       .select('title status group _id')
       .populate('group', 'name')
       .limit(5);
-
     res.json({ success: true, tasks });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Search error' });
@@ -414,5 +352,97 @@ export const getAllTasksAdmin = async (
     res.json({ success: true, count: tasks.length, tasks });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// 👇 [MỚI] START TIMER
+export const startTimer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    const task = await Task.findById(id);
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    // Kiểm tra: Nếu user đang chạy timer (có endTime = null) thì không cho start cái mới
+    const isRunning = task.timeEntries.some(
+      (entry) => entry.user.toString() === userId.toString() && !entry.endTime
+    );
+
+    if (isRunning) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Timer is already running for you.' });
+      return;
+    }
+
+    // Thêm entry mới
+    task.timeEntries.push({
+      user: userId,
+      startTime: new Date(),
+      duration: 0,
+    });
+
+    await task.save();
+
+    // Populate để trả về FE hiển thị avatar người đang làm
+    await task.populate('timeEntries.user', 'username avatar');
+
+    res.json({ success: true, task });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Start timer failed' });
+  }
+};
+
+// 👇 [MỚI] STOP TIMER
+export const stopTimer = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    const task = await Task.findById(id);
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    // Tìm entry đang chạy của user
+    const runningEntryIndex = task.timeEntries.findIndex(
+      (entry) => entry.user.toString() === userId.toString() && !entry.endTime
+    );
+
+    if (runningEntryIndex === -1) {
+      res
+        .status(400)
+        .json({ success: false, message: 'No running timer found' });
+      return;
+    }
+
+    // Cập nhật EndTime
+    const now = new Date();
+    const entry = task.timeEntries[runningEntryIndex];
+    entry.endTime = now;
+
+    // Tính Duration cho session này
+    const sessionDuration = now.getTime() - new Date(entry.startTime).getTime();
+    entry.duration = sessionDuration;
+
+    // Cộng dồn vào Tổng thời gian của Task
+    task.totalTime = (task.totalTime || 0) + sessionDuration;
+
+    await task.save();
+    await task.populate('timeEntries.user', 'username avatar');
+
+    res.json({ success: true, task });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Stop timer failed' });
   }
 };

@@ -11,6 +11,8 @@ import {
   getTrashTasks,
   restoreTask,
   forceDeleteTask,
+  startTimer, // 👈 [MỚI]
+  stopTimer, // 👈 [MỚI]
 } from '../controllers/taskController';
 import upload from '../middleware/upload';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
@@ -25,15 +27,19 @@ router.get('/trash/all', verifyToken, getTrashTasks);
 // Basic CRUD
 router.get('/:id', verifyToken, getTask);
 
-// 👇 [CẬP NHẬT] Thay upload.single('image') bằng upload.fields để nhận cả Attachments
+// Config Upload Fields
 const uploadFields = upload.fields([
-  { name: 'image', maxCount: 1 }, // 1 Ảnh bìa
-  { name: 'attachments', maxCount: 10 }, // Tối đa 10 file đính kèm
+  { name: 'image', maxCount: 1 },
+  { name: 'attachments', maxCount: 10 },
 ]);
 
 router.post('/', verifyToken, uploadFields, createTask);
 router.put('/:id', verifyToken, uploadFields, updateTask);
 router.delete('/:id', verifyToken, deleteTask);
+
+// 👇 [MỚI] Time Tracking Routes
+router.post('/:id/timer/start', verifyToken, startTimer);
+router.post('/:id/timer/stop', verifyToken, stopTimer);
 
 // Trash Actions
 router.put('/:id/restore', verifyToken, restoreTask);
