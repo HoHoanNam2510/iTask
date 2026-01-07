@@ -16,12 +16,32 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    // Kết nối đến Server Socket
-    const newSocket = io('http://localhost:5000'); // Đổi URL nếu deploy
+    // 👇 [FIXED] Quay lại cấu hình polling mặc định để đảm bảo kết nối
+    const newSocket = io('http://localhost:5000', {
+      transports: ['polling', 'websocket'], // Polling trước, upgrade sau
+      withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
     setSocket(newSocket);
 
+    newSocket.on('connect', () => {
+      console.log('✅ Socket Connected:', newSocket.id);
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.error('❌ Socket Connection Error:', err.message);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('⚠️ Socket Disconnected:', reason);
+    });
+
     return () => {
-      newSocket.disconnect();
+      if (newSocket) newSocket.disconnect();
     };
   }, []);
 
