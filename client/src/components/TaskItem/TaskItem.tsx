@@ -10,7 +10,7 @@ import {
   Paperclip,
   CheckSquare,
   Users,
-  MessageSquare, // 👈 [MỚI] Import icon MessageSquare
+  MessageSquare,
 } from 'lucide-react';
 import styles from './TaskItem.module.scss';
 import type { ITaskResponse } from '~/types/task';
@@ -23,13 +23,24 @@ interface TaskItemProps {
   onClick: () => void;
 }
 
+// Helper format duration
+const formatDurationSimple = (ms: number) => {
+  if (!ms) return '';
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
 const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
   const totalSubtasks = task.subtasks?.length || 0;
   const completedSubtasks =
     task.subtasks?.filter((t) => t.isCompleted).length || 0;
 
-  // 👇 [MỚI] Đếm số lượng comment
   const totalComments = task.comments?.length || 0;
+
+  // 👇 [MỚI] Tổng thời gian
+  const totalTime = task.totalTime || 0;
 
   const renderStatusIcon = () => {
     switch (task.status) {
@@ -66,18 +77,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
           : 'No description'}
       </p>
 
-      {/* Metadata Row: Checklist | Attachments | Comments */}
+      {/* Metadata Row: Checklist | Attachments */}
       {(totalSubtasks > 0 ||
-        (task.attachments && task.attachments.length > 0) ||
-        totalComments > 0) && (
+        (task.attachments && task.attachments.length > 0)) && (
         <div className={cx('taskMetaInfo')}>
-          {/* Checklist Count */}
           {totalSubtasks > 0 && (
             <div
               className={cx('metaItem', {
                 done: completedSubtasks === totalSubtasks,
               })}
-              title="Checklist completion"
+              title="Checklist"
             >
               <CheckSquare size={14} />
               <span>
@@ -86,19 +95,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
             </div>
           )}
 
-          {/* Attachment Count */}
           {task.attachments && task.attachments.length > 0 && (
             <div className={cx('metaItem')} title="Attachments">
               <Paperclip size={14} />
               <span>{task.attachments.length}</span>
-            </div>
-          )}
-
-          {/* 👇 [MỚI] Comment Count */}
-          {totalComments > 0 && (
-            <div className={cx('metaItem')} title="Comments">
-              <MessageSquare size={14} />
-              <span>{totalComments}</span>
             </div>
           )}
         </div>
@@ -127,6 +127,22 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onClick }) => {
             <div className={cx('groupBadge')}>
               <Users size={12} />
               <span>{(task.group as any).name || 'Group'}</span>
+            </div>
+          )}
+
+          {/* Comment Count */}
+          {totalComments > 0 && (
+            <div className={cx('commentBadge')} title="Comments">
+              <MessageSquare size={14} />
+              <span>{totalComments}</span>
+            </div>
+          )}
+
+          {/* 👇 [MỚI] Time Badge */}
+          {totalTime > 0 && (
+            <div className={cx('timeBadge')} title="Total Time Tracked">
+              <Clock size={12} />
+              <span>{formatDurationSimple(totalTime)}</span>
             </div>
           )}
         </div>

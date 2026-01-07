@@ -18,6 +18,8 @@ import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
 import CommentSection from './CommentSection/CommentSection';
+// 👇 [MỚI] Import TimeTracker
+import TimeTracker from './TimeTracker/TimeTracker';
 
 const cx = classNames.bind(styles);
 
@@ -52,6 +54,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [assigneeId, setAssigneeId] = useState('');
 
+  // 👇 [MỚI] State lưu data task mới nhất để cập nhật TimeTracker realtime
+  const [currentTask, setCurrentTask] = useState<ITaskResponse | null>(null);
+
   // Form State
   const [formData, setFormData] = useState({
     title: '',
@@ -63,16 +68,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
     imageFile: null as File | null,
   });
 
-  // State cho Checklist & Attachments
+  // State Checklist & Attachments
   const [subtasks, setSubtasks] = useState<
     { title: string; isCompleted: boolean; _id?: string }[]
   >([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]);
-
-  // State Drag & Drop Image
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +85,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       let targetCategoryId = defaultCategoryId;
+
+      // Update currentTask state
       if (taskToEdit) {
+        setCurrentTask(taskToEdit); // Init state
         if (typeof taskToEdit.category === 'string') {
           targetCategoryId = taskToEdit.category;
         } else if (
@@ -92,6 +97,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         ) {
           targetCategoryId = (taskToEdit.category as any)._id;
         }
+      } else {
+        setCurrentTask(null);
       }
 
       setFormData({
@@ -121,7 +128,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       fetchCategories();
 
-      // 👇 [FIXED] Assignee Logic: Luôn đảm bảo có ID, nếu không thì lấy user hiện tại
+      // Assignee Logic
       if (taskToEdit) {
         if (taskToEdit.assignee) {
           if (typeof taskToEdit.assignee === 'object') {
@@ -130,15 +137,31 @@ const TaskModal: React.FC<TaskModalProps> = ({
             setAssigneeId(taskToEdit.assignee as string);
           }
         } else {
-          // Nếu edit task mà chưa có assignee -> Mặc định là mình
           setAssigneeId(user?._id || '');
         }
       } else {
-        // Nếu tạo mới -> Mặc định là mình
         setAssigneeId(user?._id || '');
       }
     }
   }, [isOpen, taskToEdit, defaultCategoryId, dateString, user?._id]);
+
+  // 👇 [MỚI] Hàm reload data task để update TimeTracker
+  const handleReloadTask = async () => {
+    if (!taskToEdit) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(
+        `http://localhost:5000/api/tasks/${taskToEdit._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setCurrentTask(res.data.task);
+        onSuccess(); // Refresh list bên ngoài luôn
+      }
+    } catch (error) {
+      console.error('Reload task error', error);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -160,7 +183,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // Drag & Drop handlers...
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -187,7 +209,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // Attachments handlers...
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const filesArray = Array.from(e.target.files);
@@ -201,7 +222,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     setExistingAttachments((prev) => prev.filter((item) => item._id !== attId));
   };
 
-  // Checklist handlers...
   const addSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
     setSubtasks([...subtasks, { title: newSubtaskTitle, isCompleted: false }]);
@@ -222,7 +242,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     return Math.round((completed / subtasks.length) * 100);
   };
 
-  // --- SAVE ---
   const handleSave = async () => {
     if (!formData.title.trim()) {
       alert('Vui lòng nhập tiêu đề!');
@@ -243,7 +262,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       if (groupId) {
         data.append('groupId', groupId);
-        // Bây giờ assigneeId luôn có giá trị (hoặc là ID của người khác, hoặc ID của mình)
         if (assigneeId) data.append('assignee', assigneeId);
       }
 
@@ -358,7 +376,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className={cx('input')}
               >
-                {/* 👇 [FIXED] Sửa value="" thành ID thật của user */}
                 <option value={user?._id}>Chính tôi ({user?.username})</option>
                 {groupMembers
                   .filter((u) => u._id !== user?._id)
@@ -580,6 +597,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
           >
             {isLoading ? 'Saving...' : 'Done'}
           </button>
+
+          {/* 👇 [MỚI] Time Tracker Component */}
+          {currentTask && (
+            <TimeTracker
+              taskId={currentTask._id}
+              taskData={currentTask}
+              onUpdate={handleReloadTask}
+            />
+          )}
 
           {/* Comment Section */}
           {taskToEdit && (
