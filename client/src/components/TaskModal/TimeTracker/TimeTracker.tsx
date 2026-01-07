@@ -32,17 +32,19 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
 }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [localTicker, setLocalTicker] = useState(0); // Số giây chạy hiển thị cho user hiện tại
+  const [localTicker, setLocalTicker] = useState(0); // Số giây chạy hiển thị
 
-  // Fix lỗi TypeScript 'NodeJS' namespace
   const tickerRef = useRef<any>(null);
 
   // 1. Tìm xem user hiện tại có đang chạy timer không
-  const activeEntry = taskData.timeEntries?.find(
-    (entry) => !entry.endTime && entry.user._id === user?._id
-  );
+  const activeEntry = taskData.timeEntries?.find((entry) => {
+    // 👇 Handle case entry.user could be string ID or Object
+    const entryUserId =
+      typeof entry.user === 'string' ? entry.user : entry.user._id;
+    return !entry.endTime && entryUserId === user?._id;
+  });
 
-  // 2. Logic đồng hồ đếm (Ticker) cho user hiện tại
+  // 2. Logic đồng hồ đếm
   useEffect(() => {
     if (activeEntry) {
       const start = new Date(activeEntry.startTime).getTime();
@@ -61,14 +63,14 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     };
   }, [activeEntry]);
 
-  // 3. 👇 [LOGIC MỚI] Gộp nhóm lịch sử theo User
+  // 3. Gộp nhóm lịch sử theo User
   const groupedHistory = useMemo(() => {
     if (!taskData.timeEntries) return [];
 
     const map = new Map<
       string,
       {
-        user: (typeof taskData.timeEntries)[0]['user'];
+        user: any; // Allow any to handle string | UserObject
         totalSeconds: number;
         isRunning: boolean;
         lastActive: string;
@@ -76,12 +78,14 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     >();
 
     taskData.timeEntries.forEach((entry) => {
-      const userId = entry.user._id;
+      // 👇 [FIX] Lấy userId an toàn
+      const userId =
+        typeof entry.user === 'string' ? entry.user : entry.user._id;
 
       // Init nếu chưa có trong map
       if (!map.has(userId)) {
         map.set(userId, {
-          user: entry.user,
+          user: entry.user, // Lưu nguyên gốc để hiển thị avatar nếu có
           totalSeconds: 0,
           isRunning: false,
           lastActive: entry.startTime,
@@ -90,17 +94,22 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
 
       const record = map.get(userId)!;
 
-      // Cộng duration của các session đã kết thúc (Lưu ý: DB lưu ms, ta đổi ra giây)
+      // Update User Info nếu entry sau có data đầy đủ hơn (trường hợp load chậm)
+      if (typeof record.user === 'string' && typeof entry.user !== 'string') {
+        record.user = entry.user;
+      }
+
+      // Cộng duration
       record.totalSeconds += Math.floor((entry.duration || 0) / 1000);
 
-      // Nếu session này đang chạy (endTime = null)
+      // Nếu session này đang chạy
       if (!entry.endTime) {
         record.isRunning = true;
         // Nếu là chính user đang login -> Cộng thêm localTicker
         if (userId === user?._id) {
           record.totalSeconds += localTicker;
         } else {
-          // Nếu là người khác -> Tính khoảng cách từ start đến now
+          // Người khác -> Tính diff time
           const diffSeconds = Math.floor(
             (Date.now() - new Date(entry.startTime).getTime()) / 1000
           );
@@ -108,20 +117,18 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
         }
       }
 
-      // Cập nhật thời gian hoạt động gần nhất để sort
+      // Update last active
       if (new Date(entry.startTime) > new Date(record.lastActive)) {
         record.lastActive = entry.startTime;
       }
     });
 
-    // Convert Map -> Array và Sort người mới làm lên đầu
     return Array.from(map.values()).sort(
       (a, b) =>
         new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
     );
   }, [taskData.timeEntries, localTicker, user?._id]);
 
-  // Tính tổng thời gian toàn bộ task (để hiển thị trên header)
   const totalTaskSeconds = groupedHistory.reduce(
     (sum, item) => sum + item.totalSeconds,
     0
@@ -175,7 +182,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
         </span>
       </div>
 
-      {/* Control Box: Chỉ hiện cho bản thân */}
       <div className={cx('trackerBox')}>
         <div className={cx('timerDisplay', { active: !!activeEntry })}>
           {activeEntry ? formatDuration(localTicker) : '00:00:00'}
@@ -200,45 +206,49 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
         )}
       </div>
 
-      {/* Grouped History List */}
       {groupedHistory.length > 0 && (
         <div className={cx('historyList')}>
-          {groupedHistory.map((item) => (
-            <div key={item.user._id} className={cx('historyItem')}>
-              <div className={cx('userInfo')}>
-                <div className={cx('avatar')}>
-                  {item.user.avatar ? (
-                    <img
-                      src={`http://localhost:5000/${item.user.avatar}`}
-                      alt="avt"
-                    />
-                  ) : (
-                    item.user.username?.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span className={cx('name')}>{item.user.username}</span>
-                  {/* Hiển thị trạng thái nếu đang chạy */}
-                  {item.isRunning && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: '#ef4444',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Working now...
-                    </span>
-                  )}
-                </div>
-              </div>
+          {groupedHistory.map((item, index) => {
+            // Check nếu user là object hay string ID
+            const isUserObject = typeof item.user !== 'string';
+            const userId = isUserObject ? item.user._id : item.user;
+            const userName = isUserObject ? item.user.username : 'Unknown User';
 
-              {/* Hiển thị TỔNG thời gian thay vì từng dòng */}
-              <div className={cx('duration')}>
-                {formatDuration(item.totalSeconds)}
+            return (
+              <div key={userId || index} className={cx('historyItem')}>
+                <div className={cx('userInfo')}>
+                  <div className={cx('avatar')}>
+                    {isUserObject && item.user.avatar ? (
+                      <img
+                        src={`http://localhost:5000/${item.user.avatar}`}
+                        alt="avt"
+                      />
+                    ) : (
+                      userName.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className={cx('name')}>{userName}</span>
+                    {item.isRunning && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: '#ef4444',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Working now...
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={cx('duration')}>
+                  {formatDuration(item.totalSeconds)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
