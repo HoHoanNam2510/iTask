@@ -18,7 +18,6 @@ import type { UserBasic } from '~/types/user';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
 import CommentSection from './CommentSection/CommentSection';
-// 👇 [MỚI] Import TimeTracker
 import TimeTracker from './TimeTracker/TimeTracker';
 
 const cx = classNames.bind(styles);
@@ -54,7 +53,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [assigneeId, setAssigneeId] = useState('');
 
-  // 👇 [MỚI] State lưu data task mới nhất để cập nhật TimeTracker realtime
+  // State lưu data task mới nhất (đầy đủ populate) để cập nhật TimeTracker
   const [currentTask, setCurrentTask] = useState<ITaskResponse | null>(null);
 
   // Form State
@@ -68,7 +67,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     imageFile: null as File | null,
   });
 
-  // State Checklist & Attachments
   const [subtasks, setSubtasks] = useState<
     { title: string; isCompleted: boolean; _id?: string }[]
   >([]);
@@ -84,11 +82,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // --- INIT ---
   useEffect(() => {
     if (isOpen) {
+      // 1. Setup Form Data từ taskToEdit (Props)
       let targetCategoryId = defaultCategoryId;
-
-      // Update currentTask state
       if (taskToEdit) {
-        setCurrentTask(taskToEdit); // Init state
         if (typeof taskToEdit.category === 'string') {
           targetCategoryId = taskToEdit.category;
         } else if (
@@ -97,8 +93,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
         ) {
           targetCategoryId = (taskToEdit.category as any)._id;
         }
-      } else {
-        setCurrentTask(null);
       }
 
       setFormData({
@@ -118,17 +112,24 @@ const TaskModal: React.FC<TaskModalProps> = ({
       if (taskToEdit) {
         setSubtasks(taskToEdit.subtasks || []);
         setExistingAttachments(taskToEdit.attachments || []);
+
+        // 👇 [QUAN TRỌNG] Gọi API lấy task detail ngay để có full populate cho TimeTracker
+        fetchFullTaskDetail(taskToEdit._id);
+
+        // Tạm thời set currentTask bằng taskToEdit để UI không bị trắng trong lúc chờ fetch
+        setCurrentTask(taskToEdit);
       } else {
         setSubtasks([]);
         setExistingAttachments([]);
+        setCurrentTask(null);
       }
+
       setNewAttachmentFiles([]);
       setNewSubtaskTitle('');
       setIsDragOver(false);
 
       fetchCategories();
 
-      // Assignee Logic
       if (taskToEdit) {
         if (taskToEdit.assignee) {
           if (typeof taskToEdit.assignee === 'object') {
@@ -145,22 +146,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   }, [isOpen, taskToEdit, defaultCategoryId, dateString, user?._id]);
 
-  // 👇 [MỚI] Hàm reload data task để update TimeTracker
-  const handleReloadTask = async () => {
-    if (!taskToEdit) return;
+  // 👇 [MỚI] Hàm fetch detail riêng để đảm bảo TimeTracker có dữ liệu user đầy đủ
+  const fetchFullTaskDetail = async (taskId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `http://localhost:5000/api/tasks/${taskToEdit._id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.get(`http://localhost:5000/api/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.success) {
         setCurrentTask(res.data.task);
-        onSuccess(); // Refresh list bên ngoài luôn
       }
     } catch (error) {
-      console.error('Reload task error', error);
+      console.error('Lỗi fetch task detail trong modal:', error);
     }
+  };
+
+  // Hàm reload dùng cho TimeTracker khi bấm Start/Stop
+  const handleReloadTask = async () => {
+    if (!currentTask) return;
+    await fetchFullTaskDetail(currentTask._id);
+    onSuccess(); // Refresh list bên ngoài
   };
 
   const fetchCategories = async () => {
@@ -590,15 +595,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          <button
-            className={cx('doneBtn')}
-            onClick={handleSave}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Saving...' : 'Done'}
-          </button>
-
-          {/* 👇 [MỚI] Time Tracker Component */}
+          {/* 👇 [UPDATED] Time Tracker Component (Dùng currentTask thay vì taskToEdit) */}
           {currentTask && (
             <TimeTracker
               taskId={currentTask._id}
@@ -606,6 +603,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
               onUpdate={handleReloadTask}
             />
           )}
+
+          <button
+            className={cx('doneBtn')}
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Saving...' : 'Done'}
+          </button>
 
           {/* Comment Section */}
           {taskToEdit && (
