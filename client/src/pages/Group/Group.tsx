@@ -1,8 +1,18 @@
 /* src/pages/Group/Group.tsx */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Video } from 'lucide-react'; // 👈 [MỚI] Import icon Video
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Video,
+  ListTodo,
+  Loader,
+  CheckCircle2,
+  Clock,
+  CalendarDays,
+} from 'lucide-react';
 import classNames from 'classnames/bind';
 import {
   DragDropContext,
@@ -10,12 +20,37 @@ import {
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd';
+import { format, isSameDay, subDays } from 'date-fns';
+
+// Import Chart components
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
 
 import styles from './Group.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
-import { useAuth } from '~/context/AuthContext'; // 👈 [MỚI] Để lấy userId
-import VideoRoom from '~/components/VideoRoom/VideoRoom'; // 👈 [MỚI] Import Component Video
+import { useAuth } from '~/context/AuthContext';
+import VideoRoom from '~/components/VideoRoom/VideoRoom';
+
+// Register ChartJS
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const cx = classNames.bind(styles);
 
@@ -41,6 +76,8 @@ interface Task {
   status: 'todo' | 'in_progress' | 'completed';
   assignee: UserBasic;
   priority?: string;
+  dueDate?: string; // Cần dueDate để filter
+  createdAt?: string; // Cần createdAt cho biểu đồ tuần
 }
 
 interface GroupData {
@@ -56,30 +93,28 @@ const Group: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
-  const { user } = useAuth(); // 👈 [MỚI] Lấy user hiện tại
+  const { user } = useAuth();
 
   const [data, setData] = useState<GroupData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Dashboard State (Group Context)
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   // Modal State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-
-  // 👇 [MỚI] State kiểm soát Meeting
   const [isMeetingActive, setIsMeetingActive] = useState(false);
-
-  // State dùng để kích hoạt refresh Leaderboard
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Helper function để trigger refresh
   const triggerRefresh = () => {
     setRefreshKey((prev) => prev + 1);
-    fetchGroupData(); // Load lại cả board cho chắc chắn đồng bộ
+    fetchGroupData();
   };
 
   // --- FETCH DATA ---
   const fetchGroupData = async () => {
-    if (!data) setLoading(true); // Chỉ hiện loading lần đầu
+    if (!data) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
@@ -109,7 +144,7 @@ const Group: React.FC = () => {
     fetchGroupData();
   }, [groupId]);
 
-  // Tự động mở Task Modal từ URL (Deep link notification)
+  // Auto Open Task Modal
   useEffect(() => {
     const autoOpenTask = async () => {
       if (openTaskId && data) {
@@ -134,16 +169,60 @@ const Group: React.FC = () => {
     autoOpenTask();
   }, [openTaskId, data]);
 
+  // --- CALCULATE STATS (CLIENT-SIDE) ---
+  const dashboardStats = useMemo(() => {
+    if (!data)
+      return {
+        daily: { total: 0, todo: 0, inProgress: 0, completed: 0 },
+        weekly: [],
+        columns: { todo: [], in_progress: [], completed: [] },
+      };
+
+    // 1. Filter Tasks by Selected Date (Cho Daily Stats & Doughnut)
+    const dailyTasks = data.tasks.filter((t) =>
+      t.dueDate ? isSameDay(new Date(t.dueDate), selectedDate) : false
+    );
+
+    const dailyStats = {
+      total: dailyTasks.length,
+      todo: dailyTasks.filter((t) => t.status === 'todo').length,
+      inProgress: dailyTasks.filter((t) => t.status === 'in_progress').length,
+      completed: dailyTasks.filter((t) => t.status === 'completed').length,
+    };
+
+    // 2. Weekly Data (Dựa trên ngày tạo - createdAt - giả lập Activity)
+    const weeklyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(new Date(), i);
+      const label = format(d, 'dd/MM');
+      // Đếm số task được tạo hoặc due trong ngày đó
+      const count = data.tasks.filter((t) => {
+        const targetDate = t.createdAt ? new Date(t.createdAt) : new Date();
+        return isSameDay(targetDate, d);
+      }).length;
+      weeklyData.push({ name: label, tasks: count });
+    }
+
+    // 3. Kanban Columns (Lấy TOÀN BỘ task của group, không filter theo ngày)
+    // Kanban thường show backlog tổng thể, không chỉ ngày hiện tại
+    const columns = {
+      todo: data.tasks.filter((t) => t.status === 'todo'),
+      in_progress: data.tasks.filter((t) => t.status === 'in_progress'),
+      completed: data.tasks.filter((t) => t.status === 'completed'),
+    };
+
+    return { daily: dailyStats, weekly: weeklyData, columns };
+  }, [data, selectedDate]);
+
   // --- HANDLERS ---
   const handleCloseModal = () => {
     setIsTaskModalOpen(false);
     setEditingTask(null);
-    setSearchParams({}); // Xóa param URL
+    setSearchParams({});
   };
 
-  // Khi thêm/sửa thành công (TaskModal onSuccess)
   const onTaskModalSuccess = () => {
-    triggerRefresh(); // 👈 Gọi refresh
+    triggerRefresh();
   };
 
   const handleAddTask = () => {
@@ -152,7 +231,7 @@ const Group: React.FC = () => {
   };
 
   const handleEditTask = (task: Task) => {
-    setEditingTask(task); // TaskModal sẽ tự fetch chi tiết nếu cần, hoặc dùng object này
+    setEditingTask(task);
     setIsTaskModalOpen(true);
   };
 
@@ -163,8 +242,8 @@ const Group: React.FC = () => {
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchGroupData(); // Reload lại board
-      triggerRefresh(); // 👈 Gọi refresh
+      fetchGroupData();
+      triggerRefresh();
     } catch (error) {
       alert('Không thể xóa task');
     }
@@ -184,7 +263,6 @@ const Group: React.FC = () => {
       | 'in_progress'
       | 'completed';
 
-    // Optimistic Update (Giữ nguyên để Board mượt)
     if (data) {
       const updatedTasks = data.tasks.map((t) =>
         t._id === draggableId ? { ...t, status: newStatus } : t
@@ -200,8 +278,6 @@ const Group: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 👇 [QUAN TRỌNG] Sau khi update status xong, báo cho Leaderboard tải lại
-      // Chỉ cần refresh nếu liên quan đến cột Completed
       if (
         newStatus === 'completed' ||
         result.source.droppableId === 'completed'
@@ -209,24 +285,47 @@ const Group: React.FC = () => {
         setRefreshKey((prev) => prev + 1);
       }
     } catch (error) {
-      fetchGroupData(); // Revert nếu lỗi
+      fetchGroupData();
     }
   };
 
-  // 👇 [MỚI] Hàm tham gia Meeting
   const handleJoinMeeting = () => {
     setIsMeetingActive(true);
+  };
+
+  // --- CHART DATA CONFIG ---
+  const barChartData = {
+    labels: dashboardStats.weekly.map((d) => d.name),
+    datasets: [
+      {
+        label: 'New Tasks',
+        data: dashboardStats.weekly.map((d) => d.tasks),
+        backgroundColor: '#40a578',
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const doughnutData = {
+    labels: ['To Do', 'In Progress', 'Completed'],
+    datasets: [
+      {
+        data: [
+          dashboardStats.daily.todo,
+          dashboardStats.daily.inProgress,
+          dashboardStats.daily.completed,
+        ],
+        backgroundColor: ['#e2e8f0', '#3b82f6', '#40a578'],
+        borderWidth: 0,
+      },
+    ],
   };
 
   if (loading) return <div className={cx('wrapper')}>Đang tải dữ liệu...</div>;
   if (!data) return <div className={cx('wrapper')}>Không tìm thấy nhóm</div>;
 
-  const getTasksByStatus = (status: string) =>
-    data.tasks.filter((t) => t.status === status);
-
   return (
     <div className={cx('wrapper')}>
-      {/* 👇 [MỚI] Hiển thị Giao diện Video Call nếu active */}
       {isMeetingActive && user && groupId && (
         <VideoRoom
           roomId={groupId}
@@ -235,12 +334,22 @@ const Group: React.FC = () => {
         />
       )}
 
-      {/* 1. Header */}
+      {/* 1. Header (Có DatePicker) */}
       <header className={cx('header')}>
-        <div className={cx('info')}>
-          <h1>{data.title}</h1>
-          <p>{data.description}</p>
+        <div className={cx('headerLeft')}>
+          <div className={cx('info')}>
+            <h1>{data.title}</h1>
+            <p>{data.description}</p>
+          </div>
+          {/* 👇 [MỚI] DatePicker cho Group Dashboard */}
+          <input
+            type="date"
+            className={cx('datePicker')}
+            value={format(selectedDate, 'yyyy-MM-dd')}
+            onChange={(e) => setSelectedDate(new Date(e.target.value))}
+          />
         </div>
+
         <div className={cx('actions')}>
           <div className={cx('members')}>
             {data.members.slice(0, 4).map((m) => (
@@ -252,11 +361,6 @@ const Group: React.FC = () => {
                 title={m.username}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerHTML += `<div class="${cx(
-                    'avatar'
-                  )}" style="background:#ccc;display:flex;align-items:center;justify-content:center">${m.username.charAt(
-                    0
-                  )}</div>`;
                 }}
               />
             ))}
@@ -270,7 +374,6 @@ const Group: React.FC = () => {
             )}
           </div>
 
-          {/* 👇 [MỚI] Nút Call Group */}
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
@@ -291,31 +394,102 @@ const Group: React.FC = () => {
         </div>
       </header>
 
-      {/* 2. Stats */}
-      <div className={cx('stats-container')}>
-        <StatCard label="Total Tasks" value={data.tasks.length} />
+      {/* 2. Stats Grid (Giống Dashboard) */}
+      <div className={cx('statsGrid')}>
         <StatCard
-          label="In Progress"
-          value={getTasksByStatus('in_progress').length}
+          title="Tổng"
+          value={dashboardStats.daily.total}
+          icon={<ListTodo />}
+          colorClass="purple"
         />
         <StatCard
-          label="Completed"
-          value={getTasksByStatus('completed').length}
+          title="Đang làm"
+          value={dashboardStats.daily.inProgress}
+          icon={<Loader />}
+          colorClass="blue"
+        />
+        <StatCard
+          title="Hoàn thành"
+          value={dashboardStats.daily.completed}
+          icon={<CheckCircle2 />}
+          colorClass="green"
+        />
+        <StatCard
+          title="Chờ xử lý"
+          value={dashboardStats.daily.todo}
+          icon={<Clock />}
+          colorClass="yellow"
         />
       </div>
 
-      {/* 3. Leaderboard (Nằm trên Board) */}
+      {/* 3. Charts Section */}
+      <div className={cx('chartsSection')}>
+        <div className={cx('chartCard')}>
+          <h3>Hoạt động 7 ngày qua (New Tasks)</h3>
+          <div style={{ width: '100%', height: 200 }}>
+            <Bar
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    grid: { display: false },
+                    ticks: { stepSize: 1, precision: 0 },
+                  },
+                  x: { grid: { display: false } },
+                },
+              }}
+              data={barChartData}
+            />
+          </div>
+        </div>
+        <div className={cx('chartCard')}>
+          <h3>Tiến độ ngày {format(selectedDate, 'dd/MM')}</h3>
+          {dashboardStats.daily.total === 0 ? (
+            <div className={cx('emptyState')}>
+              <CalendarDays
+                size={32}
+                style={{ opacity: 0.2, marginBottom: 10 }}
+              />
+              <p>Chưa có task!</p>
+            </div>
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: 200,
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <Doughnut
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: 'right' } },
+                  layout: { padding: 10 },
+                }}
+                data={doughnutData}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4. Leaderboard */}
       <div className={cx('leaderboard-section')}>
         <Leaderboard groupId={groupId || ''} refreshTrigger={refreshKey} />
       </div>
 
-      {/* 4. Kanban Board */}
+      {/* 5. Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className={cx('board-container')}>
           <TaskColumn
             id="todo"
             title="To Do"
-            tasks={getTasksByStatus('todo')}
+            tasks={dashboardStats.columns.todo}
             headerClass="todoHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
@@ -323,7 +497,7 @@ const Group: React.FC = () => {
           <TaskColumn
             id="in_progress"
             title="In Progress"
-            tasks={getTasksByStatus('in_progress')}
+            tasks={dashboardStats.columns.in_progress}
             headerClass="progressHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
@@ -331,7 +505,7 @@ const Group: React.FC = () => {
           <TaskColumn
             id="completed"
             title="Completed"
-            tasks={getTasksByStatus('completed')}
+            tasks={dashboardStats.columns.completed}
             headerClass="doneHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
@@ -347,17 +521,21 @@ const Group: React.FC = () => {
         groupId={groupId}
         groupMembers={data?.members || []}
         taskToEdit={editingTask}
+        defaultDate={selectedDate} // Gán ngày đang chọn ở dashboard cho task mới
       />
     </div>
   );
 };
 
-// --- Sub Components ---
+// --- SUB COMPONENTS ---
 
-const StatCard = ({ label, value }: { label: string; value: number }) => (
-  <div className={cx('stat-card')}>
-    <div className={cx('label')}>{label}</div>
-    <div className={cx('value')}>{value}</div>
+const StatCard = ({ title, value, icon, colorClass }: any) => (
+  <div className={cx('stat-card-modern')}>
+    <div className={cx('iconBox', colorClass)}>{icon}</div>
+    <div className={cx('info')}>
+      <h4>{title}</h4>
+      <span className={cx('number')}>{value}</span>
+    </div>
   </div>
 );
 

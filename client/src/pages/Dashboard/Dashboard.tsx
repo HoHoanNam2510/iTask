@@ -54,7 +54,7 @@ interface Columns {
   [key: string]: ITaskResponse[];
 }
 
-// 👇 [MỚI] Helper bắn sự kiện cập nhật Footer
+// Helper bắn sự kiện cập nhật Footer
 const notifyFooter = (stats: any, date: Date) => {
   const event = new CustomEvent('ITASK_STATS_UPDATE', {
     detail: { stats, date },
@@ -107,7 +107,7 @@ const Dashboard = () => {
           completed: allTasks.filter((t) => t.status === 'completed'),
         });
 
-        // 👇 [MỚI] Đồng bộ ngay xuống Footer khi có dữ liệu mới
+        // Đồng bộ ngay xuống Footer khi có dữ liệu mới
         notifyFooter(newStats, selectedDate);
       }
     } catch (error) {
@@ -189,7 +189,7 @@ const Dashboard = () => {
           [keyMap[destColId]]: prev[keyMap[destColId] as keyof typeof prev] + 1,
         };
 
-        // 👇 [MỚI] Bắn event update Footer NGAY LẬP TỨC khi thả chuột
+        // Bắn event update Footer NGAY LẬP TỨC khi thả chuột
         notifyFooter(updatedStats, selectedDate);
 
         return updatedStats;
