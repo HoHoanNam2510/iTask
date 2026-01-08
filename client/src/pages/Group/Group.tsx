@@ -21,8 +21,6 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd';
 import { format, isSameDay, subDays } from 'date-fns';
-
-// Import Chart components
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -41,7 +39,6 @@ import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
 import VideoRoom from '~/components/VideoRoom/VideoRoom';
 
-// Register ChartJS
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -54,7 +51,6 @@ ChartJS.register(
 
 const cx = classNames.bind(styles);
 
-// Helper lấy ảnh avatar
 const getAvatarUrl = (avatarPath?: string) => {
   if (!avatarPath) return '';
   if (avatarPath.startsWith('http') || avatarPath.startsWith('blob:'))
@@ -62,7 +58,6 @@ const getAvatarUrl = (avatarPath?: string) => {
   return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
 };
 
-// --- TYPES ---
 interface UserBasic {
   _id: string;
   username: string;
@@ -76,8 +71,8 @@ interface Task {
   status: 'todo' | 'in_progress' | 'completed';
   assignee: UserBasic;
   priority?: string;
-  dueDate?: string; // Cần dueDate để filter
-  createdAt?: string; // Cần createdAt cho biểu đồ tuần
+  dueDate?: string;
+  createdAt?: string;
 }
 
 interface GroupData {
@@ -97,11 +92,7 @@ const Group: React.FC = () => {
 
   const [data, setData] = useState<GroupData | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Dashboard State (Group Context)
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  // Modal State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [isMeetingActive, setIsMeetingActive] = useState(false);
@@ -112,7 +103,6 @@ const Group: React.FC = () => {
     fetchGroupData();
   };
 
-  // --- FETCH DATA ---
   const fetchGroupData = async () => {
     if (!data) setLoading(true);
     try {
@@ -121,7 +111,6 @@ const Group: React.FC = () => {
         `http://localhost:5000/api/groups/${groupId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (res.data.success) {
         const apiData = res.data.data;
         setData({
@@ -144,7 +133,6 @@ const Group: React.FC = () => {
     fetchGroupData();
   }, [groupId]);
 
-  // Auto Open Task Modal
   useEffect(() => {
     const autoOpenTask = async () => {
       if (openTaskId && data) {
@@ -169,7 +157,6 @@ const Group: React.FC = () => {
     autoOpenTask();
   }, [openTaskId, data]);
 
-  // --- CALCULATE STATS (CLIENT-SIDE) ---
   const dashboardStats = useMemo(() => {
     if (!data)
       return {
@@ -178,7 +165,6 @@ const Group: React.FC = () => {
         columns: { todo: [], in_progress: [], completed: [] },
       };
 
-    // 1. Filter Tasks by Selected Date (Cho Daily Stats & Doughnut)
     const dailyTasks = data.tasks.filter((t) =>
       t.dueDate ? isSameDay(new Date(t.dueDate), selectedDate) : false
     );
@@ -190,12 +176,10 @@ const Group: React.FC = () => {
       completed: dailyTasks.filter((t) => t.status === 'completed').length,
     };
 
-    // 2. Weekly Data (Dựa trên ngày tạo - createdAt - giả lập Activity)
     const weeklyData = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(new Date(), i);
       const label = format(d, 'dd/MM');
-      // Đếm số task được tạo hoặc due trong ngày đó
       const count = data.tasks.filter((t) => {
         const targetDate = t.createdAt ? new Date(t.createdAt) : new Date();
         return isSameDay(targetDate, d);
@@ -203,8 +187,6 @@ const Group: React.FC = () => {
       weeklyData.push({ name: label, tasks: count });
     }
 
-    // 3. Kanban Columns (Lấy TOÀN BỘ task của group, không filter theo ngày)
-    // Kanban thường show backlog tổng thể, không chỉ ngày hiện tại
     const columns = {
       todo: data.tasks.filter((t) => t.status === 'todo'),
       in_progress: data.tasks.filter((t) => t.status === 'in_progress'),
@@ -214,7 +196,6 @@ const Group: React.FC = () => {
     return { daily: dailyStats, weekly: weeklyData, columns };
   }, [data, selectedDate]);
 
-  // --- HANDLERS ---
   const handleCloseModal = () => {
     setIsTaskModalOpen(false);
     setEditingTask(null);
@@ -235,8 +216,10 @@ const Group: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
+  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (taskId: string) => {
-    if (!window.confirm('Bạn chắc chắn muốn xóa task này?')) return;
+    if (!window.confirm('Bạn chắc chắn muốn chuyển task này vào thùng rác?'))
+      return;
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
@@ -293,7 +276,6 @@ const Group: React.FC = () => {
     setIsMeetingActive(true);
   };
 
-  // --- CHART DATA CONFIG ---
   const barChartData = {
     labels: dashboardStats.weekly.map((d) => d.name),
     datasets: [
@@ -334,14 +316,12 @@ const Group: React.FC = () => {
         />
       )}
 
-      {/* 1. Header (Có DatePicker) */}
       <header className={cx('header')}>
         <div className={cx('headerLeft')}>
           <div className={cx('info')}>
             <h1>{data.title}</h1>
             <p>{data.description}</p>
           </div>
-          {/* 👇 [MỚI] DatePicker cho Group Dashboard */}
           <input
             type="date"
             className={cx('datePicker')}
@@ -394,10 +374,9 @@ const Group: React.FC = () => {
         </div>
       </header>
 
-      {/* 2. Stats Grid (Giống Dashboard) */}
       <div className={cx('statsGrid')}>
         <StatCard
-          title="Tổng"
+          title="Tổng (Ngày)"
           value={dashboardStats.daily.total}
           icon={<ListTodo />}
           colorClass="purple"
@@ -422,7 +401,6 @@ const Group: React.FC = () => {
         />
       </div>
 
-      {/* 3. Charts Section */}
       <div className={cx('chartsSection')}>
         <div className={cx('chartCard')}>
           <h3>Hoạt động 7 ngày qua (New Tasks)</h3>
@@ -478,12 +456,10 @@ const Group: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Leaderboard */}
       <div className={cx('leaderboard-section')}>
         <Leaderboard groupId={groupId || ''} refreshTrigger={refreshKey} />
       </div>
 
-      {/* 5. Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className={cx('board-container')}>
           <TaskColumn
@@ -513,7 +489,6 @@ const Group: React.FC = () => {
         </div>
       </DragDropContext>
 
-      {/* Task Modal */}
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={handleCloseModal}
@@ -521,13 +496,11 @@ const Group: React.FC = () => {
         groupId={groupId}
         groupMembers={data?.members || []}
         taskToEdit={editingTask}
-        defaultDate={selectedDate} // Gán ngày đang chọn ở dashboard cho task mới
+        defaultDate={selectedDate}
       />
     </div>
   );
 };
-
-// --- SUB COMPONENTS ---
 
 const StatCard = ({ title, value, icon, colorClass }: any) => (
   <div className={cx('stat-card-modern')}>
