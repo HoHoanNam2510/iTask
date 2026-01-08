@@ -19,8 +19,6 @@ import {
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd';
-
-// Import Chart components
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -54,7 +52,6 @@ interface Columns {
   [key: string]: ITaskResponse[];
 }
 
-// Helper bắn sự kiện cập nhật Footer
 const notifyFooter = (stats: any, date: Date) => {
   const event = new CustomEvent('ITASK_STATS_UPDATE', {
     detail: { stats, date },
@@ -65,8 +62,6 @@ const notifyFooter = (stats: any, date: Date) => {
 const Dashboard = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  // Data State
   const [stats, setStats] = useState({
     total: 0,
     todo: 0,
@@ -79,35 +74,27 @@ const Dashboard = () => {
     in_progress: [],
     completed: [],
   });
-
-  // Modal & Editing State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
 
-  // --- FETCH DATA ---
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token');
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-
       const res = await axios.get(
         `http://localhost:5000/api/dashboard/summary?date=${dateStr}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (res.data.success) {
         const newStats = res.data.stats;
         setStats(newStats);
         setWeeklyData(res.data.weeklyData);
-
         const allTasks: ITaskResponse[] = res.data.tasks || [];
         setColumns({
           todo: allTasks.filter((t) => t.status === 'todo'),
           in_progress: allTasks.filter((t) => t.status === 'in_progress'),
           completed: allTasks.filter((t) => t.status === 'completed'),
         });
-
-        // Đồng bộ ngay xuống Footer khi có dữ liệu mới
         notifyFooter(newStats, selectedDate);
       }
     } catch (error) {
@@ -119,8 +106,6 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [selectedDate]);
 
-  // --- HANDLERS ---
-
   const handleOpenAdd = () => {
     setEditingTask(null);
     setIsTaskModalOpen(true);
@@ -131,14 +116,16 @@ const Dashboard = () => {
     setIsTaskModalOpen(true);
   };
 
+  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (id: string) => {
-    if (!window.confirm('Bạn có chắc muốn xóa công việc này?')) return;
+    if (!window.confirm('Bạn có chắc muốn chuyển công việc này vào thùng rác?'))
+      return;
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchDashboardData(); // Reload sau khi xóa (sẽ tự update footer)
+      fetchDashboardData();
     } catch (error) {
       console.error('Lỗi xóa task:', error);
       alert('Xóa thất bại!');
@@ -156,14 +143,12 @@ const Dashboard = () => {
 
     const sourceColId = source.droppableId;
     const destColId = destination.droppableId;
-
     const sourceTasks = [...columns[sourceColId]];
     const destTasks =
       sourceColId === destColId ? sourceTasks : [...columns[destColId]];
     const [movedTask] = sourceTasks.splice(source.index, 1);
     const newTask = { ...movedTask, status: destColId as any };
 
-    // 1. Cập nhật UI ngay lập tức (Optimistic Update)
     if (sourceColId === destColId) {
       sourceTasks.splice(destination.index, 0, newTask);
       setColumns({ ...columns, [sourceColId]: sourceTasks });
@@ -174,8 +159,6 @@ const Dashboard = () => {
         [sourceColId]: sourceTasks,
         [destColId]: destTasks,
       });
-
-      // Update stats thủ công để UI phản hồi ngay
       setStats((prev) => {
         const keyMap: any = {
           todo: 'todo',
@@ -188,15 +171,11 @@ const Dashboard = () => {
             prev[keyMap[sourceColId] as keyof typeof prev] - 1,
           [keyMap[destColId]]: prev[keyMap[destColId] as keyof typeof prev] + 1,
         };
-
-        // Bắn event update Footer NGAY LẬP TỨC khi thả chuột
         notifyFooter(updatedStats, selectedDate);
-
         return updatedStats;
       });
     }
 
-    // 2. Gọi API cập nhật ngầm
     try {
       const token = localStorage.getItem('token');
       await axios.put(
@@ -206,11 +185,10 @@ const Dashboard = () => {
       );
     } catch (error) {
       console.error('Lỗi update status:', error);
-      fetchDashboardData(); // Rollback nếu lỗi
+      fetchDashboardData();
     }
   };
 
-  // Chart Data
   const barChartData = {
     labels: weeklyData.map((d) => d.name),
     datasets: [
@@ -332,7 +310,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* --- KANBAN BOARD SECTION --- */}
       <div className={cx('kanbanSection')}>
         <div className={cx('kanbanHeader')}>
           <h3>Quản lý trạng thái công việc</h3>
@@ -382,7 +359,6 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB COMPONENTS ---
 const StatCard = ({ title, value, icon, colorClass }: any) => (
   <div className={cx('statCard')}>
     <div className={cx('iconBox', colorClass)}>{icon}</div>

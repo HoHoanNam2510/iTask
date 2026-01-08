@@ -36,20 +36,14 @@ const cx = classNames.bind(styles);
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-
-  // State quản lý Modal
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
   const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
-
-  // 👇 [MỚI] State bộ lọc: 'all' | 'personal' | 'group'
   const [filterMode, setFilterMode] = useState<'all' | 'personal' | 'group'>(
     'all'
   );
 
-  // --- FETCH DATA ---
   const fetchTasks = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -66,19 +60,17 @@ const Calendar: React.FC = () => {
     fetchTasks();
   }, []);
 
-  // --- LOGIC LỌC TASK THEO MODE ---
   const getFilteredTasks = () => {
     return tasks.filter((task) => {
       if (filterMode === 'all') return true;
-      if (filterMode === 'personal') return !task.group; // Không có group -> Cá nhân
-      if (filterMode === 'group') return !!task.group; // Có group -> Nhóm
+      if (filterMode === 'personal') return !task.group;
+      if (filterMode === 'group') return !!task.group;
       return true;
     });
   };
 
   const filteredTasks = getFilteredTasks();
 
-  // --- LOGIC LỊCH ---
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -86,7 +78,6 @@ const Calendar: React.FC = () => {
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
   const weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-  // --- HANDLERS ---
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
@@ -107,10 +98,14 @@ const Calendar: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
+  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (id: string) => {
-    if (window.confirm('Bạn có chắc muốn xóa vĩnh viễn?')) {
+    if (
+      window.confirm('Bạn có chắc muốn chuyển công việc này vào thùng rác?')
+    ) {
       try {
         const token = localStorage.getItem('token');
+        // Gọi API soft delete (không có /force)
         await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -122,12 +117,10 @@ const Calendar: React.FC = () => {
     }
   };
 
-  // Filter task cho ngày đang chọn (dựa trên list đã lọc theo mode)
   const tasksForSelectedDate = filteredTasks.filter(
     (t) => selectedDate && isSameDay(new Date(t.dueDate), selectedDate)
   );
 
-  // --- RENDER LIST VIEW ---
   const renderListView = () => (
     <>
       <div className={cx('modalHeader')}>
@@ -167,7 +160,6 @@ const Calendar: React.FC = () => {
                 }}
               >
                 {task.title}
-                {/* Badge phân loại trong list */}
                 {task.group ? (
                   <span className={cx('typeBadge', 'group')}>
                     Group: {(task.group as any).name}
@@ -223,37 +215,30 @@ const Calendar: React.FC = () => {
 
   return (
     <div className={cx('calendarContainer')}>
-      {/* HEADER */}
       <div className={cx('header')}>
         <div className={cx('headerTitle')}>
           <h2>{format(currentDate, 'MMMM yyyy', { locale: vi })}</h2>
         </div>
-
-        {/* 👇 [MỚI] BỘ LỌC VIEW MODE */}
         <div className={cx('filterControls')}>
           <button
             className={cx({ active: filterMode === 'all' })}
             onClick={() => setFilterMode('all')}
-            title="Tất cả"
           >
             <Layers size={16} /> All
           </button>
           <button
             className={cx({ active: filterMode === 'personal' })}
             onClick={() => setFilterMode('personal')}
-            title="Cá nhân"
           >
             <User size={16} /> Personal
           </button>
           <button
             className={cx({ active: filterMode === 'group' })}
             onClick={() => setFilterMode('group')}
-            title="Nhóm"
           >
             <Users size={16} /> Group
           </button>
         </div>
-
         <div className={cx('navButtons')}>
           <button onClick={prevMonth}>
             <ChevronLeft size={20} />
@@ -265,7 +250,6 @@ const Calendar: React.FC = () => {
         </div>
       </div>
 
-      {/* WEEKDAYS */}
       <div className={cx('weekDaysGrid')}>
         {weekDays.map((day) => (
           <div key={day} className={cx('weekDayCell')}>
@@ -274,10 +258,8 @@ const Calendar: React.FC = () => {
         ))}
       </div>
 
-      {/* DAYS GRID */}
       <div className={cx('daysGrid')}>
         {calendarDays.map((day, index) => {
-          // Lấy task của ngày đó (đã qua bộ lọc)
           const dayTasks = filteredTasks.filter((t) =>
             isSameDay(new Date(t.dueDate), day)
           );
@@ -299,12 +281,10 @@ const Calendar: React.FC = () => {
                   <div className={cx('moreCount')}>+{moreCount}</div>
                 )}
               </div>
-
               <div className={cx('taskPreviewList')}>
                 {dayTasks.slice(0, 2).map((t) => (
                   <div
                     key={t._id}
-                    // 👇 [MỚI] Thêm class 'groupTask' nếu là task nhóm để đổi màu
                     className={cx('taskDot', { groupTask: !!t.group })}
                     title={t.title}
                   >
@@ -317,7 +297,6 @@ const Calendar: React.FC = () => {
         })}
       </div>
 
-      {/* MODAL LIST VIEW */}
       {isListModalOpen && selectedDate && (
         <div
           className={cx('modalOverlay')}
@@ -333,7 +312,6 @@ const Calendar: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL ADD/EDIT TASK */}
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => {

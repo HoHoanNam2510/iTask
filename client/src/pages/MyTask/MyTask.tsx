@@ -26,7 +26,6 @@ import TaskModal from '~/components/TaskModal/TaskModal';
 import type { ITaskResponse } from '~/types/task';
 import CommentSection from '~/components/TaskModal/CommentSection/CommentSection';
 import { useAuth } from '~/context/AuthContext';
-// 👇 [MỚI] Import TimeTracker
 import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
 
 const cx = classNames.bind(styles);
@@ -54,8 +53,6 @@ const MyTask = () => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
-
-  // 👇 [MỚI] State riêng cho selectedTask để đảm bảo nó được update realtime
   const [selectedTaskDetail, setSelectedTaskDetail] =
     useState<ITaskResponse | null>(null);
 
@@ -104,7 +101,6 @@ const MyTask = () => {
     openTaskFromUrl();
   }, [openTaskId]);
 
-  // Update selectedTaskDetail khi tasks list thay đổi hoặc selectedId thay đổi
   useEffect(() => {
     if (selectedTaskId) {
       const found = tasks.find((t) => t._id === selectedTaskId);
@@ -114,7 +110,6 @@ const MyTask = () => {
     }
   }, [selectedTaskId, tasks]);
 
-  // 👇 [MỚI] Hàm reload task detail khi TimeTracker thay đổi
   const handleReloadDetail = async () => {
     if (!selectedTaskId) return;
     try {
@@ -124,7 +119,6 @@ const MyTask = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
-        // Cập nhật lại list tổng thể để badge ngoài list cũng đổi
         fetchTasks();
         setSelectedTaskDetail(res.data.task);
       }
@@ -164,11 +158,12 @@ const MyTask = () => {
     }
   };
 
+  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async () => {
     if (!selectedTaskDetail) return;
     if (
       window.confirm(
-        `Bạn có chắc muốn xóa công việc "${selectedTaskDetail.title}"?`
+        `Bạn có chắc muốn chuyển công việc "${selectedTaskDetail.title}" vào thùng rác?`
       )
     ) {
       try {
@@ -258,7 +253,6 @@ const MyTask = () => {
           </div>
         )}
 
-        {/* RIGHT DETAIL VIEW */}
         {selectedTaskDetail && (
           <div className={cx('detailPanel', { fullWidth: isFullScreen })}>
             <div className={cx('detailToolbar')}>
@@ -440,14 +434,12 @@ const MyTask = () => {
                 </div>
               </div>
 
-              {/* 👇 [MỚI] Time Tracker trong View Detail */}
               <TimeTracker
                 taskId={selectedTaskDetail._id}
                 taskData={selectedTaskDetail}
                 onUpdate={handleReloadDetail}
               />
 
-              {/* Comment Section */}
               {selectedTaskDetail.comments &&
                 selectedTaskDetail.comments.length > 0 && (
                   <div className={cx('commentWrapper')}>
