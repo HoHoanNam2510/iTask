@@ -1,3 +1,4 @@
+/* src/pages/Dashboard/Dashboard.module.scss */
 .wrapper {
   padding: 2.4rem 4rem;
   height: 100%;
@@ -104,21 +105,26 @@
   }
 }
 
-// --- CHARTS SECTION ---
+// --- CHARTS SECTION (ĐÃ SỬA LAYOUT) ---
 .chartsSection {
-  display: flex; /* Chuyển sang Flexbox */
-  flex-direction: column; /* Xếp chồng các phần tử theo chiều dọc */
-  gap: 2.4rem; /* Khoảng cách giữa 2 biểu đồ */
-  margin-bottom: 2rem;
-  width: 100%; /* Đảm bảo chiếm hết chiều rộng container */
+  display: flex;
+  gap: 2.4rem;
+  margin-bottom: 3.2rem;
+  width: 100%;
+
+  // 👇 [MỚI] Responsive: Xếp chồng khi màn hình nhỏ (< 900px)
+  @media (max-width: 900px) {
+    flex-direction: column;
+  }
 }
 
 .chartCard {
+  flex: 1; // 👇 [MỚI] Chia đều không gian
   background: var(--white);
   padding: 2.4rem;
   border-radius: 1.6rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-  width: 100%; /* Ép thẻ Card chiếm hết chiều ngang */
+  // width: 100%; -> Bỏ dòng này để flex hoạt động đúng
 
   h3 {
     font-size: 1.8rem;
@@ -159,7 +165,6 @@
   margin-top: 1rem;
 }
 
-// [MỚI] Header của Kanban dùng Flexbox để đẩy nút sang phải
 .kanbanHeader {
   display: flex;
   justify-content: space-between;
@@ -170,10 +175,9 @@
     font-size: 1.8rem;
     font-weight: 600;
     color: var(--text-main);
-    margin: 0; // Reset margin để căn giữa đẹp hơn
+    margin: 0;
   }
 
-  // Nút thêm task nhỏ gọn
   .addTaskBtn {
     display: flex;
     align-items: center;
@@ -254,14 +258,11 @@
   cursor: grab;
   border: 1px solid transparent;
   transition: all 0.2s;
-  position: relative; // Để định vị nút action nếu cần
+  position: relative;
 
   &:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     border-color: var(--primary);
-
-    // Khi hover vào thẻ thì hiện các nút hành động lên (nếu muốn)
-    // .taskActions { opacity: 1; }
   }
 
   &.isDragging {
@@ -272,7 +273,6 @@
   }
 }
 
-// [MỚI] Phần Header của Card (Title + Actions)
 .cardHeader {
   display: flex;
   justify-content: space-between;
@@ -286,14 +286,13 @@
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.4;
-  word-break: break-word; // Xuống dòng nếu tên quá dài
+  word-break: break-word;
 }
 
-// [MỚI] Các nút Edit/Delete
 .taskActions {
   display: flex;
   gap: 0.4rem;
-  flex-shrink: 0; // Không bị co lại
+  flex-shrink: 0;
 
   button {
     background: none;
