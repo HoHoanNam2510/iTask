@@ -20,7 +20,7 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd';
 
-// Import Chart components (Giữ nguyên)
+// Import Chart components
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -54,6 +54,14 @@ interface Columns {
   [key: string]: ITaskResponse[];
 }
 
+// 👇 [MỚI] Helper bắn sự kiện cập nhật Footer
+const notifyFooter = (stats: any, date: Date) => {
+  const event = new CustomEvent('ITASK_STATS_UPDATE', {
+    detail: { stats, date },
+  });
+  window.dispatchEvent(event);
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -74,7 +82,6 @@ const Dashboard = () => {
 
   // Modal & Editing State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  // [MỚI] State để lưu task đang sửa
   const [editingTask, setEditingTask] = useState<ITaskResponse | null>(null);
 
   // --- FETCH DATA ---
@@ -89,7 +96,8 @@ const Dashboard = () => {
       );
 
       if (res.data.success) {
-        setStats(res.data.stats);
+        const newStats = res.data.stats;
+        setStats(newStats);
         setWeeklyData(res.data.weeklyData);
 
         const allTasks: ITaskResponse[] = res.data.tasks || [];
@@ -98,6 +106,9 @@ const Dashboard = () => {
           in_progress: allTasks.filter((t) => t.status === 'in_progress'),
           completed: allTasks.filter((t) => t.status === 'completed'),
         });
+
+        // 👇 [MỚI] Đồng bộ ngay xuống Footer khi có dữ liệu mới
+        notifyFooter(newStats, selectedDate);
       }
     } catch (error) {
       console.error('Lỗi tải dashboard:', error);
@@ -110,19 +121,16 @@ const Dashboard = () => {
 
   // --- HANDLERS ---
 
-  // 1. Mở Modal Thêm Mới
   const handleOpenAdd = () => {
-    setEditingTask(null); // Reset task cũ nếu có
+    setEditingTask(null);
     setIsTaskModalOpen(true);
   };
 
-  // 2. Mở Modal Sửa
   const handleEditTask = (task: ITaskResponse) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
   };
 
-  // 3. Xóa Task
   const handleDeleteTask = async (id: string) => {
     if (!window.confirm('Bạn có chắc muốn xóa công việc này?')) return;
     try {
@@ -130,14 +138,13 @@ const Dashboard = () => {
       await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchDashboardData(); // Reload sau khi xóa
+      fetchDashboardData(); // Reload sau khi xóa (sẽ tự update footer)
     } catch (error) {
       console.error('Lỗi xóa task:', error);
       alert('Xóa thất bại!');
     }
   };
 
-  // 4. Kéo thả Task (Giữ nguyên logic cũ)
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
@@ -156,6 +163,7 @@ const Dashboard = () => {
     const [movedTask] = sourceTasks.splice(source.index, 1);
     const newTask = { ...movedTask, status: destColId as any };
 
+    // 1. Cập nhật UI ngay lập tức (Optimistic Update)
     if (sourceColId === destColId) {
       sourceTasks.splice(destination.index, 0, newTask);
       setColumns({ ...columns, [sourceColId]: sourceTasks });
@@ -167,22 +175,28 @@ const Dashboard = () => {
         [destColId]: destTasks,
       });
 
-      // Update stats thủ công
+      // Update stats thủ công để UI phản hồi ngay
       setStats((prev) => {
         const keyMap: any = {
           todo: 'todo',
           in_progress: 'inProgress',
           completed: 'completed',
         };
-        return {
+        const updatedStats = {
           ...prev,
           [keyMap[sourceColId]]:
             prev[keyMap[sourceColId] as keyof typeof prev] - 1,
           [keyMap[destColId]]: prev[keyMap[destColId] as keyof typeof prev] + 1,
         };
+
+        // 👇 [MỚI] Bắn event update Footer NGAY LẬP TỨC khi thả chuột
+        notifyFooter(updatedStats, selectedDate);
+
+        return updatedStats;
       });
     }
 
+    // 2. Gọi API cập nhật ngầm
     try {
       const token = localStorage.getItem('token');
       await axios.put(
@@ -192,11 +206,11 @@ const Dashboard = () => {
       );
     } catch (error) {
       console.error('Lỗi update status:', error);
-      fetchDashboardData();
+      fetchDashboardData(); // Rollback nếu lỗi
     }
   };
 
-  // Chart Data (Giữ nguyên)
+  // Chart Data
   const barChartData = {
     labels: weeklyData.map((d) => d.name),
     datasets: [
@@ -221,7 +235,6 @@ const Dashboard = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* Header & Stats Grid (Giữ nguyên) */}
       <header className={cx('header')}>
         <h1 className={cx('title')}>
           Hello, <span>{user?.username || 'User'}</span>! 👋
@@ -274,10 +287,7 @@ const Dashboard = () => {
                   y: {
                     beginAtZero: true,
                     grid: { display: false },
-                    ticks: {
-                      stepSize: 1,
-                      precision: 0,
-                    },
+                    ticks: { stepSize: 1, precision: 0 },
                   },
                   x: { grid: { display: false } },
                 },
@@ -295,7 +305,6 @@ const Dashboard = () => {
                 style={{ opacity: 0.2, marginBottom: 10 }}
               />
               <p>Chưa có task nào!</p>
-              {/* Nút thêm nhanh khi trống */}
               <button className={cx('createBtn')} onClick={handleOpenAdd}>
                 <Plus size={16} style={{ marginRight: 6 }} /> Thêm ngay
               </button>
@@ -325,7 +334,6 @@ const Dashboard = () => {
 
       {/* --- KANBAN BOARD SECTION --- */}
       <div className={cx('kanbanSection')}>
-        {/* [MỚI] Header có nút Add bên phải */}
         <div className={cx('kanbanHeader')}>
           <h3>Quản lý trạng thái công việc</h3>
           <button className={cx('addTaskBtn')} onClick={handleOpenAdd}>
@@ -341,7 +349,7 @@ const Dashboard = () => {
               tasks={columns.todo}
               colorClass="todoHeader"
               onEdit={handleEditTask}
-              onDelete={handleDeleteTask} // Truyền hàm xuống
+              onDelete={handleDeleteTask}
             />
             <DroppableColumn
               id="in_progress"
@@ -363,20 +371,18 @@ const Dashboard = () => {
         </DragDropContext>
       </div>
 
-      {/* Tái sử dụng Modal cho cả Add và Edit */}
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         onSuccess={() => fetchDashboardData()}
         defaultDate={selectedDate}
-        taskToEdit={editingTask} // Truyền task cần sửa (nếu có)
+        taskToEdit={editingTask}
       />
     </div>
   );
 };
 
 // --- SUB COMPONENTS ---
-
 const StatCard = ({ title, value, icon, colorClass }: any) => (
   <div className={cx('statCard')}>
     <div className={cx('iconBox', colorClass)}>{icon}</div>
@@ -387,7 +393,6 @@ const StatCard = ({ title, value, icon, colorClass }: any) => (
   </div>
 );
 
-// [CẬP NHẬT] DroppableColumn nhận thêm onEdit, onDelete
 const DroppableColumn = ({
   id,
   title,
@@ -420,7 +425,6 @@ const DroppableColumn = ({
                   {...provided.dragHandleProps}
                   style={{ ...provided.draggableProps.style }}
                 >
-                  {/* [MỚI] Header của card chứa Title và nút Actions */}
                   <div className={cx('cardHeader')}>
                     <div className={cx('taskTitle')}>{task.title}</div>
                     <div className={cx('taskActions')}>
