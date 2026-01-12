@@ -1,4 +1,4 @@
-// server/controllers/dashboardController.ts
+/* server/controllers/dashboardController.ts */
 import { Request, Response } from 'express';
 import Task from '../models/Task';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
@@ -13,13 +13,21 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     const start = startOfDay(dateQuery);
     const end = endOfDay(dateQuery);
 
+    // 👇 [FIX] Định nghĩa bộ lọc chung:
+    // 1. Phải là task của mình (tạo hoặc được giao)
+    // 2. Chưa bị xóa (isDeleted != true)
+    const baseQuery = {
+      $or: [{ creator: userId }, { assignee: userId }],
+      isDeleted: { $ne: true },
+    };
+
     // 1. Lấy danh sách task trong ngày
     const tasksInDay = await Task.find({
-      creator: userId,
+      ...baseQuery,
       dueDate: { $gte: start, $lte: end },
-    }); // .sort({ priority: 1 }) // Có thể sort theo priority nếu muốn
+    });
 
-    // 2. Tính toán thống kê (Giữ nguyên logic cũ)
+    // 2. Tính toán thống kê
     const stats = {
       total: tasksInDay.length,
       todo: tasksInDay.filter((t) => t.status === 'todo').length,
@@ -27,23 +35,25 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       completed: tasksInDay.filter((t) => t.status === 'completed').length,
     };
 
-    // 3. Dữ liệu biểu đồ 7 ngày (Giữ nguyên)
+    // 3. Dữ liệu biểu đồ 7 ngày
     const weeklyData = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(dateQuery, i);
       const s = startOfDay(d);
       const e = endOfDay(d);
+
+      // 👇 [FIX] Áp dụng baseQuery vào countDocuments để loại bỏ task đã xóa
       const count = await Task.countDocuments({
-        creator: userId,
-        dueDate: { $gte: s, $lte: e },
+        ...baseQuery,
+        dueDate: { $gte: s, $lte: e }, // Lọc theo range ngày của cột đó
       });
+
       weeklyData.push({ name: format(d, 'dd/MM'), tasks: count });
     }
 
-    // 👇 TRẢ VỀ THÊM FIELD 'tasks' 👇
     res.json({ success: true, stats, weeklyData, tasks: tasksInDay });
   } catch (error) {
-    console.error(error);
+    console.error('Dashboard Error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
