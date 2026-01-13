@@ -6,7 +6,7 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Video,
+  Video, // Icon Video
   ListTodo,
   Loader,
   CheckCircle2,
@@ -37,7 +37,7 @@ import styles from './Group.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
-import VideoRoom from '~/components/VideoRoom/VideoRoom';
+import VideoRoom from '~/components/VideoRoom/VideoRoom'; // Import Component Video
 
 ChartJS.register(
   CategoryScale,
@@ -95,7 +95,10 @@ const Group: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+
+  // State bật/tắt meeting
   const [isMeetingActive, setIsMeetingActive] = useState(false);
+
   const [refreshKey, setRefreshKey] = useState(0);
 
   const triggerRefresh = () => {
@@ -216,7 +219,6 @@ const Group: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (taskId: string) => {
     if (!window.confirm('Bạn chắc chắn muốn chuyển task này vào thùng rác?'))
       return;
@@ -272,6 +274,7 @@ const Group: React.FC = () => {
     }
   };
 
+  // Handler mở phòng họp
   const handleJoinMeeting = () => {
     setIsMeetingActive(true);
   };
@@ -308,10 +311,12 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
+      {/* 👇 [UPDATED] Hiển thị VideoRoom khi Active */}
       {isMeetingActive && user && groupId && (
         <VideoRoom
-          roomId={groupId}
+          roomId={groupId} // Dùng ID nhóm làm Room ID
           userId={user._id}
+          groupName={data.title} // Truyền tên nhóm để gửi thông báo
           onLeave={() => setIsMeetingActive(false)}
         />
       )}
@@ -354,10 +359,12 @@ const Group: React.FC = () => {
             )}
           </div>
 
+          {/* 👇 [UPDATED] Nút Meeting rõ ràng hơn */}
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
             onClick={handleJoinMeeting}
+            title="Tham gia cuộc họp"
           >
             <Video size={16} /> Meeting
           </button>
@@ -374,6 +381,7 @@ const Group: React.FC = () => {
         </div>
       </header>
 
+      {/* Stats Grid */}
       <div className={cx('statsGrid')}>
         <StatCard
           title="Tổng (Ngày)"
@@ -401,6 +409,7 @@ const Group: React.FC = () => {
         />
       </div>
 
+      {/* Charts Section */}
       <div className={cx('chartsSection')}>
         <div className={cx('chartCard')}>
           <h3>Hoạt động 7 ngày qua (New Tasks)</h3>

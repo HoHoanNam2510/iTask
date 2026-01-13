@@ -5,91 +5,120 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #1e293b; // Màu tối
+  background-color: #202124; // Màu nền tối Google Meet
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  justify-content: space-between;
 }
 
+// Grid chứa các Video
 .videoGrid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  // Tự động chia cột, tối thiểu 400px, tối đa full màn hình
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+  padding: 24px;
   align-content: center;
   justify-items: center;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr; // Mobile 1 cột
+  }
 }
 
 .videoContainer {
   position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   aspect-ratio: 16/9;
-  background: #000;
+  background: #3c4043;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border: 2px solid transparent;
+  transition: all 0.3s;
+
+  &.isSelf {
+    border-color: #8ab4f8; // Viền xanh cho video chính mình
+  }
 
   video {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scaleX(-1); // Lật gương video
+    transform: scaleX(-1); // Lật gương video cho tự nhiên
   }
 
   .label {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
+    bottom: 12px;
+    left: 12px;
     color: white;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 10px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 }
 
+// Thanh điều khiển phía dưới
 .controlsBar {
   height: 80px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 40px;
-  margin-top: 10px;
-  align-self: center;
-  padding: 0 40px;
+  gap: 24px;
+  background: #202124;
+  padding-bottom: 20px;
 
   .controlBtn {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    border: none;
-    background: #334155;
+    border: 1px solid #5f6368;
+    background: #3c4043;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 1.2rem;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
 
     &:hover {
-      background: #475569;
+      background: #484c50;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
-    &.active {
-      background: #ef4444; // Màu đỏ khi tắt mic/cam
+    // Trạng thái tắt (Màu đỏ)
+    &.inactive {
+      background: #ea4335;
+      border-color: #ea4335;
+      &:hover {
+        background: #d93025;
+      }
     }
 
+    // Nút rời phòng
     &.leaveBtn {
-      background: #ef4444;
+      background: #ea4335;
+      border-color: #ea4335;
       width: 60px;
-      height: 60px;
+      height: 40px;
+      border-radius: 20px; // Hình viên thuốc
 
       &:hover {
-        background: #dc2626;
+        background: #d93025;
       }
     }
   }

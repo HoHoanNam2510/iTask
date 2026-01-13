@@ -35,21 +35,19 @@ const httpServer = http.createServer(app);
 // 2. KẾT NỐI DB
 connectDB();
 
-// 👇 [FIXED] Cấu hình CORS chặt chẽ hơn để hỗ trợ credentials
+// Cấu hình CORS
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 app.use(
   cors({
-    origin: allowedOrigins, // Chỉ cho phép client cụ thể
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true, // Cho phép gửi cookie/token
+    credentials: true,
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-const uploadsPath = path.join(process.cwd(), '../uploads');
 
 // 4. LOGGER
 app.use((req, res, next) => {
@@ -78,19 +76,37 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// 👇 [FIXED] CẤU HÌNH SOCKET.IO CORS ĐỒNG BỘ
+// CẤU HÌNH SOCKET.IO
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: allowedOrigins, // Phải khớp với Express CORS
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
-    credentials: true, // Quan trọng: Cho phép client gửi credentials
+    credentials: true,
   },
   transports: ['polling', 'websocket'],
   allowEIO3: true,
 });
+
+// Xử lý socket chung (Chat, Realtime tasks...)
 socketHandler(io);
 
-// 👇 CẤU HÌNH PEER SERVER
+// 👇 [MỚI] Xử lý socket riêng cho Meeting Video Call
+io.on('connection', (socket) => {
+  // Khi client join vào phòng họp (roomId = groupId)
+  socket.on('join-room', (roomId, userId) => {
+    socket.join(roomId);
+
+    // Thông báo cho những người khác trong phòng là có userId mới vào
+    // 'user-connected' sẽ kích hoạt client gọi PeerJS call()
+    socket.to(roomId).emit('user-connected', userId);
+
+    socket.on('disconnect', () => {
+      socket.to(roomId).emit('user-disconnected', userId);
+    });
+  });
+});
+
+// CẤU HÌNH PEER SERVER
 const peerServer = ExpressPeerServer(httpServer, {
   path: '/myapp',
 });
