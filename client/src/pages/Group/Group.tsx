@@ -6,7 +6,7 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Video, // Icon Video
+  Video,
   ListTodo,
   Loader,
   CheckCircle2,
@@ -37,7 +37,7 @@ import styles from './Group.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
-import VideoRoom from '~/components/VideoRoom/VideoRoom'; // Import Component Video
+import VideoRoom from '~/components/VideoRoom/VideoRoom';
 
 ChartJS.register(
   CategoryScale,
@@ -274,7 +274,6 @@ const Group: React.FC = () => {
     }
   };
 
-  // Handler mở phòng họp
   const handleJoinMeeting = () => {
     setIsMeetingActive(true);
   };
@@ -311,12 +310,13 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* 👇 [UPDATED] Hiển thị VideoRoom khi Active */}
+      {/* 👇 Hiển thị VideoRoom khi Active */}
       {isMeetingActive && user && groupId && (
         <VideoRoom
-          roomId={groupId} // Dùng ID nhóm làm Room ID
+          roomId={groupId} // Dùng ID nhóm làm Room ID để chung phòng
           userId={user._id}
-          groupName={data.title} // Truyền tên nhóm để gửi thông báo
+          userName={user.username}
+          groupName={data.title}
           onLeave={() => setIsMeetingActive(false)}
         />
       )}
@@ -359,7 +359,6 @@ const Group: React.FC = () => {
             )}
           </div>
 
-          {/* 👇 [UPDATED] Nút Meeting rõ ràng hơn */}
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
@@ -381,10 +380,9 @@ const Group: React.FC = () => {
         </div>
       </header>
 
-      {/* Stats Grid */}
       <div className={cx('statsGrid')}>
         <StatCard
-          title="Tổng (Ngày)"
+          title="Tổng"
           value={dashboardStats.daily.total}
           icon={<ListTodo />}
           colorClass="purple"
@@ -409,7 +407,6 @@ const Group: React.FC = () => {
         />
       </div>
 
-      {/* Charts Section */}
       <div className={cx('chartsSection')}>
         <div className={cx('chartCard')}>
           <h3>Hoạt động 7 ngày qua (New Tasks)</h3>

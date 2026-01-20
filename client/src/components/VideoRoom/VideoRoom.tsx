@@ -1,9 +1,7 @@
 /* client/src/components/VideoRoom/VideoRoom.tsx */
 import React, { useEffect, useRef, useState } from 'react';
-import Peer from 'peerjs';
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import axios from 'axios';
-import { useSocket } from '~/context/SocketContext';
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 import styles from './VideoRoom.module.scss';
 import classNames from 'classnames/bind';
 
@@ -12,6 +10,7 @@ const cx = classNames.bind(styles);
 interface VideoRoomProps {
   roomId: string;
   userId: string;
+  userName: string;
   groupName?: string;
   onLeave: () => void;
 }
@@ -19,28 +18,15 @@ interface VideoRoomProps {
 const VideoRoom: React.FC<VideoRoomProps> = ({
   roomId,
   userId,
+  userName,
   groupName,
   onLeave,
 }) => {
-  const { socket } = useSocket();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const zpInstanceRef = useRef<any>(null); // Lưu instance để destroy
+  const [isJoined, setIsJoined] = useState(false);
 
-  const [peers, setPeers] = useState<Record<string, any>>({});
-  const [myStream, setMyStream] = useState<MediaStream | null>(null);
-  const [remoteStreams, setRemoteStreams] = useState<
-    { id: string; stream: MediaStream }[]
-  >([]);
-
-  // 👇 [QUAN TRỌNG] Dùng Ref để lưu stream, giúp cleanup được trong useEffect
-  const streamRef = useRef<MediaStream | null>(null);
-
-  // Controls State
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCameraOn, setIsCameraOn] = useState(true);
-
-  const myVideoRef = useRef<HTMLVideoElement>(null);
-  const peerInstance = useRef<Peer | null>(null);
-
-  // 1. Gửi thông báo
+  // 1. Gửi thông báo mời họp (Chỉ chạy 1 lần)
   useEffect(() => {
     const sendNotification = async () => {
       try {
@@ -57,179 +43,87 @@ const VideoRoom: React.FC<VideoRoomProps> = ({
       }
     };
     sendNotification();
-  }, [roomId, groupName]);
+  }, []);
 
-  // 2. Logic WebRTC
+  // 2. Logic khởi tạo Zego
   useEffect(() => {
-    if (!socket) return;
+    let isMounted = true;
 
-    const peer = new Peer(userId, {
-      host: 'localhost',
-      port: 5000,
-      path: '/peerjs/myapp',
-    });
-    peerInstance.current = peer;
+    const initMeeting = async () => {
+      if (!containerRef.current || isJoined) return;
 
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        // 👇 Lưu vào Ref ngay lập tức để cleanup sau này
-        streamRef.current = stream;
-        setMyStream(stream);
+      try {
+        const authToken = localStorage.getItem('token');
 
-        if (myVideoRef.current) {
-          myVideoRef.current.srcObject = stream;
-        }
+        // 👇 [FIXED] Tạo session ID ngẫu nhiên để tránh lỗi "1002001 login rooms limit"
+        // Ví dụ: 693be..._1732456789
+        const sessionUserId = `${userId}_${Math.floor(Math.random() * 10000)}`;
 
-        peer.on('call', (call) => {
-          call.answer(stream);
-          call.on('stream', (remoteStream) => {
-            addRemoteStream(call.peer, remoteStream);
-          });
+        // Gọi API lấy token cho session ID này
+        const res = await axios.get(
+          `http://localhost:5000/api/system/zego-token?userId=${sessionUserId}`,
+          {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }
+        );
+
+        if (!res.data.success || !isMounted) return;
+
+        const { token, appID, userId: finalUserId } = res.data;
+
+        // Tạo Kit Token với ID khớp 100% server trả về
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForProduction(
+          appID,
+          token,
+          roomId,
+          finalUserId,
+          userName
+        );
+
+        // Khởi tạo Zego
+        const zp = ZegoUIKitPrebuilt.create(kitToken);
+        zpInstanceRef.current = zp;
+
+        zp.joinRoom({
+          container: containerRef.current,
+          sharedLinks: [
+            {
+              name: 'Copy Link',
+              url: window.location.href,
+            },
+          ],
+          scenario: {
+            mode: ZegoUIKitPrebuilt.GroupCall,
+          },
+          showPreJoinView: false,
+          onLeaveRoom: () => {
+            onLeave();
+          },
         });
 
-        socket.on('user-connected', (newUserId: string) => {
-          connectToNewUser(newUserId, stream, peer);
-        });
-      })
-      .catch((err) => {
-        console.error('Failed to get media:', err);
-        alert('Không thể truy cập Camera/Micro.');
-      });
-
-    peer.on('open', (id) => {
-      socket.emit('join-room', roomId, id);
-    });
-
-    socket.on('user-disconnected', (disconnectedUserId: string) => {
-      if (peers[disconnectedUserId]) {
-        peers[disconnectedUserId].close();
-      }
-      setRemoteStreams((prev) =>
-        prev.filter((s) => s.id !== disconnectedUserId)
-      );
-    });
-
-    // 👇 [FIXED] Hàm dọn dẹp khi component unmount (Rời phòng)
-    return () => {
-      socket.off('user-connected');
-      socket.off('user-disconnected');
-
-      // Hủy Peer
-      peer.destroy();
-
-      // Tắt hoàn toàn Camera & Mic (Tắt đèn phần cứng)
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => {
-          track.stop(); // Lệnh này sẽ tắt đèn camera
-        });
-        streamRef.current = null;
+        setIsJoined(true);
+      } catch (error) {
+        console.error('Failed to init Zego:', error);
+        alert('Lỗi kết nối Video Call');
+        onLeave();
       }
     };
-  }, [roomId, userId, socket]);
 
-  // Helper: Thêm remote stream
-  const addRemoteStream = (id: string, stream: MediaStream) => {
-    setRemoteStreams((prev) => {
-      if (prev.some((s) => s.id === id)) return prev;
-      return [...prev, { id, stream }];
-    });
-  };
+    initMeeting();
 
-  // Helper: Gọi peer mới
-  const connectToNewUser = (
-    newUserId: string,
-    stream: MediaStream,
-    peer: Peer
-  ) => {
-    const call = peer.call(newUserId, stream);
-    call.on('stream', (remoteStream) => {
-      addRemoteStream(newUserId, remoteStream);
-    });
-    call.on('close', () => {
-      setRemoteStreams((prev) => prev.filter((s) => s.id !== newUserId));
-    });
-    setPeers((prev) => ({ ...prev, [newUserId]: call }));
-  };
-
-  const toggleMic = () => {
-    if (myStream) {
-      const audioTrack = myStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !isMicOn;
-        setIsMicOn(!isMicOn);
+    // 👇 [FIXED] Cleanup quan trọng để tránh lỗi React StrictMode render 2 lần
+    return () => {
+      isMounted = false;
+      if (zpInstanceRef.current) {
+        zpInstanceRef.current.destroy();
+        zpInstanceRef.current = null;
       }
-    }
-  };
-
-  const toggleCamera = () => {
-    if (myStream) {
-      const videoTrack = myStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !isCameraOn;
-        setIsCameraOn(!isCameraOn);
-      }
-    }
-  };
+    };
+  }, [roomId, userId, userName, onLeave]);
 
   return (
     <div className={cx('videoRoomOverlay')}>
-      <div className={cx('videoGrid')}>
-        <div className={cx('videoContainer', 'isSelf')}>
-          <video ref={myVideoRef} autoPlay muted playsInline />
-          <span className={cx('label')}>Bạn {isMicOn ? '' : '(Muted)'}</span>
-        </div>
-
-        {remoteStreams.map((item) => (
-          <VideoPlayer key={item.id} stream={item.stream} peerId={item.id} />
-        ))}
-      </div>
-
-      <div className={cx('controlsBar')}>
-        <button
-          onClick={toggleMic}
-          className={cx('controlBtn', { inactive: !isMicOn })}
-          title={isMicOn ? 'Tắt Mic' : 'Bật Mic'}
-        >
-          {isMicOn ? <Mic /> : <MicOff />}
-        </button>
-
-        <button
-          onClick={toggleCamera}
-          className={cx('controlBtn', { inactive: !isCameraOn })}
-          title={isCameraOn ? 'Tắt Camera' : 'Bật Camera'}
-        >
-          {isCameraOn ? <Video /> : <VideoOff />}
-        </button>
-
-        <button
-          onClick={onLeave}
-          className={cx('controlBtn', 'leaveBtn')}
-          title="Rời cuộc họp"
-        >
-          <PhoneOff fill="white" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const VideoPlayer = ({
-  stream,
-  peerId,
-}: {
-  stream: MediaStream;
-  peerId: string;
-}) => {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream;
-  }, [stream]);
-
-  return (
-    <div className={cx('videoContainer')}>
-      <video ref={ref} autoPlay playsInline />
-      <span className={cx('label')}>User: {peerId.slice(0, 5)}...</span>
+      <div ref={containerRef} className={cx('zegoContainer')} />
     </div>
   );
 };
