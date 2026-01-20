@@ -7,9 +7,7 @@ import fs from 'fs';
 import cors from 'cors';
 import path from 'path';
 import cron from 'node-cron';
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import { ExpressPeerServer } from 'peer';
+// Đã xóa http, socket.io, peer
 
 // Import các file nội bộ
 import connectDB from './config/db';
@@ -24,13 +22,12 @@ import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import aiRoutes from './routes/aiRoutes'; // Import route AI
 
-import { socketHandler } from './socket';
 import Task from './models/Task';
 import { auditLogger } from './middleware/auditMiddleware';
 
 const app = express();
-const httpServer = http.createServer(app);
 
 // 2. KẾT NỐI DB
 connectDB();
@@ -51,9 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // 4. LOGGER
 app.use((req, res, next) => {
-  if (!req.url.includes('socket.io')) {
-    console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  }
+  console.log(`\n👉 [${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
@@ -75,44 +70,9 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai', aiRoutes);
 
-// CẤU HÌNH SOCKET.IO
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-  transports: ['polling', 'websocket'],
-  allowEIO3: true,
-});
-
-// Xử lý socket chung (Chat, Realtime tasks...)
-socketHandler(io);
-
-// 👇 [MỚI] Xử lý socket riêng cho Meeting Video Call
-io.on('connection', (socket) => {
-  // Khi client join vào phòng họp (roomId = groupId)
-  socket.on('join-room', (roomId, userId) => {
-    socket.join(roomId);
-
-    // Thông báo cho những người khác trong phòng là có userId mới vào
-    // 'user-connected' sẽ kích hoạt client gọi PeerJS call()
-    socket.to(roomId).emit('user-connected', userId);
-
-    socket.on('disconnect', () => {
-      socket.to(roomId).emit('user-disconnected', userId);
-    });
-  });
-});
-
-// CẤU HÌNH PEER SERVER
-const peerServer = ExpressPeerServer(httpServer, {
-  path: '/myapp',
-});
-app.use('/peerjs', peerServer);
-
-// [CRON JOB] Dọn dẹp thùng rác
+// [CRON JOB] Dọn dẹp thùng rác (Giữ nguyên logic cũ)
 cron.schedule('0 0 * * *', async () => {
   console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
   const thirtyDaysAgo = new Date();
@@ -158,6 +118,7 @@ app.use(
 
 const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT} (Socket & Peer ready)`)
+// Thay đổi: Dùng app.listen thay vì httpServer.listen
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT} (Clean Express Mode)`)
 );

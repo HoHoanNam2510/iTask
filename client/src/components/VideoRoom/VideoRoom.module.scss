@@ -5,121 +5,14 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #202124; // Màu nền tối Google Meet
+  background-color: #1e293b;
   z-index: 9999;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-// Grid chứa các Video
-.videoGrid {
-  flex: 1;
-  display: grid;
-  // Tự động chia cột, tối thiểu 400px, tối đa full màn hình
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 16px;
-  padding: 24px;
-  align-content: center;
-  justify-items: center;
-  overflow-y: auto;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr; // Mobile 1 cột
-  }
-}
-
-.videoContainer {
-  position: relative;
-  width: 100%;
-  max-width: 800px;
-  aspect-ratio: 16/9;
-  background: #3c4043;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  border: 2px solid transparent;
-  transition: all 0.3s;
-
-  &.isSelf {
-    border-color: #8ab4f8; // Viền xanh cho video chính mình
-  }
-
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1); // Lật gương video cho tự nhiên
-  }
-
-  .label {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    color: white;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 1.2rem;
-    font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  }
-}
-
-// Thanh điều khiển phía dưới
-.controlsBar {
-  height: 80px;
-  display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 24px;
-  background: #202124;
-  padding-bottom: 20px;
+  justify-content: center;
+}
 
-  .controlBtn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 1px solid #5f6368;
-    background: #3c4043;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.2rem;
-
-    svg {
-      width: 24px;
-      height: 24px;
-    }
-
-    &:hover {
-      background: #484c50;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    // Trạng thái tắt (Màu đỏ)
-    &.inactive {
-      background: #ea4335;
-      border-color: #ea4335;
-      &:hover {
-        background: #d93025;
-      }
-    }
-
-    // Nút rời phòng
-    &.leaveBtn {
-      background: #ea4335;
-      border-color: #ea4335;
-      width: 60px;
-      height: 40px;
-      border-radius: 20px; // Hình viên thuốc
-
-      &:hover {
-        background: #d93025;
-      }
-    }
-  }
+.zegoContainer {
+  width: 100%;
+  height: 100%;
 }

@@ -5,15 +5,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 import App from './App.tsx';
 import GlobalStyles from '~/components/GlobalStyles';
-import { SocketProvider } from '~/context/SocketContext'; // 👈 [MỚI] Import SocketProvider
 
 createRoot(document.getElementById('root')!).render(
-  // <StrictMode>
-  <GlobalStyles>
-    {/* 👇 [MỚI] Bọc SocketProvider ở đây để toàn bộ App có thể dùng socket */}
-    <SocketProvider>
+  <StrictMode>
+    <GlobalStyles>
+      {/* 👇 [MỚI] Bọc SocketProvider ở đây để toàn bộ App có thể dùng socket */}
       <App />
-    </SocketProvider>
-  </GlobalStyles>
-  // </StrictMode>
+    </GlobalStyles>
+  </StrictMode>
 );
