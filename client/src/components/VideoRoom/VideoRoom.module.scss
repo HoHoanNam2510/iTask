@@ -5,92 +5,14 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #1e293b; // Màu tối
+  background-color: #1e293b;
   z-index: 9999;
   display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
-
-.videoGrid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  align-content: center;
-  justify-items: center;
-}
-
-.videoContainer {
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-  aspect-ratio: 16/9;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1); // Lật gương video
-  }
-
-  .label {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    color: white;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
-}
-
-.controlsBar {
-  height: 80px;
-  display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 40px;
-  margin-top: 10px;
-  align-self: center;
-  padding: 0 40px;
+  justify-content: center;
+}
 
-  .controlBtn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: none;
-    background: #334155;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      background: #475569;
-    }
-
-    &.active {
-      background: #ef4444; // Màu đỏ khi tắt mic/cam
-    }
-
-    &.leaveBtn {
-      background: #ef4444;
-      width: 60px;
-      height: 60px;
-
-      &:hover {
-        background: #dc2626;
-      }
-    }
-  }
+.zegoContainer {
+  width: 100%;
+  height: 100%;
 }

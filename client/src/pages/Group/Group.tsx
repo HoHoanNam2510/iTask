@@ -95,7 +95,10 @@ const Group: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+
+  // State bật/tắt meeting
   const [isMeetingActive, setIsMeetingActive] = useState(false);
+
   const [refreshKey, setRefreshKey] = useState(0);
 
   const triggerRefresh = () => {
@@ -216,7 +219,6 @@ const Group: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (taskId: string) => {
     if (!window.confirm('Bạn chắc chắn muốn chuyển task này vào thùng rác?'))
       return;
@@ -308,10 +310,13 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
+      {/* 👇 Hiển thị VideoRoom khi Active */}
       {isMeetingActive && user && groupId && (
         <VideoRoom
-          roomId={groupId}
+          roomId={groupId} // Dùng ID nhóm làm Room ID để chung phòng
           userId={user._id}
+          userName={user.username}
+          groupName={data.title}
           onLeave={() => setIsMeetingActive(false)}
         />
       )}
@@ -358,6 +363,7 @@ const Group: React.FC = () => {
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
             onClick={handleJoinMeeting}
+            title="Tham gia cuộc họp"
           >
             <Video size={16} /> Meeting
           </button>
@@ -376,7 +382,7 @@ const Group: React.FC = () => {
 
       <div className={cx('statsGrid')}>
         <StatCard
-          title="Tổng (Ngày)"
+          title="Tổng"
           value={dashboardStats.daily.total}
           icon={<ListTodo />}
           colorClass="purple"
