@@ -174,57 +174,6 @@ export const joinGroupByCode = async (req: Request, res: Response) => {
   }
 };
 
-// ADMIN
-// 👇 [THÊM MỚI] Admin lấy toàn bộ Groups (Kèm thông tin người tạo và số lượng thành viên)
-export const getAllGroupsAdmin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const groups = await Group.find()
-      .populate('owner', 'username email avatar') // Lưu ý: Code trên bạn dùng 'owner', nên ở đây cũng phải là 'owner'
-      .populate('members', 'username email avatar')
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      count: groups.length,
-      groups,
-    });
-  } catch (error) {
-    console.error('Admin Get Groups Error:', error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi lấy danh sách nhóm' });
-  }
-};
-
-// 👇 [THÊM MỚI] Admin xóa Group (Giải tán nhóm)
-export const deleteGroupAdmin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-
-    // (Tùy chọn) Xóa luôn task của nhóm đó để sạch DB
-    // await Task.deleteMany({ group: id });
-
-    const deletedGroup = await Group.findByIdAndDelete(id);
-    if (!deletedGroup) {
-      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
-  } catch (error) {
-    console.error('Admin Delete Group Error:', error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi xóa nhóm' });
-  }
-};
-
 // 👇 [MỚI] API Lấy Bảng xếp hạng thành viên trong Group
 export const getGroupLeaderboard = async (
   req: Request,
@@ -280,5 +229,73 @@ export const getGroupLeaderboard = async (
   } catch (error) {
     console.error('Leaderboard Error:', error);
     res.status(500).json({ success: false, message: 'Lỗi lấy bảng xếp hạng' });
+  }
+};
+
+// ADMIN
+// 👇 [UPDATED] API Admin Get Groups (Pagination + Search + Sort)
+export const getAllGroupsAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = (req.query.search as string) || '';
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const order = (req.query.order as string) || 'desc';
+
+    const skip = (page - 1) * limit;
+
+    // Filter query
+    const query: any = {};
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+
+    // Sort option
+    const sortValue = order === 'asc' ? 1 : -1;
+    const sortOption: any = { [sortBy]: sortValue };
+
+    const groups = await Group.find(query)
+      .populate('owner', 'username email avatar')
+      .populate('members', 'username email avatar')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
+
+    const totalGroups = await Group.countDocuments(query);
+
+    res.json({
+      success: true,
+      count: groups.length,
+      total: totalGroups,
+      currentPage: page,
+      totalPages: Math.ceil(totalGroups / limit),
+      groups,
+    });
+  } catch (error) {
+    console.error('Admin Get Groups Error:', error);
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi lấy danh sách nhóm' });
+  }
+};
+
+// 👇 [UPDATED] Admin xóa Group
+export const deleteGroupAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    // Xóa task của nhóm
+    await Task.deleteMany({ group: id });
+    await Group.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi xóa nhóm' });
   }
 };

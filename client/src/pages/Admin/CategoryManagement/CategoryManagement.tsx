@@ -1,12 +1,20 @@
+/* client/src/pages/Admin/CategoryManagement/CategoryManagement.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
 import axios from 'axios';
-import { Trash2, Search, Tag } from 'lucide-react';
+import {
+  Trash2,
+  Search,
+  Tag,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from 'lucide-react';
 import styles from './CategoryManagement.module.scss';
+import Pagination from '~/components/Pagination/Pagination'; // Import Pagination
 
 const cx = classNames.bind(styles);
 
-// Interface cho User (Creator)
 interface ICreator {
   _id: string;
   username: string;
@@ -14,33 +22,53 @@ interface ICreator {
   email: string;
 }
 
-// Interface cho Category
 interface ICategory {
   _id: string;
   name: string;
   description?: string;
-  color: string; // Mã màu hex (vd: #ff0000)
-  createdBy: ICreator; // ⚠️ Chú ý: Backend trả về 'owner' hay 'creator' thì sửa ở đây cho khớp
+  color: string;
+  createdBy: ICreator;
   createdAt: string;
 }
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // States: Filter, Sort, Pagination
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCategories, setTotalCategories] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  }>({ key: 'createdAt', direction: 'desc' });
 
   // Fetch API
   const fetchCategories = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
         'http://localhost:5000/api/categories/admin/all',
         {
           headers: { Authorization: `Bearer ${token}` },
+          params: {
+            page,
+            limit,
+            search: searchTerm,
+            sortBy: sortConfig.key,
+            order: sortConfig.direction,
+          },
         }
       );
       if (res.data.success) {
         setCategories(res.data.categories);
+        setTotalPages(res.data.totalPages);
+        setTotalCategories(res.data.total);
       }
     } catch (error) {
       console.error('Lỗi tải categories:', error);
@@ -50,10 +78,33 @@ const CategoryManagement = () => {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      fetchCategories();
+    }, 300); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [page, limit, sortConfig, searchTerm]);
 
-  // Handle Delete
+  // Handle Sort
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+    setPage(1);
+  };
+
+  const renderSortIcon = (key: string) => {
+    if (sortConfig.key !== key)
+      return <ArrowUpDown size={14} color="#94a3b8" />;
+    return sortConfig.direction === 'asc' ? (
+      <ArrowUp size={14} color="#3b82f6" />
+    ) : (
+      <ArrowDown size={14} color="#3b82f6" />
+    );
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Bạn có chắc muốn xóa Danh mục này?')) return;
     try {
@@ -61,149 +112,164 @@ const CategoryManagement = () => {
       await axios.delete(`http://localhost:5000/api/categories/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCategories(categories.filter((c) => c._id !== id));
+      fetchCategories();
       alert('Đã xóa thành công!');
     } catch (error) {
       alert('Xóa thất bại');
     }
   };
 
-  // Filter
-  const filteredCategories = categories.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.createdBy?.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading)
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        Loading Categories...
-      </div>
-    );
-
   return (
     <div className={cx('wrapper')}>
       <header className={cx('header')}>
-        <h1 className={cx('title')}>
-          Quản lý Danh mục{' '}
-          <span className={cx('countBadge')}>{categories.length}</span>
-        </h1>
+        <div className={cx('headerLeft')}>
+          <h1 className={cx('title')}>
+            Quản lý Danh mục{' '}
+            <span className={cx('countBadge')}>{totalCategories}</span>
+          </h1>
+        </div>
 
-        {/* Search Bar */}
-        <div style={{ position: 'relative' }}>
-          <Search
-            size={18}
-            style={{
-              position: 'absolute',
-              left: 10,
-              top: 10,
-              color: '#94a3b8',
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Tìm danh mục hoặc người tạo..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              padding: '10px 10px 10px 36px',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-              outline: 'none',
-              minWidth: 300,
-            }}
-          />
+        <div className={cx('toolbar')}>
+          <div style={{ position: 'relative' }}>
+            <Search
+              size={18}
+              style={{
+                position: 'absolute',
+                left: 10,
+                top: 10,
+                color: '#94a3b8',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className={cx('searchInput')}
+            />
+          </div>
         </div>
       </header>
 
       <div className={cx('tableContainer')}>
-        <table className={cx('categoryTable')}>
-          <thead>
-            <tr>
-              <th>Category Name</th>
-              <th>Color</th>
-              <th>Creator (Owner)</th>
-              <th>Created At</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredCategories.map((cat) => (
-              <tr key={cat._id}>
-                <td>
-                  {/* Wrapper để xếp Name và Description theo chiều dọc */}
-                  <div
-                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
-                  >
-                    {/* Dòng 1: Icon + Tên Category */}
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', fontSize: '1.4rem' }}>
+            Loading Categories...
+          </div>
+        ) : (
+          <table className={cx('categoryTable')}>
+            <thead>
+              <tr>
+                <th
+                  className={cx('thSortable')}
+                  onClick={() => handleSort('name')}
+                >
+                  <div className={cx('headerContent')}>
+                    Category Name {renderSortIcon('name')}
+                  </div>
+                </th>
+                <th>Color</th>
+                <th>Creator (Owner)</th>
+                <th
+                  className={cx('thSortable')}
+                  onClick={() => handleSort('createdAt')}
+                >
+                  <div className={cx('headerContent')}>
+                    Created At {renderSortIcon('createdAt')}
+                  </div>
+                </th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((cat) => (
+                <tr key={cat._id}>
+                  <td>
                     <div
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        fontWeight: 600,
+                        flexDirection: 'column',
+                        gap: 4,
                       }}
                     >
-                      <Tag size={16} color={cat.color} />
-                      <span style={{ fontSize: '1.5rem' }}>{cat.name}</span>
-                    </div>
-
-                    {/* 👇 [MỚI] Dòng 2: Description (Chỉ hiện nếu có dữ liệu) */}
-                    {cat.description && (
-                      <div className={cx('descriptionBadge')}>
-                        {cat.description}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <div className={cx('colorSwatch')}>
-                    <div
-                      className={cx('circle')}
-                      style={{ backgroundColor: cat.color }}
-                    ></div>
-                    <span className={cx('hexCode')}>{cat.color}</span>
-                  </div>
-                </td>
-                <td>
-                  <div className={cx('creatorInfo')}>
-                    {cat.createdBy?.avatar ? (
-                      <img
-                        src={`http://localhost:5000/${cat.createdBy.avatar.replace(
-                          /\\/g,
-                          '/'
-                        )}`}
-                        alt="avt"
-                      />
-                    ) : (
                       <div
                         style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          background: '#eee',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          fontWeight: 600,
                         }}
-                      />
-                    )}
-                    <span>{cat.createdBy?.username || 'Unknown'}</span>
-                  </div>
-                </td>
-                <td>{new Date(cat.createdAt).toLocaleDateString('vi-VN')}</td>
-                <td>
-                  <button
-                    className={cx('deleteBtn')}
-                    onClick={() => handleDelete(cat._id)}
-                    title="Xóa danh mục"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      >
+                        <Tag size={16} color={cat.color} />
+                        <span style={{ fontSize: '1.5rem' }}>{cat.name}</span>
+                      </div>
+                      {cat.description && (
+                        <div className={cx('descriptionBadge')}>
+                          {cat.description}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className={cx('colorSwatch')}>
+                      <div
+                        className={cx('circle')}
+                        style={{ backgroundColor: cat.color }}
+                      ></div>
+                      <span className={cx('hexCode')}>{cat.color}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className={cx('creatorInfo')}>
+                      {cat.createdBy?.avatar ? (
+                        <img
+                          src={`http://localhost:5000/${cat.createdBy.avatar.replace(/\\/g, '/')}`}
+                          alt="avt"
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#eee',
+                          }}
+                        />
+                      )}
+                      <span>{cat.createdBy?.username || 'Unknown'}</span>
+                    </div>
+                  </td>
+                  <td>{new Date(cat.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td>
+                    <button
+                      className={cx('deleteBtn')}
+                      onClick={() => handleDelete(cat._id)}
+                      title="Xóa danh mục"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalCategories}
+        limit={limit}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
+      />
     </div>
   );
 };

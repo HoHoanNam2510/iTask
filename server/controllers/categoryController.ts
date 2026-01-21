@@ -136,19 +136,44 @@ export const deleteCategory = async (req: Request, res: Response) => {
 };
 
 // ADMIN
-// 👇 [THÊM MỚI] Admin lấy toàn bộ Categories
+// 👇 [UPDATED] API Admin Get Categories (Pagination + Search + Sort)
 export const getAllCategoriesAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const categories = await Category.find()
-      .populate('createdBy', 'username email avatar') // ⚠️ LƯU Ý: Kiểm tra Model Category của bạn dùng 'owner' hay 'creator' nhé!
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = (req.query.search as string) || '';
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const order = (req.query.order as string) || 'desc';
+
+    const skip = (page - 1) * limit;
+
+    // Filter query
+    const query: any = {};
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+
+    // Sort option
+    const sortValue = order === 'asc' ? 1 : -1;
+    const sortOption: any = { [sortBy]: sortValue };
+
+    const categories = await Category.find(query)
+      .populate('createdBy', 'username email avatar')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
+
+    const totalCategories = await Category.countDocuments(query);
 
     res.json({
       success: true,
       count: categories.length,
+      total: totalCategories,
+      currentPage: page,
+      totalPages: Math.ceil(totalCategories / limit),
       categories,
     });
   } catch (error) {
@@ -160,22 +185,18 @@ export const getAllCategoriesAdmin = async (
   }
 };
 
-// 👇 [THÊM MỚI] Admin xóa Category
+// 👇 [UPDATED] Admin xóa Category (Giữ nguyên logic nhưng format lại)
 export const deleteCategoryAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-
-    // (Tùy chọn) Xóa các task thuộc category này hoặc set category = null
-    // await Task.updateMany({ category: id }, { $unset: { category: "" } });
-
+    // Xóa task liên quan để sạch DB
+    await Task.deleteMany({ category: id });
     await Category.findByIdAndDelete(id);
     res.json({ success: true, message: 'Đã xóa danh mục thành công' });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi xóa danh mục' });
+    res.status(500).json({ success: false, message: 'Lỗi xóa danh mục' });
   }
 };
