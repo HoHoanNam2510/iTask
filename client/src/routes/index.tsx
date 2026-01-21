@@ -54,10 +54,10 @@ const privateRoutes: RouteType[] = [
   },
   { path: '/settings', component: Setting, layout: DefaultLayout },
   { path: '/groups/:groupId', component: Group, layout: DefaultLayout },
-  { path: '/trash', component: Trash },
+  { path: '/trash', component: Trash }, // Route Trash của User
 ];
 
-// 3. ADMIN ROUTES (Dảnh riêng cho Admin)
+// 3. ADMIN ROUTES (Dành riêng cho Admin)
 const adminRoutes: RouteType[] = [
   {
     path: '/admin',
@@ -88,6 +88,11 @@ const adminRoutes: RouteType[] = [
   {
     path: '/admin/categories',
     component: CategoryManagement,
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/trash',
+    component: Trash,
     layout: AdminLayout,
   },
 ];
