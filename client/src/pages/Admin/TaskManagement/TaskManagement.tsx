@@ -114,6 +114,7 @@ const TaskManagement = () => {
       fetchTasks();
       alert('Đã xóa task thành công!');
     } catch (error) {
+      console.error(error); // Log lỗi ra console trình duyệt
       alert('Xóa thất bại');
     }
   };

@@ -1,12 +1,18 @@
-/* src/pages/Trash/Trash.tsx */
+/* client/src/pages/Trash/Trash.tsx */
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import classNames from 'classnames/bind';
-import { Trash2, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import styles from './Trash.module.scss'; // Bạn nhớ tạo file SCSS tương ứng nhé
+import { Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
+import styles from './Trash.module.scss';
 import { format } from 'date-fns';
 
 const cx = classNames.bind(styles);
+
+const getAvatarUrl = (avatarPath?: string) => {
+  if (!avatarPath) return '';
+  if (avatarPath.startsWith('http')) return avatarPath;
+  return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
+};
 
 interface TrashTask {
   _id: string;
@@ -16,6 +22,12 @@ interface TrashTask {
   status: string;
   group?: { _id: string; name: string };
   deletedAt: string;
+  // 👇 [MỚI] Thêm thông tin người tạo (cho Admin view)
+  creator?: {
+    _id: string;
+    username: string;
+    avatar?: string;
+  };
 }
 
 const Trash = () => {
@@ -44,7 +56,6 @@ const Trash = () => {
     fetchTrash();
   }, []);
 
-  // Xử lý Khôi phục
   const handleRestore = async (id: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -53,7 +64,6 @@ const Trash = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Loại bỏ task khỏi list sau khi restore thành công
       setTasks((prev) => prev.filter((t) => t._id !== id));
       alert('Đã khôi phục công việc thành công!');
     } catch (error) {
@@ -61,7 +71,6 @@ const Trash = () => {
     }
   };
 
-  // Xử lý Xóa vĩnh viễn
   const handleForceDelete = async (id: string) => {
     if (
       !window.confirm(
@@ -102,16 +111,40 @@ const Trash = () => {
               <div className={cx('info')}>
                 <h3 className={cx('title')}>{task.title}</h3>
                 <div className={cx('meta')}>
+                  {/* Badge Priority */}
                   <span className={cx('badge', task.priority)}>
                     {task.priority}
                   </span>
+
+                  {/* Badge Group */}
                   {task.group && (
                     <span className={cx('groupName')}>
                       📂 {task.group.name}
                     </span>
                   )}
+
+                  {/* 👇 [MỚI] Hiển thị Owner (dành cho Admin) */}
+                  {task.creator && (
+                    <div className={cx('creator')}>
+                      <span style={{ color: '#6b7280', fontSize: '1.2rem' }}>
+                        by
+                      </span>
+                      <img
+                        src={getAvatarUrl(task.creator.avatar)}
+                        alt=""
+                        onError={(e) =>
+                          (e.currentTarget.style.display = 'none')
+                        }
+                        className={cx('avatar')}
+                      />
+                      <span className={cx('creatorName')}>
+                        {task.creator.username}
+                      </span>
+                    </div>
+                  )}
+
                   <span className={cx('deletedDate')}>
-                    Đã xóa: {format(new Date(task.deletedAt), 'dd/MM/yyyy')}
+                    | Xóa: {format(new Date(task.deletedAt), 'dd/MM HH:mm')}
                   </span>
                 </div>
               </div>

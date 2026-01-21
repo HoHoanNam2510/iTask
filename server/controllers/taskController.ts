@@ -22,7 +22,6 @@ const safeDeleteFile = (dbPath: string | undefined) => {
   }
 };
 
-// ... (Giữ nguyên các hàm User: getTask, getTasks, createTask, updateTask, deleteTask, trash...)
 export const getTask = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -58,6 +57,7 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
@@ -81,6 +81,7 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, message: 'Error fetching tasks' });
   }
 };
+
 export const createTask = async (
   req: Request,
   res: Response
@@ -213,15 +214,26 @@ export const deleteTask = async (
   try {
     const { id } = req.params;
     const user = (req as any).user;
-    const task = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
+
+    // Tìm task (kể cả đã xóa) để check
+    const task = await Task.findOne({ _id: id });
+
     if (!task) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
+
+    if (task.isDeleted) {
+      res.json({ success: true, message: 'Task đã ở trong thùng rác' });
+      return;
+    }
+
+    // Check quyền: Admin OR Creator OR Assignee
     const isAdmin = user.role === 'admin';
     const isCreator = task.creator.toString() === user._id.toString();
     const isAssignee =
       task.assignee && task.assignee.toString() === user._id.toString();
+
     if (!isAdmin && !isCreator && !isAssignee) {
       res.status(403).json({
         success: false,
@@ -229,53 +241,72 @@ export const deleteTask = async (
       });
       return;
     }
+
     task.isDeleted = true;
     task.deletedAt = new Date();
     await task.save();
+
     res.json({ success: true, message: 'Đã chuyển vào thùng rác' });
   } catch (error) {
+    console.error('🔥 DELETE TASK ERROR:', error);
     res.status(500).json({ success: false, message: 'Delete failed' });
   }
 };
 
+// 👇 [GET TRASH] Admin thấy tất cả
 export const getTrashTasks = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const userId = (req as any).user._id;
-    const tasks = await Task.find({
-      isDeleted: true,
-      $or: [{ creator: userId }, { assignee: userId }],
-    })
+    const user = (req as any).user;
+
+    // Điều kiện cơ bản
+    const query: any = { isDeleted: true };
+
+    // Nếu KHÔNG phải Admin, chỉ lấy task của chính họ
+    if (user.role !== 'admin') {
+      query.$or = [{ creator: user._id }, { assignee: user._id }];
+    }
+
+    const tasks = await Task.find(query)
       .sort({ deletedAt: -1 })
       .populate('group', 'name')
-      .populate('assignee', 'username avatar');
+      .populate('assignee', 'username avatar')
+      // 👇 Populate Creator để hiển thị trên UI Admin
+      .populate('creator', 'username avatar');
+
     res.json({ success: true, tasks });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching trash' });
   }
 };
 
+// 👇 [RESTORE] Admin có quyền khôi phục tất cả
 export const restoreTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user._id;
+    const user = (req as any).user;
     const task = await Task.findOne({ _id: id, isDeleted: true });
+
     if (!task) {
       res.status(404).json({ success: false, message: 'Not found in trash' });
       return;
     }
-    const isCreator = task.creator.toString() === userId.toString();
+
+    const isAdmin = user.role === 'admin';
+    const isCreator = task.creator.toString() === user._id.toString();
     const isAssignee =
-      task.assignee && task.assignee.toString() === userId.toString();
-    if (!isCreator && !isAssignee) {
+      task.assignee && task.assignee.toString() === user._id.toString();
+
+    if (!isAdmin && !isCreator && !isAssignee) {
       res.status(403).json({ success: false, message: 'Permission denied' });
       return;
     }
+
     task.isDeleted = false;
     task.deletedAt = null;
     await task.save();
@@ -285,25 +316,31 @@ export const restoreTask = async (
   }
 };
 
+// 👇 [FORCE DELETE] Admin có quyền xóa vĩnh viễn tất cả
 export const forceDeleteTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user._id;
+    const user = (req as any).user;
     const task = await Task.findById(id);
+
     if (!task) {
       res.status(404).json({ success: false, message: 'Not found' });
       return;
     }
-    const isCreator = task.creator.toString() === userId.toString();
+
+    const isAdmin = user.role === 'admin';
+    const isCreator = task.creator.toString() === user._id.toString();
     const isAssignee =
-      task.assignee && task.assignee.toString() === userId.toString();
-    if (!isCreator && !isAssignee) {
+      task.assignee && task.assignee.toString() === user._id.toString();
+
+    if (!isAdmin && !isCreator && !isAssignee) {
       res.status(403).json({ success: false, message: 'Permission denied' });
       return;
     }
+
     if (task.image) safeDeleteFile(task.image);
     if (task.attachments && task.attachments.length > 0) {
       task.attachments.forEach((att) => {
@@ -409,7 +446,6 @@ export const stopTimer = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// 👇 [FIXED] API ADMIN: Hỗ trợ Sort theo field cụ thể (Header click)
 export const getAllTasksAdmin = async (
   req: Request,
   res: Response
@@ -418,23 +454,15 @@ export const getAllTasksAdmin = async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = (req.query.search as string) || '';
-
-    // Lấy field cần sort và thứ tự (asc/desc)
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const order = (req.query.order as string) || 'desc';
-
     const skip = (page - 1) * limit;
-
-    const query: any = {};
+    const query: any = { isDeleted: { $ne: true } };
     if (search) {
       query.title = { $regex: search, $options: 'i' };
     }
-
-    // Build sort option
-    // Mặc định sort giảm dần (-1) nếu order = 'desc'
     const sortValue = order === 'asc' ? 1 : -1;
     const sortOption: any = { [sortBy]: sortValue };
-
     const tasks = await Task.find(query)
       .populate('creator', 'username email avatar')
       .populate('category', 'name color')
@@ -442,9 +470,7 @@ export const getAllTasksAdmin = async (
       .sort(sortOption)
       .skip(skip)
       .limit(limit);
-
     const totalTasks = await Task.countDocuments(query);
-
     res.json({
       success: true,
       count: tasks.length,
@@ -454,6 +480,7 @@ export const getAllTasksAdmin = async (
       tasks,
     });
   } catch (error) {
+    console.error('🔥 GET ALL TASKS ADMIN ERROR:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

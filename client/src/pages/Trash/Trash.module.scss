@@ -1,4 +1,4 @@
-/* src/pages/Trash/Trash.module.scss */
+/* client/src/pages/Trash/Trash.module.scss */
 .wrapper {
   height: 100%;
   padding: 24px;
@@ -44,6 +44,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 40px;
 }
 
 .taskRow {
@@ -80,6 +81,7 @@
       gap: 12px;
       font-size: 1.3rem;
       color: var(--text-light);
+      flex-wrap: wrap; // Cho phép xuống dòng nếu màn hình nhỏ
 
       .badge {
         text-transform: capitalize;
@@ -112,6 +114,30 @@
         font-size: 1.2rem;
         font-weight: 500;
         color: #4b5563;
+      }
+
+      // 👇 [MỚI] Style cho phần người tạo
+      .creator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background-color: #fff7ed; // Màu cam nhạt
+        padding: 2px 8px;
+        border-radius: 20px;
+        border: 1px solid #ffedd5;
+
+        .avatar {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .creatorName {
+          font-weight: 600;
+          color: #c2410c;
+          font-size: 1.2rem;
+        }
       }
 
       .deletedDate {
@@ -171,7 +197,7 @@
   }
 }
 
-// Responsive cho màn hình nhỏ
+// Responsive
 @media (max-width: 768px) {
   .taskRow {
     flex-direction: column;
