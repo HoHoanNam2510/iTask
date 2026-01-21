@@ -1,5 +1,5 @@
 /* client/src/pages/Trash/Trash.tsx */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import classNames from 'classnames/bind';
 import { Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
