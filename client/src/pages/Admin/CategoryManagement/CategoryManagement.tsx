@@ -9,9 +9,11 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Edit2,
 } from 'lucide-react';
 import styles from './CategoryManagement.module.scss';
-import Pagination from '~/components/Pagination/Pagination'; // Import Pagination
+import Pagination from '~/components/Pagination/Pagination';
+import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
 
 const cx = classNames.bind(styles);
 
@@ -21,7 +23,6 @@ interface ICreator {
   avatar?: string;
   email: string;
 }
-
 interface ICategory {
   _id: string;
   name: string;
@@ -35,19 +36,21 @@ const CategoryManagement = () => {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState<ICategory | null>(null);
+
   // States: Filter, Sort, Pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalCategories, setTotalCategories] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
   }>({ key: 'createdAt', direction: 'desc' });
 
-  // Fetch API
   const fetchCategories = async () => {
     setLoading(true);
     try {
@@ -80,11 +83,10 @@ const CategoryManagement = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchCategories();
-    }, 300); // Debounce
+    }, 300);
     return () => clearTimeout(timeoutId);
   }, [page, limit, sortConfig, searchTerm]);
 
-  // Handle Sort
   const handleSort = (key: string) => {
     setSortConfig((prev) => {
       if (prev.key === key) {
@@ -119,6 +121,29 @@ const CategoryManagement = () => {
     }
   };
 
+  const handleEdit = (category: ICategory) => {
+    setCategoryToEdit(category);
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async (data: any) => {
+    if (!categoryToEdit) return;
+    const token = localStorage.getItem('token');
+    try {
+      await axios.put(
+        `http://localhost:5000/api/categories/${categoryToEdit._id}`,
+        data,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      fetchCategories();
+      alert('Cập nhật thành công!');
+    } catch (error) {
+      alert('Lỗi cập nhật');
+    }
+  };
+
   return (
     <div className={cx('wrapper')}>
       <header className={cx('header')}>
@@ -128,7 +153,6 @@ const CategoryManagement = () => {
             <span className={cx('countBadge')}>{totalCategories}</span>
           </h1>
         </div>
-
         <div className={cx('toolbar')}>
           <div style={{ position: 'relative' }}>
             <Search
@@ -226,7 +250,10 @@ const CategoryManagement = () => {
                     <div className={cx('creatorInfo')}>
                       {cat.createdBy?.avatar ? (
                         <img
-                          src={`http://localhost:5000/${cat.createdBy.avatar.replace(/\\/g, '/')}`}
+                          src={`http://localhost:5000/${cat.createdBy.avatar.replace(
+                            /\\/g,
+                            '/'
+                          )}`}
                           alt="avt"
                         />
                       ) : (
@@ -244,13 +271,28 @@ const CategoryManagement = () => {
                   </td>
                   <td>{new Date(cat.createdAt).toLocaleDateString('vi-VN')}</td>
                   <td>
-                    <button
-                      className={cx('deleteBtn')}
-                      onClick={() => handleDelete(cat._id)}
-                      title="Xóa danh mục"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className={cx('actionBtn')} // [FIX] Sử dụng class có sẵn trong CategoryManagement.module.scss nếu bạn đã thêm, hoặc dùng deleteBtn tạm
+                        onClick={() => handleEdit(cat)}
+                        title="Sửa danh mục"
+                        style={{
+                          // Style inline tạm để giống nút Edit bên Task nếu chưa có class
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Edit2 size={18} color="#3b82f6" />
+                      </button>
+                      <button
+                        className={cx('deleteBtn')}
+                        onClick={() => handleDelete(cat._id)}
+                        title="Xóa danh mục"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -269,6 +311,24 @@ const CategoryManagement = () => {
           setLimit(l);
           setPage(1);
         }}
+      />
+
+      {/* Modal cho Admin Edit */}
+      <CategoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        // 👇 [FIX] Transform data để khớp với interface CategoryData của Modal
+        initialData={
+          categoryToEdit
+            ? {
+                name: categoryToEdit.name,
+                description: categoryToEdit.description || '', // Fix: Fallback chuỗi rỗng
+                color: categoryToEdit.color,
+              }
+            : null
+        }
+        title="Admin: Chỉnh sửa Danh mục"
       />
     </div>
   );

@@ -1,21 +1,20 @@
-/* src/components/Modals/GroupModal.module.scss */
+/* client/src/components/Modals/GroupModal/GroupModal.module.scss */
 
-// Lớp phủ mờ toàn màn hình
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5); // Màu đen mờ
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000; // Đảm bảo nổi lên trên cùng
+  z-index: 1000;
+  backdrop-filter: blur(2px);
   animation: fadeIn 0.2s ease-out;
 }
 
-// Hộp thoại chính
 .modal {
   background: white;
   width: 90%;
@@ -28,7 +27,6 @@
   flex-direction: column;
 }
 
-// Header chứa nút đóng
 .header {
   display: flex;
   justify-content: flex-end;
@@ -45,12 +43,12 @@
     justify-content: center;
 
     &:hover {
-      color: #ef4444; // Màu đỏ khi hover nút đóng
+      color: #ef4444;
     }
   }
 }
 
-// Tabs chuyển đổi (Join / Create)
+// Tabs cho Create/Join (User Mode)
 .tabs {
   display: flex;
   border-bottom: 1px solid #e2e8f0;
@@ -79,7 +77,6 @@
   }
 }
 
-// Phần nội dung Form
 .content {
   padding: 2.4rem;
 
@@ -97,7 +94,6 @@
   }
 }
 
-// Input Styles
 .inputGroup {
   margin-bottom: 2rem;
 }
@@ -121,11 +117,10 @@
 
   &:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 72, 187, 120), 0.1); // Fallback màu xanh nếu chưa có biến RGB
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
   }
 }
 
-// Action Buttons
 .actions {
   display: flex;
   gap: 1.2rem;
@@ -139,6 +134,9 @@
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:active {
       transform: translateY(1px);
@@ -166,7 +164,6 @@
   }
 }
 
-// Keyframes Animations
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import styles from './Sidebar.module.scss';
 import { useAuth } from '~/context/AuthContext';
-import GroupModal from '~/components/GroupModal/GroupModal';
+import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 
 const cx = classNames.bind(styles);
 

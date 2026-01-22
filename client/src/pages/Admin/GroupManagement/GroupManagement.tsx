@@ -9,9 +9,11 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Edit2,
 } from 'lucide-react';
 import styles from './GroupManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
+import GroupModal from '~/components/Modals/GroupModal/GroupModal'; // Import Modal
 
 const cx = classNames.bind(styles);
 
@@ -33,6 +35,10 @@ interface IGroup {
 const GroupManagement = () => {
   const [groups, setGroups] = useState<IGroup[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [groupToEdit, setGroupToEdit] = useState<IGroup | null>(null);
 
   // States: Filter, Sort, Pagination
   const [searchTerm, setSearchTerm] = useState('');
@@ -120,6 +126,31 @@ const GroupManagement = () => {
       alert('Đã giải tán nhóm thành công!');
     } catch (error) {
       alert('Xóa thất bại');
+    }
+  };
+
+  // 👇 Handle Open Edit Modal
+  const handleEdit = (group: IGroup) => {
+    setGroupToEdit(group);
+    setIsModalOpen(true);
+  };
+
+  // 👇 Handle Submit Update Group
+  const handleModalSubmit = async (data: any) => {
+    if (!groupToEdit) return;
+    const token = localStorage.getItem('token');
+    try {
+      await axios.put(
+        `http://localhost:5000/api/groups/admin/${groupToEdit._id}`,
+        data,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      fetchGroups();
+      alert('Cập nhật nhóm thành công!');
+    } catch (error) {
+      alert('Cập nhật thất bại');
     }
   };
 
@@ -269,13 +300,24 @@ const GroupManagement = () => {
                     {new Date(group.createdAt).toLocaleDateString('vi-VN')}
                   </td>
                   <td>
-                    <button
-                      className={cx('deleteBtn')}
-                      onClick={() => handleDelete(group._id)}
-                      title="Giải tán nhóm"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {/* 👇 Button Edit Group */}
+                      <button
+                        className={cx('deleteBtn')}
+                        style={{ color: '#3b82f6', borderColor: 'transparent' }}
+                        onClick={() => handleEdit(group)}
+                        title="Sửa nhóm"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        className={cx('deleteBtn')}
+                        onClick={() => handleDelete(group._id)}
+                        title="Giải tán nhóm"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -294,6 +336,22 @@ const GroupManagement = () => {
           setLimit(l);
           setPage(1);
         }}
+      />
+
+      {/* 👇 Modal Edit cho Admin */}
+      <GroupModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        initialData={
+          groupToEdit
+            ? {
+                name: groupToEdit.name,
+                description: groupToEdit.description || '',
+              }
+            : null
+        }
+        title="Admin: Chỉnh sửa Nhóm"
       />
     </div>
   );

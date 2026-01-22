@@ -4,22 +4,20 @@ import {
   getAllUsers,
   deleteUser,
   changePassword,
+  updateUserAdmin,
 } from '../controllers/userController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
-import upload from '../middleware/upload'; // Dùng chung middleware upload với Task
+import upload from '../middleware/upload';
 
 const router = express.Router();
 
-// Routes cho User và Admin
-// PUT /api/users/profile: Check Token -> Xử lý file upload -> Vào Controller
+// Routes cho User
 router.put('/profile', verifyToken, upload.single('avatar'), updateUserProfile);
+router.put('/change-password', verifyToken, changePassword);
 
 // Routes cho Admin
-// GET /api/users -> Lấy danh sách
 router.get('/', verifyToken, verifyAdmin, getAllUsers);
-// DELETE /api/users/:id -> Xóa user
 router.delete('/:id', verifyToken, verifyAdmin, deleteUser);
+router.put('/:id/admin', verifyToken, verifyAdmin, updateUserAdmin);
 
-// Change password
-router.put('/change-password', verifyToken, changePassword);
 export default router;

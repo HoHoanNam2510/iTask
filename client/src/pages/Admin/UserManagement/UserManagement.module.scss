@@ -1,3 +1,4 @@
+/* client/src/pages/Admin/UserManagement/UserManagement.module.scss */
 .wrapper {
   padding: 32px;
   max-width: 1400px;
@@ -10,6 +11,11 @@
   justify-content: space-between;
   align-items: center;
 
+  .headerLeft {
+    display: flex;
+    align-items: center;
+  }
+
   .title {
     font-size: 2.4rem;
     font-weight: 700;
@@ -19,15 +25,35 @@
   }
 
   .countBadge {
-    // [CẬP NHẬT] Badge số lượng user: Nền đậm, chữ trắng
     background-color: var(--primary);
     color: var(--white);
     padding: 4px 10px;
-    border-radius: 99px; // Bo tròn hoàn toàn
+    border-radius: 99px;
     font-size: 1.4rem;
     font-weight: 700;
     margin-left: 12px;
     box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.3);
+  }
+}
+
+.toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.searchInput {
+  padding: 10px 10px 10px 36px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  outline: none;
+  min-width: 250px;
+  font-size: 1.4rem;
+  transition: all 0.2s;
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
   }
 }
 
@@ -47,17 +73,27 @@
   text-align: left;
 
   thead {
-    // [CẬP NHẬT] Header bảng: Nền đậm (Solid), chữ trắng
     background-color: var(--primary);
 
     th {
       padding: 16px 24px;
-      font-weight: 700; // Đậm hơn chút cho dễ đọc trên nền màu
-      color: var(--white); // Chữ trắng
+      font-weight: 700;
+      color: var(--white);
       white-space: nowrap;
-      text-transform: uppercase; // (Tuỳ chọn) Chữ hoa nhìn chuyên nghiệp hơn
+      text-transform: uppercase;
       font-size: 1.3rem;
       letter-spacing: 0.5px;
+      user-select: none;
+      display: table-cell;
+      vertical-align: middle;
+
+      &.thSortable {
+        cursor: pointer;
+        transition: background 0.2s;
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+      }
     }
   }
 
@@ -83,12 +119,19 @@
   }
 }
 
+// 👇 [MỚI] Class bọc nội dung header để căn giữa icon
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 // Styles cho từng cột đặc biệt
 .userInfo {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-weight: 600; // Tên user đậm lên chút
+  font-weight: 600;
   color: var(--text-main);
 
   .avatar {
@@ -125,7 +168,6 @@
   letter-spacing: 0.5px;
 
   &.admin {
-    // [CẬP NHẬT] Badge Admin: Nền đậm, chữ trắng (cho giống Header)
     background-color: var(--primary);
     color: var(--white);
     box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.3);
@@ -139,7 +181,7 @@
 }
 
 .passwordCell {
-  font-family: 'Courier New', monospace; // Font code cho password
+  font-family: 'Courier New', monospace;
   color: var(--text-light);
   font-size: 1.3rem;
   max-width: 140px;
@@ -155,7 +197,7 @@
 .deleteBtn {
   padding: 8px;
   border-radius: 6px;
-  color: var(--text-light); // Mặc định màu xám cho đỡ chói
+  color: var(--text-light);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
