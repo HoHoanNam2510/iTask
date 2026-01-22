@@ -1,36 +1,31 @@
-import React, { useState, useEffect } from 'react';
+/* client/src/pages/TaskCategories/TaskCategories.tsx */
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import classNames from 'classnames/bind';
-import { Plus, Edit2, Trash2, X, FolderKanban, LayoutGrid } from 'lucide-react';
+import { Plus, Edit2, Trash2, FolderKanban, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import styles from './TaskCategories.module.scss';
+import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
 
 const cx = classNames.bind(styles);
 
-// Interface khớp với Backend
 interface Category {
   _id: string;
   name: string;
   description: string;
   color: string;
-  taskCount?: number; // Backend đã trả về cái này rồi!
+  taskCount?: number;
 }
 
 const TaskCategories = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // State cho Form
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    color: '#40a578',
-  });
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  // --- 1. Fetch Data từ API ---
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
@@ -50,56 +45,37 @@ const TaskCategories = () => {
     fetchCategories();
   }, []);
 
-  // --- Handlers ---
-
   const handleOpenAdd = () => {
-    setEditingId(null);
-    setFormData({ name: '', description: '', color: '#40a578' });
+    setEditingCategory(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (category: Category) => {
-    setEditingId(category._id);
-    setFormData({
-      name: category.name,
-      description: category.description,
-      color: category.color,
-    });
+    setEditingCategory(category);
     setIsModalOpen(true);
   };
 
-  // --- 2. Xử lý Lưu (Create / Update) ---
-  const handleSave = async () => {
-    if (!formData.name.trim()) return;
+  // 👇 [REFACTORED] Handle Submit từ Modal
+  const handleModalSubmit = async (data: any) => {
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
 
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      if (editingId) {
-        // --- UPDATE ---
-        await axios.put(
-          `http://localhost:5000/api/categories/${editingId}`,
-          formData,
-          { headers }
-        );
-      } else {
-        // --- CREATE ---
-        await axios.post('http://localhost:5000/api/categories', formData, {
-          headers,
-        });
-      }
-
-      // Reload lại danh sách sau khi lưu thành công
-      fetchCategories();
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Lỗi lưu danh mục:', error);
-      alert('Có lỗi xảy ra, vui lòng thử lại.');
+    if (editingCategory) {
+      // Update
+      await axios.put(
+        `http://localhost:5000/api/categories/${editingCategory._id}`,
+        data,
+        { headers }
+      );
+    } else {
+      // Create
+      await axios.post('http://localhost:5000/api/categories', data, {
+        headers,
+      });
     }
+    fetchCategories(); // Refresh list
   };
 
-  // --- 3. Xử lý Xóa ---
   const handleDelete = async (id: string) => {
     if (window.confirm('Bạn có chắc muốn xóa danh mục này?')) {
       try {
@@ -107,23 +83,15 @@ const TaskCategories = () => {
         await axios.delete(`http://localhost:5000/api/categories/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Cập nhật UI ngay lập tức
         setCategories((prev) => prev.filter((cat) => cat._id !== id));
       } catch (error) {
-        console.error('Lỗi xóa danh mục:', error);
         alert('Không thể xóa danh mục này.');
       }
     }
   };
 
-  // Hàm xử lý khi click vào card
-  const handleCardClick = (id: string) => {
-    navigate(`/task-categories/${id}`);
-  };
-
   return (
     <div className={cx('wrapper')}>
-      {/* Header */}
       <header className={cx('header')}>
         <div>
           <h1 className={cx('title')}>Task Categories</h1>
@@ -135,7 +103,6 @@ const TaskCategories = () => {
         </button>
       </header>
 
-      {/* Grid Categories */}
       {isLoading ? (
         <p style={{ padding: 20 }}>Đang tải...</p>
       ) : (
@@ -144,7 +111,7 @@ const TaskCategories = () => {
             <div
               key={cat._id}
               className={cx('card')}
-              onClick={() => handleCardClick(cat._id)}
+              onClick={() => navigate(`/task-categories/${cat._id}`)}
               style={{ cursor: 'pointer' }}
             >
               <div className={cx('cardHeader')}>
@@ -158,22 +125,19 @@ const TaskCategories = () => {
                   <FolderKanban size={24} />
                 </div>
                 <div className={cx('actions')}>
-                  {/* --- SỬA NÚT EDIT --- */}
                   <button
                     className={cx('actionBtn')}
                     onClick={(e) => {
-                      e.stopPropagation(); // <--- CHẶN SỰ KIỆN LAN TRUYỀN
+                      e.stopPropagation();
                       handleOpenEdit(cat);
                     }}
                   >
                     <Edit2 size={16} />
                   </button>
-
-                  {/* --- SỬA NÚT DELETE --- */}
                   <button
                     className={cx('actionBtn', 'delete')}
                     onClick={(e) => {
-                      e.stopPropagation(); // <--- CHẶN SỰ KIỆN LAN TRUYỀN
+                      e.stopPropagation();
                       handleDelete(cat._id);
                     }}
                   >
@@ -190,7 +154,6 @@ const TaskCategories = () => {
               <div className={cx('catFooter')}>
                 <div className={cx('taskBadge')}>
                   <LayoutGrid size={14} />
-                  {/* Bây giờ biến này đã có giá trị từ Backend */}
                   <span>{cat.taskCount || 0} tasks</span>
                 </div>
               </div>
@@ -199,80 +162,13 @@ const TaskCategories = () => {
         </div>
       )}
 
-      {/* MODAL (Giữ nguyên logic render modal cũ, chỉ thay đổi onClick save) */}
-      {isModalOpen && (
-        <div className={cx('modalOverlay')}>
-          <div className={cx('modalContent')}>
-            {/* ... (Phần UI Modal giữ nguyên như cũ) ... */}
-            <div className={cx('modalHeader')}>
-              <h3>{editingId ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</h3>
-              <button onClick={() => setIsModalOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className={cx('modalBody')}>
-              <div className={cx('formGroup')}>
-                <label>Tên danh mục</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  spellCheck={false}
-                />
-              </div>
-              <div className={cx('formGroup')}>
-                <label>Mô tả ngắn</label>
-                <input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  spellCheck={false}
-                />
-              </div>
-              {/* Color Picker giữ nguyên */}
-              <div className={cx('formGroup')}>
-                <label>Màu đại diện</label>
-                <div className={cx('colorPicker')}>
-                  {[
-                    '#40a578',
-                    '#3b82f6',
-                    '#f59e0b',
-                    '#ef4444',
-                    '#8b5cf6',
-                    '#ec4899',
-                  ].map((color) => (
-                    <div
-                      key={color}
-                      className={cx('colorCircle', {
-                        active: formData.color === color,
-                      })}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setFormData({ ...formData, color })}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={cx('modalFooter')}>
-              <button
-                className={cx('btnCancel')}
-                onClick={() => setIsModalOpen(false)}
-              >
-                Hủy
-              </button>
-              <button className={cx('btnSave')} onClick={handleSave}>
-                {editingId ? 'Cập nhật' : 'Tạo mới'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 👇 Sử dụng Modal tái sử dụng */}
+      <CategoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        initialData={editingCategory}
+      />
     </div>
   );
 };

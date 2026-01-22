@@ -7,6 +7,7 @@ import {
   joinGroupByCode,
   getAllGroupsAdmin,
   deleteGroupAdmin,
+  updateGroupAdmin,
   getGroupLeaderboard,
 } from '../controllers/groupController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
@@ -26,4 +27,6 @@ router.get('/:groupId/leaderboard', getGroupLeaderboard);
 // Routes cho Admin
 router.get('/admin/all', verifyToken, verifyAdmin, getAllGroupsAdmin);
 router.delete('/admin/:id', verifyToken, verifyAdmin, deleteGroupAdmin);
+router.put('/admin/:id', verifyToken, verifyAdmin, updateGroupAdmin);
+
 export default router;

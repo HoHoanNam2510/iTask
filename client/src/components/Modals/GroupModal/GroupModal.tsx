@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
+/* client/src/components/Modals/GroupModal/GroupModal.tsx */
+import React, { useState, useEffect } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios'; // Import axios
-import { X, Users, PlusCircle } from 'lucide-react';
+import axios from 'axios';
+import { X, Users, PlusCircle, Save } from 'lucide-react';
 import styles from './GroupModal.module.scss';
 
 const cx = classNames.bind(styles);
 
+// Interface dữ liệu Group
+export interface GroupData {
+  name: string;
+  description: string;
+}
+
 interface GroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void; // [QUAN TRỌNG] Thêm prop này để reload sidebar
+  onSuccess?: () => void;
+  // Props dành riêng cho Admin Edit
+  initialData?: GroupData | null;
+  onSubmit?: (data: GroupData) => Promise<void>;
+  title?: string;
 }
 
 type TabType = 'join' | 'create';
@@ -18,18 +29,40 @@ const GroupModal: React.FC<GroupModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  initialData,
+  onSubmit,
+  title,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('join');
-  const [isLoading, setIsLoading] = useState(false); // [MỚI] Loading state
+  const [isLoading, setIsLoading] = useState(false);
 
-  // State cho Form
-  const [joinId, setJoinId] = useState(''); // Đây là Invite Code
+  // Form State
+  const [joinId, setJoinId] = useState('');
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
 
+  // Xác định chế độ: Nếu có initialData -> Là Edit Mode (Admin)
+  const isEditMode = !!initialData;
+
+  // Reset hoặc Load data khi mở Modal
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        // Mode Edit (Admin): Fill dữ liệu
+        setGroupName(initialData.name);
+        setGroupDesc(initialData.description || '');
+      } else {
+        // Mode Create/Join (User): Reset trắng & Mặc định tab Create
+        setGroupName('');
+        setGroupDesc('');
+        setJoinId('');
+        setActiveTab('create'); // Mặc định vào tab Create cho tiện
+      }
+    }
+  }, [isOpen, initialData]);
+
   if (!isOpen) return null;
 
-  // Xử lý submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -37,49 +70,45 @@ const GroupModal: React.FC<GroupModalProps> = ({
     try {
       setIsLoading(true);
 
+      // --- TRƯỜNG HỢP 1: ADMIN EDIT ---
+      // Nếu có prop onSubmit, component cha sẽ xử lý logic API
+      if (isEditMode && onSubmit) {
+        await onSubmit({ name: groupName, description: groupDesc });
+        if (onSuccess) onSuccess();
+        onClose();
+        return;
+      }
+
+      // --- TRƯỜNG HỢP 2: USER NORMAL (Create/Join) ---
       if (activeTab === 'join') {
-        // --- LOGIC JOIN GROUP ---
-        // Gọi API tham gia nhóm bằng Invite Code
-        // (Lưu ý: Bạn cần đảm bảo Backend có route này: POST /api/groups/join)
         const res = await axios.post(
           'http://localhost:5000/api/groups/join',
           { inviteCode: joinId },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
         if (res.data.success) {
           alert(`Đã tham gia nhóm: ${res.data.group.name}`);
         }
       } else {
-        // --- LOGIC CREATE GROUP ---
         const res = await axios.post(
           'http://localhost:5000/api/groups',
           { name: groupName, description: groupDesc },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
         if (res.data.success) {
           alert('Tạo nhóm thành công!');
         }
       }
 
-      // --- XỬ LÝ SAU KHI THÀNH CÔNG ---
-      // 1. Reset form
+      // Success cleanup
       setJoinId('');
       setGroupName('');
       setGroupDesc('');
-
-      // 2. Gọi callback để reload Sidebar
-      if (onSuccess) {
-        onSuccess();
-      }
-
-      // 3. Đóng modal
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Lỗi:', error);
-      const msg =
-        error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại';
+      console.error('Lỗi Modal:', error);
+      const msg = error.response?.data?.message || 'Có lỗi xảy ra';
       alert(msg);
     } finally {
       setIsLoading(false);
@@ -88,34 +117,35 @@ const GroupModal: React.FC<GroupModalProps> = ({
 
   return (
     <div className={cx('overlay')} onClick={onClose}>
-      {/* stopPropagation để click vào modal không bị đóng */}
       <div className={cx('modal')} onClick={(e) => e.stopPropagation()}>
-        {/* Header Close Button */}
+        {/* Header */}
         <div className={cx('header')}>
           <button className={cx('closeBtn')} onClick={onClose}>
             <X size={24} />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className={cx('tabs')}>
-          <button
-            className={cx('tab', { active: activeTab === 'join' })}
-            onClick={() => setActiveTab('join')}
-          >
-            Join Group
-          </button>
-          <button
-            className={cx('tab', { active: activeTab === 'create' })}
-            onClick={() => setActiveTab('create')}
-          >
-            Create Group
-          </button>
-        </div>
+        {/* Tabs: Chỉ hiện khi KHÔNG phải Edit Mode */}
+        {!isEditMode && (
+          <div className={cx('tabs')}>
+            <button
+              className={cx('tab', { active: activeTab === 'join' })}
+              onClick={() => setActiveTab('join')}
+            >
+              Join Group
+            </button>
+            <button
+              className={cx('tab', { active: activeTab === 'create' })}
+              onClick={() => setActiveTab('create')}
+            >
+              Create Group
+            </button>
+          </div>
+        )}
 
-        {/* Content Body */}
         <div className={cx('content')}>
-          {activeTab === 'join' ? (
+          {/* VIEW 1: JOIN GROUP (User only) */}
+          {!isEditMode && activeTab === 'join' ? (
             <>
               <h3>Join a Team</h3>
               <p>Enter the unique Invite Code shared by your team admin.</p>
@@ -128,7 +158,6 @@ const GroupModal: React.FC<GroupModalProps> = ({
                     placeholder="e.g. Xy7Bz"
                     value={joinId}
                     onChange={(e) => setJoinId(e.target.value)}
-                    spellCheck={false}
                     required
                     disabled={isLoading}
                   />
@@ -149,17 +178,31 @@ const GroupModal: React.FC<GroupModalProps> = ({
                   >
                     <Users
                       size={18}
-                      style={{ marginRight: '8px', display: 'inline' }}
+                      style={{
+                        marginRight: 8,
+                        display: 'inline-block',
+                        verticalAlign: 'middle',
+                      }}
                     />
-                    {isLoading ? 'Joining...' : 'Join Group'}
+                    Join Group
                   </button>
                 </div>
               </form>
             </>
           ) : (
+            // VIEW 2: CREATE / EDIT GROUP
             <>
-              <h3>Create New Workspace</h3>
-              <p>Set up a space for your team to collaborate.</p>
+              <h3>
+                {title ||
+                  (isEditMode
+                    ? 'Admin: Chỉnh sửa Nhóm'
+                    : 'Create New Workspace')}
+              </h3>
+              <p>
+                {isEditMode
+                  ? 'Cập nhật thông tin nhóm.'
+                  : 'Set up a space for your team to collaborate.'}
+              </p>
               <form onSubmit={handleSubmit}>
                 <div className={cx('inputGroup')}>
                   <label className={cx('label')}>Group Name</label>
@@ -169,7 +212,6 @@ const GroupModal: React.FC<GroupModalProps> = ({
                     placeholder="e.g. Awesome Project"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
-                    spellCheck={false}
                     required
                     disabled={isLoading}
                   />
@@ -182,7 +224,6 @@ const GroupModal: React.FC<GroupModalProps> = ({
                     placeholder="What is this group about?"
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
-                    spellCheck={false}
                     disabled={isLoading}
                   />
                 </div>
@@ -200,11 +241,31 @@ const GroupModal: React.FC<GroupModalProps> = ({
                     className={cx('submitBtn')}
                     disabled={isLoading}
                   >
-                    <PlusCircle
-                      size={18}
-                      style={{ marginRight: '8px', display: 'inline' }}
-                    />
-                    {isLoading ? 'Creating...' : 'Create Group'}
+                    {isEditMode ? (
+                      <>
+                        <Save
+                          size={18}
+                          style={{
+                            marginRight: 8,
+                            display: 'inline-block',
+                            verticalAlign: 'middle',
+                          }}
+                        />
+                        Save Changes
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle
+                          size={18}
+                          style={{
+                            marginRight: 8,
+                            display: 'inline-block',
+                            verticalAlign: 'middle',
+                          }}
+                        />
+                        Create Group
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

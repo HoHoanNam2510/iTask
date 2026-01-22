@@ -299,3 +299,29 @@ export const deleteGroupAdmin = async (
       .json({ success: false, message: 'Lỗi server khi xóa nhóm' });
   }
 };
+
+// 👇 [THÊM MỚI] Admin Update Group
+export const updateGroupAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    const group = await Group.findByIdAndUpdate(
+      id,
+      { name, description },
+      { new: true } // Trả về data mới
+    );
+
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Không tìm thấy nhóm' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Cập nhật nhóm thành công', group });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật nhóm' });
+  }
+};
