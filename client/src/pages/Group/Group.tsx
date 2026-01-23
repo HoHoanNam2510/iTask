@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   CalendarDays,
+  X, // Thêm icon X để dùng cho nút Kick
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import {
@@ -38,6 +39,7 @@ import TaskModal from '~/components/TaskModal/TaskModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
 import VideoRoom from '~/components/VideoRoom/VideoRoom';
+import type { IGroupDetail } from '~/types/group'; // [MỚI] Import type đã định nghĩa
 
 ChartJS.register(
   CategoryScale,
@@ -58,30 +60,15 @@ const getAvatarUrl = (avatarPath?: string) => {
   return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
 };
 
-interface UserBasic {
-  _id: string;
-  username: string;
-  avatar?: string;
-  email: string;
-}
-
+// Interface cho Task (giữ nguyên để dùng cho render board)
 interface Task {
   _id: string;
   title: string;
   status: 'todo' | 'in_progress' | 'completed';
-  assignee: UserBasic;
+  assignee: any;
   priority?: string;
   dueDate?: string;
   createdAt?: string;
-}
-
-interface GroupData {
-  _id: string;
-  title: string;
-  description: string;
-  members: UserBasic[];
-  tasks: Task[];
-  inviteCode?: string;
 }
 
 const Group: React.FC = () => {
@@ -90,16 +77,18 @@ const Group: React.FC = () => {
   const openTaskId = searchParams.get('openTask');
   const { user } = useAuth();
 
-  const [data, setData] = useState<GroupData | null>(null);
+  const [data, setData] = useState<IGroupDetail | null>(null); // [MỚI] Dùng IGroupDetail
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-
-  // State bật/tắt meeting
   const [isMeetingActive, setIsMeetingActive] = useState(false);
-
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // [MỚI] Kiểm tra quyền Owner
+  const isOwner = useMemo(() => {
+    return data?.owner?._id === user?._id;
+  }, [data, user]);
 
   const triggerRefresh = () => {
     setRefreshKey((prev) => prev + 1);
@@ -115,15 +104,7 @@ const Group: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success) {
-        const apiData = res.data.data;
-        setData({
-          _id: apiData.id,
-          title: apiData.title,
-          description: apiData.description,
-          members: apiData.members,
-          tasks: apiData.tasks,
-          inviteCode: apiData.inviteCode,
-        });
+        setData(res.data.data); // Backend đã trả về đúng cấu trúc IGroupDetail (id, title, members, owner...)
       }
     } catch (error) {
       console.error('Lỗi tải group:', error);
@@ -159,6 +140,60 @@ const Group: React.FC = () => {
     };
     autoOpenTask();
   }, [openTaskId, data]);
+
+  // --- [MỚI] HANDLERS CHO OWNER ---
+
+  const handleEditGroup = async () => {
+    const newName = prompt('Nhập tên nhóm mới:', data?.title);
+    if (!newName) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `http://localhost:5000/api/groups/${groupId}`,
+        { name: newName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      triggerRefresh();
+    } catch (error) {
+      alert('Lỗi cập nhật');
+    }
+  };
+
+  const handleDisbandGroup = async () => {
+    if (
+      window.confirm(
+        'BẠN CÓ CHẮC CHẮN muốn giải tán nhóm? Toàn bộ task sẽ bị xóa vĩnh viễn!'
+      )
+    ) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`http://localhost:5000/api/groups/${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        window.location.href = '/dashboard';
+      } catch (error) {
+        alert('Lỗi khi giải tán nhóm');
+      }
+    }
+  };
+
+  const handleKickMember = async (memberId: string, memberName: string) => {
+    if (window.confirm(`Xóa ${memberName} ra khỏi nhóm?`)) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(
+          `http://localhost:5000/api/groups/${groupId}/remove-member`,
+          { memberId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        triggerRefresh();
+      } catch (error) {
+        alert('Lỗi khi xóa thành viên');
+      }
+    }
+  };
+
+  // --- LOGIC STATS & CHARTS (Giữ nguyên) ---
 
   const dashboardStats = useMemo(() => {
     if (!data)
@@ -214,7 +249,7 @@ const Group: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = (task: any) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
   };
@@ -227,7 +262,6 @@ const Group: React.FC = () => {
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchGroupData();
       triggerRefresh();
     } catch (error) {
       alert('Không thể xóa task');
@@ -262,7 +296,6 @@ const Group: React.FC = () => {
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       if (
         newStatus === 'completed' ||
         result.source.droppableId === 'completed'
@@ -272,10 +305,6 @@ const Group: React.FC = () => {
     } catch (error) {
       fetchGroupData();
     }
-  };
-
-  const handleJoinMeeting = () => {
-    setIsMeetingActive(true);
   };
 
   const barChartData = {
@@ -310,10 +339,9 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* 👇 Hiển thị VideoRoom khi Active */}
       {isMeetingActive && user && groupId && (
         <VideoRoom
-          roomId={groupId} // Dùng ID nhóm làm Room ID để chung phòng
+          roomId={groupId}
           userId={user._id}
           userName={user.username}
           groupName={data.title}
@@ -324,7 +352,15 @@ const Group: React.FC = () => {
       <header className={cx('header')}>
         <div className={cx('headerLeft')}>
           <div className={cx('info')}>
-            <h1>{data.title}</h1>
+            {/* Cập nhật hiển thị Title kèm nút Edit cho Owner */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h1>{data.title}</h1>
+              {isOwner && (
+                <button className={cx('iconEditBtn')} onClick={handleEditGroup}>
+                  <Edit2 size={16} />
+                </button>
+              )}
+            </div>
             <p>{data.description}</p>
           </div>
           <input
@@ -336,33 +372,50 @@ const Group: React.FC = () => {
         </div>
 
         <div className={cx('actions')}>
+          {/* Cập nhật danh sách Member có nút Kick cho Owner */}
           <div className={cx('members')}>
-            {data.members.slice(0, 4).map((m) => (
-              <img
-                key={m._id}
-                className={cx('avatar')}
-                src={getAvatarUrl(m.avatar) || ''}
-                alt={m.username}
-                title={m.username}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ))}
-            {data.members.length > 4 && (
-              <div
-                className={cx('avatar')}
-                style={{ background: '#e2e8f0', color: '#64748b' }}
-              >
-                +{data.members.length - 4}
+            {data.members.map((m) => (
+              <div key={m._id} className={cx('avatarWrapper')}>
+                <img
+                  className={cx('avatar')}
+                  src={getAvatarUrl(m.avatar) || ''}
+                  alt={m.username}
+                  title={
+                    isOwner && m._id !== user?._id
+                      ? `Kick ${m.username}`
+                      : m.username
+                  }
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                {isOwner && m._id !== user?._id && (
+                  <button
+                    className={cx('kickBadge')}
+                    onClick={() => handleKickMember(m._id, m.username)}
+                  >
+                    <X size={10} />
+                  </button>
+                )}
               </div>
-            )}
+            ))}
           </div>
+
+          {/* Nút giải tán cho Owner */}
+          {isOwner && (
+            <button
+              className={cx('disbandBtn')}
+              onClick={handleDisbandGroup}
+              title="Giải tán nhóm"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
 
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
-            onClick={handleJoinMeeting}
+            onClick={() => setIsMeetingActive(true)}
             title="Tham gia cuộc họp"
           >
             <Video size={16} /> Meeting
@@ -380,6 +433,7 @@ const Group: React.FC = () => {
         </div>
       </header>
 
+      {/* --- PHẦN STATS, CHARTS, BOARD (Giữ nguyên) --- */}
       <div className={cx('statsGrid')}>
         <StatCard
           title="Tổng"
@@ -420,7 +474,7 @@ const Group: React.FC = () => {
                   y: {
                     beginAtZero: true,
                     grid: { display: false },
-                    ticks: { stepSize: 1, precision: 0 },
+                    ticks: { stepSize: 1 },
                   },
                   x: { grid: { display: false } },
                 },
@@ -453,7 +507,6 @@ const Group: React.FC = () => {
                   responsive: true,
                   maintainAspectRatio: false,
                   plugins: { legend: { position: 'right' } },
-                  layout: { padding: 10 },
                 }}
                 data={doughnutData}
               />
@@ -508,6 +561,7 @@ const Group: React.FC = () => {
   );
 };
 
+// --- SUB-COMPONENTS (Giữ nguyên) ---
 const StatCard = ({ title, value, icon, colorClass }: any) => (
   <div className={cx('stat-card-modern')}>
     <div className={cx('iconBox', colorClass)}>{icon}</div>
@@ -518,23 +572,14 @@ const StatCard = ({ title, value, icon, colorClass }: any) => (
   </div>
 );
 
-interface ColumnProps {
-  id: string;
-  title: string;
-  tasks: Task[];
-  headerClass: string;
-  onEdit: (t: Task) => void;
-  onDelete: (id: string) => void;
-}
-
-const TaskColumn: React.FC<ColumnProps> = ({
+const TaskColumn = ({
   id,
   title,
   tasks,
   headerClass,
   onEdit,
   onDelete,
-}) => (
+}: any) => (
   <div className={cx('column')}>
     <h3 className={cx(headerClass)}>
       {title} <span className={cx('count')}>{tasks.length}</span>
@@ -546,7 +591,7 @@ const TaskColumn: React.FC<ColumnProps> = ({
           ref={provided.innerRef}
           {...provided.droppableProps}
         >
-          {tasks.map((task, index) => (
+          {tasks.map((task: any, index: number) => (
             <Draggable key={task._id} draggableId={task._id} index={index}>
               {(provided, snapshot) => (
                 <div
@@ -559,7 +604,6 @@ const TaskColumn: React.FC<ColumnProps> = ({
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
-                  style={{ ...provided.draggableProps.style }}
                 >
                   <div className={cx('cardHeader')}>
                     <div className={cx('task-title')}>{task.title}</div>
@@ -579,7 +623,7 @@ const TaskColumn: React.FC<ColumnProps> = ({
                     {task.assignee ? (
                       <>
                         <img
-                          src={getAvatarUrl(task.assignee.avatar) || ''}
+                          src={getAvatarUrl(task.assignee.avatar)}
                           className={cx('avatar-mini')}
                           alt=""
                           onError={(e) => {

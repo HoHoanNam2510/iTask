@@ -9,6 +9,9 @@ import {
   deleteGroupAdmin,
   updateGroupAdmin,
   getGroupLeaderboard,
+  updateGroup,
+  disbandGroup,
+  removeMember,
 } from '../controllers/groupController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
@@ -21,7 +24,10 @@ router.post('/', createGroup);
 router.post('/join', joinGroupByCode);
 router.get('/my-groups', getMyGroups);
 router.get('/:groupId', getGroupDetails);
+router.put('/:groupId', updateGroup); // Update thông tin nhóm
+router.delete('/:groupId', disbandGroup); // Giải tán nhóm
 router.post('/:groupId/invite', addMember);
+router.post('/:groupId/remove-member', removeMember); // Kick member
 router.get('/:groupId/leaderboard', getGroupLeaderboard);
 
 // Routes cho Admin

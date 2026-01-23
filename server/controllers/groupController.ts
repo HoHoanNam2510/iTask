@@ -28,31 +28,27 @@ export const createGroup = async (
   }
 };
 
-// Lấy chi tiết nhóm (để hiển thị lên trang Group Detail)
+// Lấy chi tiết nhóm (Cập nhật: Trả về cả ID của Owner)
 export const getGroupDetails = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
-
-    // 1. Lấy thông tin nhóm và populate member
     const group = await Group.findById(groupId)
       .populate('members', 'username email avatar')
-      .populate('owner', 'username');
+      .populate('owner', 'username email');
 
     if (!group) {
       res.status(404).json({ success: false, message: 'Không tìm thấy nhóm' });
       return;
     }
 
-    // 2. Lấy tất cả Task của nhóm này để vẽ lên Kanban Board
-    // 👇 [FIXED] Thêm điều kiện isDeleted: { $ne: true } để ẩn task đã xóa
     const tasks = await Task.find({
       group: groupId,
       isDeleted: { $ne: true },
     })
-      .populate('assignee', 'username avatar email') // Để hiện tên người làm
+      .populate('assignee', 'username avatar email')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -63,11 +59,117 @@ export const getGroupDetails = async (
         description: group.description,
         inviteCode: group.inviteCode,
         members: group.members,
-        tasks: tasks, // Frontend sẽ dùng mảng này để filter theo status (Todo, In Progress...)
+        owner: group.owner, // Trả về object owner để FE check ID
+        tasks: tasks,
       },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy dữ liệu nhóm' });
+  }
+};
+
+// [MỚI] Owner cập nhật thông tin nhóm
+export const updateGroup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const { name, description } = req.body;
+    const userId = (req as any).user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    if (group.owner.toString() !== userId.toString()) {
+      res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền chỉnh sửa nhóm này',
+      });
+      return;
+    }
+
+    group.name = name || group.name;
+    group.description = description || group.description;
+    await group.save();
+
+    res.json({ success: true, message: 'Cập nhật thành công', group });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// [MỚI] Owner giải tán nhóm
+export const disbandGroup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const userId = (req as any).user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    if (group.owner.toString() !== userId.toString()) {
+      res.status(403).json({
+        success: false,
+        message: 'Chỉ chủ nhóm mới có quyền giải tán',
+      });
+      return;
+    }
+
+    await Task.deleteMany({ group: groupId }); // Xóa hết task thuộc nhóm
+    await Group.findByIdAndDelete(groupId);
+
+    res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi khi giải tán nhóm' });
+  }
+};
+
+// [MỚI] Owner xóa thành viên (Kick)
+export const removeMember = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const { memberId } = req.body;
+    const userId = (req as any).user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    if (group.owner.toString() !== userId.toString()) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Bạn không có quyền này' });
+      return;
+    }
+
+    if (memberId === group.owner.toString()) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Không thể xóa chủ nhóm' });
+      return;
+    }
+
+    group.members = group.members.filter((m) => m.toString() !== memberId);
+    await group.save();
+
+    res.json({ success: true, message: 'Đã xóa thành viên khỏi nhóm' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi khi xóa thành viên' });
   }
 };
 
