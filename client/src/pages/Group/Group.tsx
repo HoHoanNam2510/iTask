@@ -1,6 +1,6 @@
-/* src/pages/Group/Group.tsx */
+/* client/src/pages/Group/Group.tsx */
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Plus,
@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   Clock,
   CalendarDays,
+  X,
+  LogOut,
+  Settings,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import {
@@ -35,9 +38,11 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 
 import styles from './Group.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
+import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
 import VideoRoom from '~/components/VideoRoom/VideoRoom';
+import type { IGroupDetail } from '~/types/group';
 
 ChartJS.register(
   CategoryScale,
@@ -48,63 +53,36 @@ ChartJS.register(
   Legend,
   ArcElement
 );
-
 const cx = classNames.bind(styles);
 
 const getAvatarUrl = (avatarPath?: string) => {
   if (!avatarPath) return '';
-  if (avatarPath.startsWith('http') || avatarPath.startsWith('blob:'))
-    return avatarPath;
-  return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
+  return avatarPath.startsWith('http')
+    ? avatarPath
+    : `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
 };
-
-interface UserBasic {
-  _id: string;
-  username: string;
-  avatar?: string;
-  email: string;
-}
-
-interface Task {
-  _id: string;
-  title: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  assignee: UserBasic;
-  priority?: string;
-  dueDate?: string;
-  createdAt?: string;
-}
-
-interface GroupData {
-  _id: string;
-  title: string;
-  description: string;
-  members: UserBasic[];
-  tasks: Task[];
-  inviteCode?: string;
-}
 
 const Group: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const openTaskId = searchParams.get('openTask');
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
 
-  const [data, setData] = useState<GroupData | null>(null);
+  const [data, setData] = useState<IGroupDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-
-  // State bật/tắt meeting
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isMeetingActive, setIsMeetingActive] = useState(false);
-
+  const [showMembers, setShowMembers] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const triggerRefresh = () => {
-    setRefreshKey((prev) => prev + 1);
-    fetchGroupData();
-  };
+  const isOwner = useMemo(
+    () => data?.owner?._id === currentUser?._id,
+    [data, currentUser]
+  );
 
   const fetchGroupData = async () => {
     if (!data) setLoading(true);
@@ -114,19 +92,9 @@ const Group: React.FC = () => {
         `http://localhost:5000/api/groups/${groupId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.data.success) {
-        const apiData = res.data.data;
-        setData({
-          _id: apiData.id,
-          title: apiData.title,
-          description: apiData.description,
-          members: apiData.members,
-          tasks: apiData.tasks,
-          inviteCode: apiData.inviteCode,
-        });
-      }
+      if (res.data.success) setData(res.data.data);
     } catch (error) {
-      console.error('Lỗi tải group:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -137,28 +105,98 @@ const Group: React.FC = () => {
   }, [groupId]);
 
   useEffect(() => {
-    const autoOpenTask = async () => {
-      if (openTaskId && data) {
-        const existingTask = data.tasks.find((t) => t._id === openTaskId);
-        if (existingTask) {
-          try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(
-              `http://localhost:5000/api/tasks/${openTaskId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (res.data.success) {
-              setEditingTask(res.data.task);
-              setIsTaskModalOpen(true);
-            }
-          } catch (error) {
-            console.error('Lỗi mở task:', error);
-          }
-        }
+    if (openTaskId && data) {
+      const existingTask = data.tasks.find((t) => t._id === openTaskId);
+      if (existingTask) {
+        setEditingTask(existingTask);
+        setIsTaskModalOpen(true);
       }
-    };
-    autoOpenTask();
+    }
   }, [openTaskId, data]);
+
+  const triggerRefresh = () => {
+    setRefreshKey((p) => p + 1);
+    fetchGroupData();
+  };
+  const onTaskModalSuccess = () => triggerRefresh();
+  const handleCloseModal = () => {
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+    setSearchParams({});
+  };
+  const handleAddTask = () => {
+    setEditingTask(null);
+    setIsTaskModalOpen(true);
+  };
+  const handleEditTask = (task: any) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!window.confirm('CẢNH BÁO: Giải tán nhóm? Dữ liệu sẽ mất vĩnh viễn!'))
+      return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/groups/${groupId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      window.dispatchEvent(new Event('GROUP_INFO_UPDATED'));
+      alert('Đã giải tán nhóm');
+      navigate('/');
+    } catch (error) {
+      alert('Lỗi xóa nhóm');
+    }
+  };
+
+  const handleKickMember = async (userId: string, username: string) => {
+    if (!window.confirm(`Xóa ${username} khỏi nhóm?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `http://localhost:5000/api/groups/${groupId}/remove-member`,
+        { userId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchGroupData();
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Lỗi kick');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm('Chuyển task vào thùng rác?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      triggerRefresh();
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Lỗi xóa task');
+    }
+  };
+
+  const onDragEnd = async (result: DropResult) => {
+    const { destination, draggableId } = result;
+    if (!destination || !data) return;
+    const newStatus = destination.droppableId as any;
+    const updatedTasks = data.tasks.map((t) =>
+      t._id === draggableId ? { ...t, status: newStatus } : t
+    );
+    setData({ ...data, tasks: updatedTasks });
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `http://localhost:5000/api/tasks/${draggableId}`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      triggerRefresh();
+    } catch (error) {
+      fetchGroupData();
+    }
+  };
 
   const dashboardStats = useMemo(() => {
     if (!data)
@@ -167,116 +205,37 @@ const Group: React.FC = () => {
         weekly: [],
         columns: { todo: [], in_progress: [], completed: [] },
       };
-
     const dailyTasks = data.tasks.filter((t) =>
       t.dueDate ? isSameDay(new Date(t.dueDate), selectedDate) : false
     );
-
-    const dailyStats = {
-      total: dailyTasks.length,
-      todo: dailyTasks.filter((t) => t.status === 'todo').length,
-      inProgress: dailyTasks.filter((t) => t.status === 'in_progress').length,
-      completed: dailyTasks.filter((t) => t.status === 'completed').length,
-    };
-
-    const weeklyData = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = subDays(new Date(), i);
-      const label = format(d, 'dd/MM');
-      const count = data.tasks.filter((t) => {
-        const targetDate = t.createdAt ? new Date(t.createdAt) : new Date();
-        return isSameDay(targetDate, d);
-      }).length;
-      weeklyData.push({ name: label, tasks: count });
-    }
-
     const columns = {
       todo: data.tasks.filter((t) => t.status === 'todo'),
       in_progress: data.tasks.filter((t) => t.status === 'in_progress'),
       completed: data.tasks.filter((t) => t.status === 'completed'),
     };
 
-    return { daily: dailyStats, weekly: weeklyData, columns };
+    // Tính toán dữ liệu biểu đồ tuần
+    const weeklyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(new Date(), i);
+      const label = format(d, 'dd/MM');
+      const count = data.tasks.filter((t) =>
+        isSameDay(new Date(t.createdAt!), d)
+      ).length;
+      weeklyData.push({ name: label, tasks: count });
+    }
+
+    return {
+      daily: {
+        total: dailyTasks.length,
+        todo: dailyTasks.filter((t) => t.status === 'todo').length,
+        inProgress: dailyTasks.filter((t) => t.status === 'in_progress').length,
+        completed: dailyTasks.filter((t) => t.status === 'completed').length,
+      },
+      weekly: weeklyData,
+      columns,
+    };
   }, [data, selectedDate]);
-
-  const handleCloseModal = () => {
-    setIsTaskModalOpen(false);
-    setEditingTask(null);
-    setSearchParams({});
-  };
-
-  const onTaskModalSuccess = () => {
-    triggerRefresh();
-  };
-
-  const handleAddTask = () => {
-    setEditingTask(null);
-    setIsTaskModalOpen(true);
-  };
-
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsTaskModalOpen(true);
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (!window.confirm('Bạn chắc chắn muốn chuyển task này vào thùng rác?'))
-      return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchGroupData();
-      triggerRefresh();
-    } catch (error) {
-      alert('Không thể xóa task');
-    }
-  };
-
-  const onDragEnd = async (result: DropResult) => {
-    const { destination, draggableId } = result;
-    if (!destination) return;
-    if (
-      result.source.droppableId === destination.droppableId &&
-      result.source.index === destination.index
-    )
-      return;
-
-    const newStatus = destination.droppableId as
-      | 'todo'
-      | 'in_progress'
-      | 'completed';
-
-    if (data) {
-      const updatedTasks = data.tasks.map((t) =>
-        t._id === draggableId ? { ...t, status: newStatus } : t
-      );
-      setData({ ...data, tasks: updatedTasks });
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/tasks/${draggableId}`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (
-        newStatus === 'completed' ||
-        result.source.droppableId === 'completed'
-      ) {
-        setRefreshKey((prev) => prev + 1);
-      }
-    } catch (error) {
-      fetchGroupData();
-    }
-  };
-
-  const handleJoinMeeting = () => {
-    setIsMeetingActive(true);
-  };
 
   const barChartData = {
     labels: dashboardStats.weekly.map((d) => d.name),
@@ -305,17 +264,16 @@ const Group: React.FC = () => {
     ],
   };
 
-  if (loading) return <div className={cx('wrapper')}>Đang tải dữ liệu...</div>;
+  if (loading) return <div className={cx('wrapper')}>Đang tải...</div>;
   if (!data) return <div className={cx('wrapper')}>Không tìm thấy nhóm</div>;
 
   return (
     <div className={cx('wrapper')}>
-      {/* 👇 Hiển thị VideoRoom khi Active */}
-      {isMeetingActive && user && groupId && (
+      {isMeetingActive && currentUser && (
         <VideoRoom
-          roomId={groupId} // Dùng ID nhóm làm Room ID để chung phòng
-          userId={user._id}
-          userName={user.username}
+          roomId={groupId!}
+          userId={currentUser._id}
+          userName={currentUser.username}
           groupName={data.title}
           onLeave={() => setIsMeetingActive(false)}
         />
@@ -336,50 +294,107 @@ const Group: React.FC = () => {
         </div>
 
         <div className={cx('actions')}>
-          <div className={cx('members')}>
-            {data.members.slice(0, 4).map((m) => (
-              <img
-                key={m._id}
-                className={cx('avatar')}
-                src={getAvatarUrl(m.avatar) || ''}
-                alt={m.username}
-                title={m.username}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ))}
-            {data.members.length > 4 && (
-              <div
-                className={cx('avatar')}
-                style={{ background: '#e2e8f0', color: '#64748b' }}
-              >
-                +{data.members.length - 4}
+          <div className={cx('membersWrapper')}>
+            <div
+              className={cx('members')}
+              onClick={() => setShowMembers(!showMembers)}
+            >
+              {data.members.slice(0, 4).map((m) => (
+                <img
+                  key={m._id}
+                  className={cx('avatar')}
+                  src={getAvatarUrl(m.avatar)}
+                  alt={m.username}
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              ))}
+              {data.members.length > 4 && (
+                <div className={cx('avatar', 'count')}>
+                  +{data.members.length - 4}
+                </div>
+              )}
+            </div>
+            {showMembers && (
+              <div className={cx('membersDropdown')}>
+                <div className={cx('dropdownHeader')}>
+                  <h4>Members ({data.members.length})</h4>
+                  <button onClick={() => setShowMembers(false)}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className={cx('memberList')}>
+                  {data.members.map((mem) => (
+                    <div key={mem._id} className={cx('memberItem')}>
+                      <div className={cx('memberInfo')}>
+                        <img
+                          src={
+                            getAvatarUrl(mem.avatar) ||
+                            'https://via.placeholder.com/32'
+                          }
+                          alt=""
+                        />
+                        <span>
+                          {mem.username}{' '}
+                          {data.owner._id === mem._id && (
+                            <span className={cx('ownerLabel')}>Owner</span>
+                          )}
+                        </span>
+                      </div>
+                      {isOwner && data.owner._id !== mem._id && (
+                        <button
+                          className={cx('kickBtn')}
+                          onClick={() =>
+                            handleKickMember(mem._id, mem.username)
+                          }
+                          title="Kick"
+                        >
+                          <LogOut size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-
+          {isOwner && (
+            <>
+              <button
+                className={cx('actionBtn', 'edit')}
+                onClick={() => setIsGroupModalOpen(true)}
+                title="Cài đặt"
+              >
+                <Settings size={20} />
+              </button>
+              <button
+                className={cx('actionBtn', 'danger')}
+                onClick={handleDeleteGroup}
+                title="Giải tán"
+              >
+                <Trash2 size={20} />
+              </button>
+            </>
+          )}
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}
-            onClick={handleJoinMeeting}
-            title="Tham gia cuộc họp"
+            onClick={() => setIsMeetingActive(true)}
           >
             <Video size={16} /> Meeting
           </button>
-
           <button className={cx('add-task-btn')} onClick={handleAddTask}>
             <Plus size={16} /> New Task
           </button>
           <button
             className={cx('invite-btn')}
-            onClick={() => alert(`Mã mời tham gia: ${data.inviteCode}`)}
+            onClick={() => alert(`Mã mời: ${data.inviteCode}`)}
           >
             <Plus size={16} /> Invite
           </button>
         </div>
       </header>
 
+      {/* 👇 [FIXED] Khôi phục Stats Grid & Charts */}
       <div className={cx('statsGrid')}>
         <StatCard
           title="Tổng"
@@ -417,11 +432,7 @@ const Group: React.FC = () => {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                  y: {
-                    beginAtZero: true,
-                    grid: { display: false },
-                    ticks: { stepSize: 1, precision: 0 },
-                  },
+                  y: { beginAtZero: true, grid: { display: false } },
                   x: { grid: { display: false } },
                 },
               }}
@@ -475,6 +486,8 @@ const Group: React.FC = () => {
             headerClass="todoHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
+            currentUser={currentUser}
+            groupOwnerId={data.owner._id}
           />
           <TaskColumn
             id="in_progress"
@@ -483,6 +496,8 @@ const Group: React.FC = () => {
             headerClass="progressHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
+            currentUser={currentUser}
+            groupOwnerId={data.owner._id}
           />
           <TaskColumn
             id="completed"
@@ -491,6 +506,8 @@ const Group: React.FC = () => {
             headerClass="doneHeader"
             onEdit={handleEditTask}
             onDelete={handleDeleteTask}
+            currentUser={currentUser}
+            groupOwnerId={data.owner._id}
           />
         </div>
       </DragDropContext>
@@ -499,42 +516,32 @@ const Group: React.FC = () => {
         isOpen={isTaskModalOpen}
         onClose={handleCloseModal}
         onSuccess={onTaskModalSuccess}
-        groupId={groupId}
-        groupMembers={data?.members || []}
+        defaultGroupId={groupId}
         taskToEdit={editingTask}
         defaultDate={selectedDate}
+        groupMembers={data.members}
+      />
+      <GroupModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        onSubmit={fetchGroupData}
+        initialData={{ name: data.title, description: data.description }}
+        title="Cài đặt nhóm"
       />
     </div>
   );
 };
 
-const StatCard = ({ title, value, icon, colorClass }: any) => (
-  <div className={cx('stat-card-modern')}>
-    <div className={cx('iconBox', colorClass)}>{icon}</div>
-    <div className={cx('info')}>
-      <h4>{title}</h4>
-      <span className={cx('number')}>{value}</span>
-    </div>
-  </div>
-);
-
-interface ColumnProps {
-  id: string;
-  title: string;
-  tasks: Task[];
-  headerClass: string;
-  onEdit: (t: Task) => void;
-  onDelete: (id: string) => void;
-}
-
-const TaskColumn: React.FC<ColumnProps> = ({
+const TaskColumn = ({
   id,
   title,
   tasks,
   headerClass,
   onEdit,
   onDelete,
-}) => (
+  currentUser,
+  groupOwnerId,
+}: any) => (
   <div className={cx('column')}>
     <h3 className={cx(headerClass)}>
       {title} <span className={cx('count')}>{tasks.length}</span>
@@ -546,60 +553,79 @@ const TaskColumn: React.FC<ColumnProps> = ({
           ref={provided.innerRef}
           {...provided.droppableProps}
         >
-          {tasks.map((task, index) => (
-            <Draggable key={task._id} draggableId={task._id} index={index}>
-              {(provided, snapshot) => (
-                <div
-                  className={cx('task-card', {
-                    todo: task.status === 'todo',
-                    inprogress: task.status === 'in_progress',
-                    done: task.status === 'completed',
-                    isDragging: snapshot.isDragging,
-                  })}
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                  style={{ ...provided.draggableProps.style }}
-                >
-                  <div className={cx('cardHeader')}>
-                    <div className={cx('task-title')}>{task.title}</div>
-                    <div className={cx('taskActions')}>
-                      <button onClick={() => onEdit(task)}>
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => onDelete(task._id)}
-                        className={cx('deleteBtn')}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+          {tasks.map((task: any, index: number) => {
+            const isCreator = task.creator?._id === currentUser?._id;
+            const isOwner = groupOwnerId === currentUser?._id;
+            const canDelete =
+              currentUser?.role === 'admin' || isCreator || isOwner;
+
+            return (
+              <Draggable key={task._id} draggableId={task._id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    className={cx('task-card', {
+                      todo: task.status === 'todo',
+                      inprogress: task.status === 'in_progress',
+                      done: task.status === 'completed',
+                      isDragging: snapshot.isDragging,
+                    })}
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    <div className={cx('cardHeader')}>
+                      <div className={cx('task-title')}>{task.title}</div>
+                      <div className={cx('taskActions')}>
+                        <button onClick={() => onEdit(task)}>
+                          <Edit2 size={14} />
+                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => onDelete(task._id)}
+                            className={cx('deleteBtn')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className={cx('creatorTag')}>
+                      Created by:{' '}
+                      <span>{task.creator?.username || 'Unknown'}</span>
+                    </div>
+                    <div className={cx('task-meta')}>
+                      {task.assignee ? (
+                        <>
+                          <img
+                            src={getAvatarUrl(task.assignee.avatar)}
+                            className={cx('avatar-mini')}
+                            alt=""
+                          />
+                          <span>{task.assignee.username}</span>
+                        </>
+                      ) : (
+                        <span>Unassigned</span>
+                      )}
                     </div>
                   </div>
-                  <div className={cx('task-meta')}>
-                    {task.assignee ? (
-                      <>
-                        <img
-                          src={getAvatarUrl(task.assignee.avatar) || ''}
-                          className={cx('avatar-mini')}
-                          alt=""
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <span>{task.assignee.username}</span>
-                      </>
-                    ) : (
-                      <span>Unassigned</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Draggable>
-          ))}
+                )}
+              </Draggable>
+            );
+          })}
           {provided.placeholder}
         </div>
       )}
     </Droppable>
+  </div>
+);
+
+const StatCard = ({ title, value, icon, colorClass }: any) => (
+  <div className={cx('stat-card-modern')}>
+    <div className={cx('iconBox', colorClass)}>{icon}</div>
+    <div className={cx('info')}>
+      <h4>{title}</h4>
+      <span className={cx('number')}>{value}</span>
+    </div>
   </div>
 );
 

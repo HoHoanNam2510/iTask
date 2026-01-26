@@ -28,31 +28,28 @@ export const createGroup = async (
   }
 };
 
-// Lấy chi tiết nhóm (để hiển thị lên trang Group Detail)
+// Lấy chi tiết nhóm (Populate Creator để hiển thị ở FE)
 export const getGroupDetails = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
-
-    // 1. Lấy thông tin nhóm và populate member
     const group = await Group.findById(groupId)
       .populate('members', 'username email avatar')
-      .populate('owner', 'username');
+      .populate('owner', 'username email avatar');
 
     if (!group) {
       res.status(404).json({ success: false, message: 'Không tìm thấy nhóm' });
       return;
     }
 
-    // 2. Lấy tất cả Task của nhóm này để vẽ lên Kanban Board
-    // 👇 [FIXED] Thêm điều kiện isDeleted: { $ne: true } để ẩn task đã xóa
     const tasks = await Task.find({
       group: groupId,
       isDeleted: { $ne: true },
     })
-      .populate('assignee', 'username avatar email') // Để hiện tên người làm
+      .populate('assignee', 'username avatar email')
+      .populate('creator', 'username avatar') // 👇 [CẬP NHẬT] Populate creator
       .sort({ createdAt: -1 });
 
     res.json({
@@ -63,7 +60,8 @@ export const getGroupDetails = async (
         description: group.description,
         inviteCode: group.inviteCode,
         members: group.members,
-        tasks: tasks, // Frontend sẽ dùng mảng này để filter theo status (Todo, In Progress...)
+        owner: group.owner,
+        tasks: tasks,
       },
     });
   } catch (error) {
@@ -71,20 +69,15 @@ export const getGroupDetails = async (
   }
 };
 
-// Mời thành viên (Add Member)
-export const addMember = async (req: Request, res: Response): Promise<void> => {
+// 👇 [OVERWRITE] Logic Kick Member xử lý 3 trường hợp Task
+export const removeMember = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { groupId } = req.params;
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: 'Email không tồn tại trong hệ thống',
-      });
-      return;
-    }
+    const { userId } = req.body; // ID người bị kick
+    const currentUserId = (req as any).user._id;
 
     const group = await Group.findById(groupId);
     if (!group) {
@@ -92,41 +85,164 @@ export const addMember = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Ép kiểu về string để so sánh tránh lỗi ObjectId
-    const isMember = group.members.some(
-      (memberId) => memberId.toString() === user._id.toString()
+    // 1. Chỉ Owner mới có quyền kick
+    if (group.owner.toString() !== currentUserId.toString()) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Chỉ trưởng nhóm mới có quyền này' });
+      return;
+    }
+
+    if (userId === currentUserId.toString()) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Không thể tự kick chính mình' });
+      return;
+    }
+
+    // --- XỬ LÝ TASK ---
+
+    // TH1: Task do member bị kick TẠO và TỰ LÀM -> Xóa mềm (vào trash của họ)
+    await Task.updateMany(
+      { group: groupId, creator: userId, assignee: userId, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: new Date() } }
     );
-    if (isMember) {
+
+    // TH2: Task do member bị kick LÀM (Assignee) nhưng người khác tạo -> Trả về cho Creator
+    const tasksToReturn = await Task.find({
+      group: groupId,
+      assignee: userId,
+      creator: { $ne: new mongoose.Types.ObjectId(userId) },
+    });
+    for (const task of tasksToReturn) {
+      task.assignee = task.creator; // Gán lại assignee = creator
+      await task.save();
+    }
+
+    // TH3: Task do member bị kick TẠO (Creator) nhưng người khác làm -> Chuyển Creator thành Group Owner
+    await Task.updateMany(
+      {
+        group: groupId,
+        creator: userId,
+        assignee: { $ne: new mongoose.Types.ObjectId(userId) },
+        isDeleted: false,
+      },
+      { $set: { creator: group.owner } }
+    );
+
+    // Xóa khỏi danh sách thành viên
+    group.members = group.members.filter((m) => m.toString() !== userId);
+    await group.save();
+
+    res.json({
+      success: true,
+      message: 'Đã xóa thành viên và xử lý bàn giao công việc',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi xóa thành viên' });
+  }
+};
+
+// Owner giải tán nhóm
+export const disbandGroup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const currentUserId = (req as any).user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    if (group.owner.toString() !== currentUserId.toString()) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Chỉ trưởng nhóm được giải tán' });
+      return;
+    }
+
+    await Task.deleteMany({ group: groupId });
+    await Group.findByIdAndDelete(groupId);
+
+    res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi giải tán nhóm' });
+  }
+};
+
+// Owner cập nhật nhóm
+export const updateGroup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const { name, description } = req.body;
+    const userId = (req as any).user._id;
+
+    const group = await Group.findOneAndUpdate(
+      { _id: groupId, owner: userId },
+      { name, description },
+      { new: true }
+    );
+
+    if (!group) {
+      res
+        .status(403)
+        .json({ success: false, message: 'Không có quyền sửa nhóm' });
+      return;
+    }
+
+    res.json({ success: true, group });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật nhóm' });
+  }
+};
+
+// ... (Các hàm khác giữ nguyên: addMember, getMyGroups, joinGroupByCode, getGroupLeaderboard, Admin...)
+export const addMember = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Email không tồn tại' });
+      return;
+    }
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+    if (group.members.some((m) => m.toString() === user._id.toString())) {
       res
         .status(400)
         .json({ success: false, message: 'Thành viên này đã ở trong nhóm' });
       return;
     }
-
     group.members.push(user._id as any);
     await group.save();
-
     res.json({ success: true, message: 'Thêm thành viên thành công' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
-// [MỚI] Lấy danh sách nhóm của user hiện tại (để hiện lên Sidebar)
 export const getMyGroups = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const userId = (req as any).user._id;
-
-    // Tìm các group mà user là Owner HOẶC nằm trong danh sách Members
     const groups = await Group.find({
       $or: [{ owner: userId }, { members: userId }],
     })
-      .select('name members') // Chỉ lấy tên và số lượng thành viên (để nhẹ payload)
+      .select('name members')
       .sort({ createdAt: -1 });
-
     res.json({
       success: true,
       groups: groups.map((g) => ({
@@ -140,100 +256,69 @@ export const getMyGroups = async (
   }
 };
 
-// Join group bằng code
 export const joinGroupByCode = async (req: Request, res: Response) => {
   try {
     const { inviteCode } = req.body;
     const userId = (req as any).user._id;
-
-    // Tìm group theo code
     const group = await Group.findOne({ inviteCode });
     if (!group)
       return res
         .status(404)
         .json({ success: false, message: 'Mã mời không hợp lệ' });
-
-    // Check đã tham gia chưa
-    const isMember = group.members.some(
-      (memberId) => memberId.toString() === userId.toString()
-    );
-
-    if (isMember) {
+    if (group.members.some((m) => m.toString() === userId.toString())) {
       return res
         .status(400)
         .json({ success: false, message: 'Bạn đã là thành viên nhóm này' });
     }
-
-    // Add member
     group.members.push(userId);
     await group.save();
-
     res.json({ success: true, group: { name: group.name } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi join group' });
   }
 };
 
-// 👇 [MỚI] API Lấy Bảng xếp hạng thành viên trong Group
 export const getGroupLeaderboard = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
-
-    // Sử dụng Aggregation để thống kê
     const leaderboard = await Task.aggregate([
-      // 1. Chỉ lấy task của Group này và đã Hoàn thành
       {
         $match: {
           group: new mongoose.Types.ObjectId(groupId),
           status: 'completed',
-          // 👇 [FIXED] Không tính điểm cho task đã xóa
           isDeleted: { $ne: true },
         },
       },
-      // 2. Nhóm theo người được giao việc (Assignee) và đếm
-      {
-        $group: {
-          _id: '$assignee',
-          completedCount: { $sum: 1 }, // Cộng 1 cho mỗi task
-        },
-      },
-      // 3. Sắp xếp giảm dần (Ai làm nhiều nhất lên đầu)
+      { $group: { _id: '$assignee', completedCount: { $sum: 1 } } },
       { $sort: { completedCount: -1 } },
-      // 4. Join với bảng Users để lấy tên và avatar
       {
         $lookup: {
-          from: 'users', // Tên collection trong DB (thường là số nhiều chữ thường)
+          from: 'users',
           localField: '_id',
           foreignField: '_id',
           as: 'userInfo',
         },
       },
-      // 5. Làm phẳng mảng userInfo
       { $unwind: '$userInfo' },
-      // 6. Chọn các trường cần trả về
       {
         $project: {
-          _id: 1, // UserID
+          _id: 1,
           completedCount: 1,
           username: '$userInfo.username',
           avatar: '$userInfo.avatar',
-          badges: '$userInfo.badges', // Lấy luôn badge để hiển thị
+          badges: '$userInfo.badges',
         },
       },
     ]);
-
     res.json({ success: true, leaderboard });
   } catch (error) {
-    console.error('Leaderboard Error:', error);
     res.status(500).json({ success: false, message: 'Lỗi lấy bảng xếp hạng' });
   }
 };
 
-// ADMIN
-// 👇 [UPDATED] API Admin Get Groups (Pagination + Search + Sort)
 export const getAllGroupsAdmin = async (
   req: Request,
   res: Response
@@ -244,52 +329,36 @@ export const getAllGroupsAdmin = async (
     const search = (req.query.search as string) || '';
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const order = (req.query.order as string) || 'desc';
-
     const skip = (page - 1) * limit;
-
-    // Filter query
     const query: any = {};
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
-    }
-
-    // Sort option
-    const sortValue = order === 'asc' ? 1 : -1;
-    const sortOption: any = { [sortBy]: sortValue };
-
+    if (search) query.name = { $regex: search, $options: 'i' };
+    const sortOption: any = { [sortBy]: order === 'asc' ? 1 : -1 };
     const groups = await Group.find(query)
       .populate('owner', 'username email avatar')
       .populate('members', 'username email avatar')
       .sort(sortOption)
       .skip(skip)
       .limit(limit);
-
     const totalGroups = await Group.countDocuments(query);
-
     res.json({
       success: true,
-      count: groups.length,
       total: totalGroups,
-      currentPage: page,
       totalPages: Math.ceil(totalGroups / limit),
       groups,
     });
   } catch (error) {
-    console.error('Admin Get Groups Error:', error);
     res
       .status(500)
-      .json({ success: false, message: 'Lỗi server khi lấy danh sách nhóm' });
+      .json({ success: false, message: 'Lỗi lấy danh sách nhóm admin' });
   }
 };
 
-// 👇 [UPDATED] Admin xóa Group
 export const deleteGroupAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    // Xóa task của nhóm
     await Task.deleteMany({ group: id });
     await Group.findByIdAndDelete(id);
     res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
@@ -300,7 +369,6 @@ export const deleteGroupAdmin = async (
   }
 };
 
-// 👇 [THÊM MỚI] Admin Update Group
 export const updateGroupAdmin = async (
   req: Request,
   res: Response
@@ -308,20 +376,13 @@ export const updateGroupAdmin = async (
   try {
     const { id } = req.params;
     const { name, description } = req.body;
-
     const group = await Group.findByIdAndUpdate(
       id,
       { name, description },
-      { new: true } // Trả về data mới
+      { new: true }
     );
-
-    if (!group) {
-      res.status(404).json({ success: false, message: 'Không tìm thấy nhóm' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Cập nhật nhóm thành công', group });
+    res.json({ success: true, message: 'Cập nhật thành công', group });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi cập nhật nhóm' });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };

@@ -215,24 +215,19 @@
     flex-direction: column;
     gap: 2rem;
 
-    .mainHeader {
-      border-bottom: 1px solid var(--bg-hover);
-      padding-bottom: 1.6rem;
+    .bigTitle {
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.8rem;
+    }
 
-      .bigTitle {
-        font-size: 2.4rem;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-bottom: 0.8rem;
-      }
-
-      .dateInfo {
-        font-size: 1.3rem;
-        color: var(--text-light);
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-      }
+    .dateInfo {
+      font-size: 1.3rem;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
     }
 
     .splitView {
@@ -492,5 +487,73 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+.taskItem {
+  background: var(--white);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  &.active {
+    border-color: var(--primary);
+    background-color: #f0fdf4; // Xanh rất nhạt
+  }
+
+  .taskMain {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    overflow: hidden;
+
+    .statusDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      &.todo {
+        background: #cbd5e1;
+      }
+      &.in_progress {
+        background: #3b82f6;
+      }
+      &.completed {
+        background: #10b981;
+      }
+    }
+
+    .title {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .categoryBadge {
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+  }
+
+  .taskMeta {
+    font-size: 1.2rem;
+    color: var(--text-light);
   }
 }
