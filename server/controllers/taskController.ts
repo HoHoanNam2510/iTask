@@ -5,7 +5,6 @@ import path from 'path';
 import Task from '../models/Task';
 import Group from '../models/Group';
 
-// Helper: Lấy đường dẫn file vật lý và Xóa an toàn
 const getLocalPath = (dbPath: string) => {
   return path.join(process.cwd(), '../', dbPath);
 };
@@ -14,14 +13,86 @@ const safeDeleteFile = (dbPath: string | undefined) => {
   if (!dbPath || dbPath.startsWith('http')) return;
   try {
     const absolutePath = getLocalPath(dbPath);
-    if (fs.existsSync(absolutePath)) {
-      fs.unlinkSync(absolutePath);
-    }
+    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
   } catch (error) {
     console.error(`❌ Error deleting file ${dbPath}:`, error);
   }
 };
 
+export const getTasks = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user._id;
+    const userGroups = await Group.find({ members: userId }).distinct('_id');
+
+    const tasks = await Task.find({
+      isDeleted: { $ne: true },
+      $or: [
+        { group: { $in: userGroups } },
+        { group: null, $or: [{ creator: userId }, { assignee: userId }] },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .populate('category', 'name color')
+      .populate('group', 'name')
+      .populate('assignee', 'username avatar')
+      .populate('creator', 'username avatar'); // Populate creator
+
+    res.status(200).json({ success: true, count: tasks.length, tasks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching tasks' });
+  }
+};
+
+// 👇 [OVERWRITE] Xóa Task theo phân cấp: Admin > Owner > Creator
+export const deleteTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+
+    const task = await Task.findOne({ _id: id, isDeleted: false });
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found' });
+      return;
+    }
+
+    let hasPermission = false;
+    // 1. Admin
+    if (user.role === 'admin') hasPermission = true;
+    // 2. Creator (Người tạo ra task)
+    else if (task.creator.toString() === user._id.toString())
+      hasPermission = true;
+    // 3. Group Owner (Chủ nhóm chứa task)
+    else if (task.group) {
+      const group = await Group.findById(task.group);
+      if (group && group.owner.toString() === user._id.toString()) {
+        hasPermission = true;
+      }
+    }
+
+    // Assignee KHÔNG có quyền xóa
+    if (!hasPermission) {
+      res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xóa task này (Chỉ Creator/Owner/Admin).',
+      });
+      return;
+    }
+
+    // Xóa mềm -> Vào Trash của Creator hiện tại
+    task.isDeleted = true;
+    task.deletedAt = new Date();
+    await task.save();
+
+    res.json({ success: true, message: 'Đã chuyển vào thùng rác' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Delete failed' });
+  }
+};
+
+// ... (Giữ nguyên các hàm khác: getTask, createTask, updateTask, restoration, forceDelete, search, timer...)
 export const getTask = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -58,30 +129,6 @@ export const getTask = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const getTasks = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req as any).user._id;
-    const userGroups = await Group.find({ members: userId }).distinct('_id');
-    const tasks = await Task.find({
-      $or: [
-        { creator: userId },
-        { assignee: userId },
-        { group: { $in: userGroups } },
-      ],
-      isDeleted: { $ne: true },
-    })
-      .sort({ createdAt: -1 })
-      .populate('category', 'name color')
-      .populate('group', 'name')
-      .populate('assignee', 'username avatar')
-      .populate({ path: 'comments', select: '_id' })
-      .populate('timeEntries.user', 'username avatar');
-    res.status(200).json({ success: true, count: tasks.length, tasks });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching tasks' });
-  }
-};
-
 export const createTask = async (
   req: Request,
   res: Response
@@ -97,6 +144,7 @@ export const createTask = async (
       status,
       groupId,
       categoryId,
+      assignee,
     } = req.body;
     const finalDate = date || dueDate;
     if (!title || !finalDate) {
@@ -107,9 +155,8 @@ export const createTask = async (
     }
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     let imageUrl = '';
-    if (files && files['image'] && files['image'][0]) {
+    if (files && files['image'] && files['image'][0])
       imageUrl = `uploads/${files['image'][0].filename}`;
-    }
     let attachmentsData: any[] = [];
     if (files && files['attachments']) {
       attachmentsData = files['attachments'].map((file) => ({
@@ -133,7 +180,7 @@ export const createTask = async (
       priority: priority ? priority.toLowerCase() : 'moderate',
       status: status || 'todo',
       creator: creatorId,
-      assignee: req.body.assignee || creatorId,
+      assignee: assignee || creatorId,
       group: groupId || null,
       category: categoryId || null,
       isDeleted: false,
@@ -207,82 +254,26 @@ export const updateTask = async (
   }
 };
 
-export const deleteTask = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
-
-    // Tìm task (kể cả đã xóa) để check
-    const task = await Task.findOne({ _id: id });
-
-    if (!task) {
-      res.status(404).json({ success: false, message: 'Task not found' });
-      return;
-    }
-
-    if (task.isDeleted) {
-      res.json({ success: true, message: 'Task đã ở trong thùng rác' });
-      return;
-    }
-
-    // Check quyền: Admin OR Creator OR Assignee
-    const isAdmin = user.role === 'admin';
-    const isCreator = task.creator.toString() === user._id.toString();
-    const isAssignee =
-      task.assignee && task.assignee.toString() === user._id.toString();
-
-    if (!isAdmin && !isCreator && !isAssignee) {
-      res.status(403).json({
-        success: false,
-        message: 'Bạn không có quyền xóa công việc này.',
-      });
-      return;
-    }
-
-    task.isDeleted = true;
-    task.deletedAt = new Date();
-    await task.save();
-
-    res.json({ success: true, message: 'Đã chuyển vào thùng rác' });
-  } catch (error) {
-    console.error('🔥 DELETE TASK ERROR:', error);
-    res.status(500).json({ success: false, message: 'Delete failed' });
-  }
-};
-
-// 👇 [GET TRASH] Admin thấy tất cả
 export const getTrashTasks = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const user = (req as any).user;
-
-    // Điều kiện cơ bản
     const query: any = { isDeleted: true };
-
-    // Nếu KHÔNG phải Admin, chỉ lấy task của chính họ
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin')
       query.$or = [{ creator: user._id }, { assignee: user._id }];
-    }
-
     const tasks = await Task.find(query)
       .sort({ deletedAt: -1 })
       .populate('group', 'name')
       .populate('assignee', 'username avatar')
-      // 👇 Populate Creator để hiển thị trên UI Admin
       .populate('creator', 'username avatar');
-
     res.json({ success: true, tasks });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching trash' });
   }
 };
 
-// 👇 [RESTORE] Admin có quyền khôi phục tất cả
 export const restoreTask = async (
   req: Request,
   res: Response
@@ -291,22 +282,16 @@ export const restoreTask = async (
     const { id } = req.params;
     const user = (req as any).user;
     const task = await Task.findOne({ _id: id, isDeleted: true });
-
-    if (!task) {
-      res.status(404).json({ success: false, message: 'Not found in trash' });
-      return;
-    }
-
+    if (!task)
+      return void res
+        .status(404)
+        .json({ success: false, message: 'Not found in trash' });
     const isAdmin = user.role === 'admin';
     const isCreator = task.creator.toString() === user._id.toString();
-    const isAssignee =
-      task.assignee && task.assignee.toString() === user._id.toString();
-
-    if (!isAdmin && !isCreator && !isAssignee) {
-      res.status(403).json({ success: false, message: 'Permission denied' });
-      return;
-    }
-
+    if (!isAdmin && !isCreator)
+      return void res
+        .status(403)
+        .json({ success: false, message: 'Permission denied' });
     task.isDeleted = false;
     task.deletedAt = null;
     await task.save();
@@ -316,7 +301,6 @@ export const restoreTask = async (
   }
 };
 
-// 👇 [FORCE DELETE] Admin có quyền xóa vĩnh viễn tất cả
 export const forceDeleteTask = async (
   req: Request,
   res: Response
@@ -325,28 +309,19 @@ export const forceDeleteTask = async (
     const { id } = req.params;
     const user = (req as any).user;
     const task = await Task.findById(id);
-
-    if (!task) {
-      res.status(404).json({ success: false, message: 'Not found' });
-      return;
-    }
-
+    if (!task)
+      return void res
+        .status(404)
+        .json({ success: false, message: 'Not found' });
     const isAdmin = user.role === 'admin';
     const isCreator = task.creator.toString() === user._id.toString();
-    const isAssignee =
-      task.assignee && task.assignee.toString() === user._id.toString();
-
-    if (!isAdmin && !isCreator && !isAssignee) {
-      res.status(403).json({ success: false, message: 'Permission denied' });
-      return;
-    }
-
+    if (!isAdmin && !isCreator)
+      return void res
+        .status(403)
+        .json({ success: false, message: 'Permission denied' });
     if (task.image) safeDeleteFile(task.image);
-    if (task.attachments && task.attachments.length > 0) {
-      task.attachments.forEach((att) => {
-        safeDeleteFile(att.url);
-      });
-    }
+    if (task.attachments && task.attachments.length > 0)
+      task.attachments.forEach((att) => safeDeleteFile(att.url));
     await Task.findByIdAndDelete(id);
     res.json({ success: true, message: 'Permanently deleted' });
   } catch (error) {
@@ -360,10 +335,8 @@ export const searchTasks = async (
 ): Promise<void> => {
   try {
     const { q } = req.query;
-    if (!q || typeof q !== 'string') {
-      res.json({ success: true, tasks: [] });
-      return;
-    }
+    if (!q || typeof q !== 'string')
+      return void res.json({ success: true, tasks: [] });
     const userId = (req as any).user._id;
     const userGroups = await Group.find({ members: userId }).distinct('_id');
     const tasks = await Task.find({
@@ -392,19 +365,18 @@ export const startTimer = async (
     const { id } = req.params;
     const userId = (req as any).user._id;
     const task = await Task.findById(id);
-    if (!task) {
-      res.status(404).json({ success: false, message: 'Task not found' });
-      return;
-    }
-    const isRunning = task.timeEntries.some(
-      (entry) => entry.user.toString() === userId.toString() && !entry.endTime
-    );
-    if (isRunning) {
-      res
+    if (!task)
+      return void res
+        .status(404)
+        .json({ success: false, message: 'Task not found' });
+    if (
+      task.timeEntries.some(
+        (entry) => entry.user.toString() === userId.toString() && !entry.endTime
+      )
+    )
+      return void res
         .status(400)
-        .json({ success: false, message: 'Timer is already running for you.' });
-      return;
-    }
+        .json({ success: false, message: 'Timer is already running.' });
     task.timeEntries.push({ user: userId, startTime: new Date(), duration: 0 });
     await task.save();
     await task.populate('timeEntries.user', 'username avatar');
@@ -419,19 +391,17 @@ export const stopTimer = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const userId = (req as any).user._id;
     const task = await Task.findById(id);
-    if (!task) {
-      res.status(404).json({ success: false, message: 'Task not found' });
-      return;
-    }
+    if (!task)
+      return void res
+        .status(404)
+        .json({ success: false, message: 'Task not found' });
     const runningEntryIndex = task.timeEntries.findIndex(
       (entry) => entry.user.toString() === userId.toString() && !entry.endTime
     );
-    if (runningEntryIndex === -1) {
-      res
+    if (runningEntryIndex === -1)
+      return void res
         .status(400)
         .json({ success: false, message: 'No running timer found' });
-      return;
-    }
     const now = new Date();
     const entry = task.timeEntries[runningEntryIndex];
     entry.endTime = now;
@@ -458,11 +428,8 @@ export const getAllTasksAdmin = async (
     const order = (req.query.order as string) || 'desc';
     const skip = (page - 1) * limit;
     const query: any = { isDeleted: { $ne: true } };
-    if (search) {
-      query.title = { $regex: search, $options: 'i' };
-    }
-    const sortValue = order === 'asc' ? 1 : -1;
-    const sortOption: any = { [sortBy]: sortValue };
+    if (search) query.title = { $regex: search, $options: 'i' };
+    const sortOption: any = { [sortBy]: order === 'asc' ? 1 : -1 };
     const tasks = await Task.find(query)
       .populate('creator', 'username email avatar')
       .populate('category', 'name color')
@@ -480,7 +447,6 @@ export const getAllTasksAdmin = async (
       tasks,
     });
   } catch (error) {
-    console.error('🔥 GET ALL TASKS ADMIN ERROR:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

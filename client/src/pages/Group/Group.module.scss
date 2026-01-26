@@ -278,6 +278,17 @@
   }
 }
 
+.creatorTag {
+  font-size: 1.1rem;
+  color: var(--text-light);
+  margin-top: 4px;
+  font-style: italic;
+  span {
+    font-weight: 600;
+    color: var(--primary);
+  }
+}
+
 // Wrapper cho Leaderboard
 .leaderboard-section {
   margin-bottom: 30px;
@@ -448,5 +459,40 @@
     justify-content: center;
     font-size: 10px;
     font-weight: bold;
+  }
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-light);
+
+  &:hover {
+    background-color: var(--bg-hover);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  &.edit {
+    &:hover {
+      border-color: var(--primary);
+    }
+  }
+
+  &.danger {
+    &:hover {
+      background-color: #fee2e2;
+      color: #ef4444;
+      border-color: #fca5a5;
+    }
   }
 }

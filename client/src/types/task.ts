@@ -31,7 +31,8 @@ export interface ITaskResponse {
         _id: string;
         name: string;
       }
-    | string;
+    | string
+    | null;
 
   assignee?:
     | string
@@ -39,6 +40,14 @@ export interface ITaskResponse {
         _id: string;
         username: string;
         avatar: string;
+      };
+
+  creator:
+    | string
+    | {
+        _id: string;
+        username: string;
+        avatar?: string;
       };
 
   subtasks?: {
@@ -57,8 +66,7 @@ export interface ITaskResponse {
 
   comments?: (string | IComment)[] | any[];
 
-  // 👇 [MỚI] Time Tracking Data
-  totalTime?: number; // Tổng thời gian (ms)
+  totalTime?: number;
   timeEntries?: {
     _id: string;
     user: {
@@ -67,7 +75,7 @@ export interface ITaskResponse {
       avatar?: string;
     };
     startTime: string;
-    endTime?: string; // null nếu đang chạy
+    endTime?: string;
     duration: number;
   }[];
 }

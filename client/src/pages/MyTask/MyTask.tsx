@@ -17,7 +17,9 @@ import {
   Layers,
   User,
   Users,
-  MessageSquare,
+  Clock,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 
 import styles from './MyTask.module.scss';
@@ -30,6 +32,7 @@ import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
 
 const cx = classNames.bind(styles);
 
+// Helper lấy ảnh
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return null;
   if (imagePath.startsWith('http') || imagePath.startsWith('blob:')) {
@@ -49,13 +52,14 @@ const MyTask = () => {
   const [tasks, setTasks] = useState<ITaskResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskDetail, setSelectedTaskDetail] =
+    useState<ITaskResponse | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
-  const [selectedTaskDetail, setSelectedTaskDetail] =
-    useState<ITaskResponse | null>(null);
 
+  // Fetch danh sách tasks
   const fetchTasks = async () => {
     setLoading(true);
     try {
@@ -77,61 +81,68 @@ const MyTask = () => {
     fetchTasks();
   }, []);
 
+  // Logic mở task từ URL/Search
   useEffect(() => {
     const openTaskFromUrl = async () => {
       if (openTaskId) {
-        try {
-          const token = localStorage.getItem('token');
-          const res = await axios.get(
-            `http://localhost:5000/api/tasks/${openTaskId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-
-          if (res.data.success) {
-            setTaskToEdit(res.data.task);
-            setIsModalOpen(true);
+        // Tìm trong list hiện tại
+        const existingInList = tasks.find((t) => t._id === openTaskId);
+        if (existingInList) {
+          setSelectedTaskId(openTaskId);
+        } else {
+          // Nếu không có (ví dụ task ở trang khác), fetch riêng
+          try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(
+              `http://localhost:5000/api/tasks/${openTaskId}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            if (res.data.success) {
+              // Set ID để UI biết đang select, và set Detail luôn
+              setSelectedTaskId(openTaskId);
+              setSelectedTaskDetail(res.data.task);
+            }
+          } catch (e) {
+            setSearchParams({});
           }
-        } catch (error) {
-          console.error('Lỗi mở task từ liên kết:', error);
-          setSearchParams({});
         }
       }
     };
-
     openTaskFromUrl();
-  }, [openTaskId]);
+  }, [openTaskId, tasks.length]); // Thêm tasks.length để chạy lại khi list load xong
 
+  // Sync selectedTaskDetail khi selectedTaskId thay đổi (đối với click từ list)
   useEffect(() => {
     if (selectedTaskId) {
       const found = tasks.find((t) => t._id === selectedTaskId);
-      setSelectedTaskDetail(found || null);
+      // Nếu tìm thấy trong list thì update, nếu không (trường hợp search fetch riêng) thì giữ nguyên
+      if (found) setSelectedTaskDetail(found);
     } else {
       setSelectedTaskDetail(null);
     }
   }, [selectedTaskId, tasks]);
 
+  // Reload detail khi có update (ví dụ từ TimeTracker)
   const handleReloadDetail = async () => {
     if (!selectedTaskId) return;
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
         `http://localhost:5000/api/tasks/${selectedTaskId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (res.data.success) {
-        fetchTasks();
+        fetchTasks(); // Refresh lại list bên trái
         setSelectedTaskDetail(res.data.task);
       }
     } catch (error) {
-      console.error('Reload detail error', error);
+      console.error(error);
     }
   };
-
-  const filteredTasks = tasks.filter((task) => {
-    if (activeTab === 'personal') return !task.group;
-    if (activeTab === 'group') return !!task.group;
-    return true;
-  });
 
   const handleSelectTask = (id: string) => {
     if (selectedTaskId === id) handleCloseDetail();
@@ -144,6 +155,7 @@ const MyTask = () => {
   const handleCloseDetail = () => {
     setSelectedTaskId(null);
     setIsFullScreen(false);
+    setSearchParams({});
   };
 
   const handleAddTask = () => {
@@ -158,7 +170,6 @@ const MyTask = () => {
     }
   };
 
-  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async () => {
     if (!selectedTaskDetail) return;
     if (
@@ -176,12 +187,17 @@ const MyTask = () => {
         );
         fetchTasks();
         handleCloseDetail();
-      } catch (error) {
-        console.error('Lỗi xóa task:', error);
-        alert('Không thể xóa công việc này!');
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'Không thể xóa công việc này!');
       }
     }
   };
+
+  const filteredTasks = tasks.filter((task) => {
+    if (activeTab === 'personal') return !task.group;
+    if (activeTab === 'group') return !!task.group;
+    return true;
+  });
 
   return (
     <div className={cx('wrapper')}>
@@ -218,27 +234,18 @@ const MyTask = () => {
                   <Users size={14} /> Group
                 </button>
               </div>
-
-              <button
-                className={cx('addTaskBtn')}
-                onClick={handleAddTask}
-                title="Thêm công việc mới"
-              >
+              <button className={cx('addTaskBtn')} onClick={handleAddTask}>
                 <Plus size={16} /> Add task
               </button>
             </div>
 
             <div className={cx('listContent')}>
               {loading ? (
-                <p
-                  style={{ textAlign: 'center', color: '#888', marginTop: 20 }}
-                >
+                <p style={{ textAlign: 'center', color: '#888' }}>
                   Đang tải...
                 </p>
               ) : filteredTasks.length === 0 ? (
-                <div className={cx('emptyState')}>
-                  <p>Không có công việc nào trong mục này.</p>
-                </div>
+                <p className={cx('emptyState')}>Không có công việc nào.</p>
               ) : (
                 filteredTasks.map((task) => (
                   <TaskItem
@@ -253,6 +260,7 @@ const MyTask = () => {
           </div>
         )}
 
+        {/* DETAIL PANEL */}
         {selectedTaskDetail && (
           <div className={cx('detailPanel', { fullWidth: isFullScreen })}>
             <div className={cx('detailToolbar')}>
@@ -283,7 +291,7 @@ const MyTask = () => {
                     Created:{' '}
                     {format(
                       new Date(selectedTaskDetail.createdAt),
-                      'dd/MM/yyyy HH:mm'
+                      'dd/MM/yyyy'
                     )}
                   </span>
                   {selectedTaskDetail.dueDate && (
@@ -304,13 +312,10 @@ const MyTask = () => {
                     {getImageUrl(selectedTaskDetail.image) ? (
                       <img
                         src={getImageUrl(selectedTaskDetail.image)!}
-                        alt="Task cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
+                        alt="Cover"
                       />
                     ) : (
-                      <div className={cx('placeholder')}>...</div>
+                      <div className={cx('placeholder')}>No cover image</div>
                     )}
                   </div>
                 </div>
@@ -327,8 +332,7 @@ const MyTask = () => {
                       <span
                         className={cx('tag')}
                         style={{
-                          backgroundColor:
-                            selectedTaskDetail.category.color || '#94a3b8',
+                          backgroundColor: selectedTaskDetail.category.color,
                           color: '#fff',
                           border: 'none',
                         }}
@@ -336,25 +340,14 @@ const MyTask = () => {
                         {selectedTaskDetail.category.name}
                       </span>
                     )}
-                    {selectedTaskDetail.group && (
-                      <span
-                        className={cx('tag')}
-                        style={{ background: '#e2e8f0', color: '#475569' }}
-                      >
-                        <Users size={12} style={{ marginRight: 4 }} />
-                        {(selectedTaskDetail.group as any).name || 'Group Task'}
-                      </span>
-                    )}
                   </div>
 
                   <div className={cx('section')}>
                     <h3>Description</h3>
-                    <p>
-                      {selectedTaskDetail.description ||
-                        'Không có mô tả chi tiết.'}
-                    </p>
+                    <p>{selectedTaskDetail.description || 'Không có mô tả.'}</p>
                   </div>
 
+                  {/* Checklist View */}
                   {selectedTaskDetail.subtasks &&
                     selectedTaskDetail.subtasks.length > 0 && (
                       <div className={cx('section')}>
@@ -362,14 +355,14 @@ const MyTask = () => {
                           Checklist (
                           {
                             selectedTaskDetail.subtasks.filter(
-                              (t) => t.isCompleted
+                              (s) => s.isCompleted
                             ).length
                           }
                           /{selectedTaskDetail.subtasks.length})
                         </h3>
                         <div className={cx('checklist')}>
-                          {selectedTaskDetail.subtasks.map((sub, index) => (
-                            <div key={index} className={cx('checkItem')}>
+                          {selectedTaskDetail.subtasks.map((sub, i) => (
+                            <div key={i} className={cx('checkItem')}>
                               {sub.isCompleted ? (
                                 <CheckCircle2
                                   size={18}
@@ -391,6 +384,7 @@ const MyTask = () => {
                       </div>
                     )}
 
+                  {/* Attachments View */}
                   {selectedTaskDetail.attachments &&
                     selectedTaskDetail.attachments.length > 0 && (
                       <div className={cx('section')}>
@@ -398,9 +392,9 @@ const MyTask = () => {
                           Attachments ({selectedTaskDetail.attachments.length})
                         </h3>
                         <div className={cx('fileList')}>
-                          {selectedTaskDetail.attachments.map((file, index) => (
+                          {selectedTaskDetail.attachments.map((file, i) => (
                             <a
-                              key={index}
+                              key={i}
                               href={getImageUrl(file.url)!}
                               target="_blank"
                               rel="noreferrer"
@@ -434,41 +428,43 @@ const MyTask = () => {
                 </div>
               </div>
 
+              {/* Time Tracker */}
               <TimeTracker
                 taskId={selectedTaskDetail._id}
                 taskData={selectedTaskDetail}
                 onUpdate={handleReloadDetail}
               />
 
-              {selectedTaskDetail.comments &&
-                selectedTaskDetail.comments.length > 0 && (
-                  <div className={cx('commentWrapper')}>
-                    <CommentSection
-                      taskId={selectedTaskDetail._id}
-                      currentUser={user}
-                      groupMembers={[]}
-                      groupId={
-                        typeof selectedTaskDetail.group === 'object'
-                          ? selectedTaskDetail.group._id
-                          : selectedTaskDetail.group
-                      }
-                    />
-                  </div>
-                )}
+              {/* Comment Section */}
+              <div className={cx('commentWrapper')}>
+                <CommentSection
+                  taskId={selectedTaskDetail._id}
+                  currentUser={user}
+                  groupMembers={[]}
+                  // 👇 [FIX CRASH] Kiểm tra null an toàn cho group
+                  groupId={
+                    selectedTaskDetail.group &&
+                    typeof selectedTaskDetail.group === 'object'
+                      ? selectedTaskDetail.group._id
+                      : undefined
+                  }
+                />
+              </div>
             </div>
 
+            {/* 👇 [RESTORED] Footer Buttons */}
             <div className={cx('detailFooter')}>
               <button
                 className={cx('footerBtn', 'delete')}
                 onClick={handleDeleteTask}
               >
-                Delete Task
+                <Trash2 size={16} style={{ marginRight: 6 }} /> Delete
               </button>
               <button
                 className={cx('footerBtn', 'edit')}
                 onClick={handleEditTask}
               >
-                Edit Task
+                <Edit size={16} style={{ marginRight: 6 }} /> Edit
               </button>
             </div>
           </div>
@@ -482,9 +478,7 @@ const MyTask = () => {
           setTaskToEdit(null);
           setSearchParams({});
         }}
-        onSuccess={() => {
-          fetchTasks();
-        }}
+        onSuccess={fetchTasks}
         taskToEdit={taskToEdit}
       />
     </div>
