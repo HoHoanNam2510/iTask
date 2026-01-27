@@ -1,4 +1,4 @@
-/* src/components/TaskModal/TaskModal.tsx */
+/* client/src/components/TaskModal/TaskModal.tsx */
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -13,6 +13,7 @@ import {
   X,
   Calendar,
   Flag,
+  User,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './TaskModal.module.scss';
@@ -44,7 +45,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  defaultDate = new Date(),
+  defaultDate,
   defaultCategoryId = '',
   taskToEdit = null,
   groupMembers = [],
@@ -54,6 +55,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [myGroups, setMyGroups] = useState<{ _id: string; name: string }[]>([]);
+  const [fetchedMembers, setFetchedMembers] = useState<UserBasic[]>([]);
+
+  // Safe default date
+  const safeDefaultDate = useMemo(
+    () => defaultDate || new Date(),
+    [defaultDate]
+  );
 
   // Form States
   const [title, setTitle] = useState('');
@@ -67,7 +75,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [categoryId, setCategoryId] = useState(defaultCategoryId);
   const [groupId, setGroupId] = useState(defaultGroupId);
   const [assigneeId, setAssigneeId] = useState('');
-  const [dueDate, setDueDate] = useState(format(defaultDate, 'yyyy-MM-dd'));
+  const [dueDate, setDueDate] = useState(format(safeDefaultDate, 'yyyy-MM-dd'));
 
   // Media & Subtasks
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -84,6 +92,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
+  const activeMembers = useMemo(() => {
+    return groupMembers.length > 0 ? groupMembers : fetchedMembers;
+  }, [groupMembers, fetchedMembers]);
+
+  // Logic kiểm tra quyền
+  const isEditingGroupTask = useMemo(() => !!taskToEdit?.group, [taskToEdit]);
   const canDelete = useMemo(() => {
     if (!user || !taskToEdit || !taskToEdit.creator) return false;
     const cId =
@@ -97,71 +111,96 @@ const TaskModal: React.FC<TaskModalProps> = ({
     if (isOpen) {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      axios
-        .get('http://localhost:5000/api/categories', { headers })
-        .then((res) => setCategories(res.data.categories || []));
-      axios
-        .get('http://localhost:5000/api/groups/my-groups', { headers })
-        .then((res) => setMyGroups(res.data.groups || []));
-
-      if (taskToEdit) {
-        setTitle(taskToEdit.title);
-        setDescription(taskToEdit.description || '');
-        setPriority(taskToEdit.priority);
-        setStatus(taskToEdit.status);
-        setDueDate(format(new Date(taskToEdit.dueDate), 'yyyy-MM-dd'));
-        setCategoryId(
-          taskToEdit.category
-            ? typeof taskToEdit.category === 'object'
-              ? taskToEdit.category._id
-              : taskToEdit.category
-            : ''
-        );
-        setGroupId(
-          taskToEdit.group
-            ? typeof taskToEdit.group === 'object'
-              ? taskToEdit.group._id
-              : taskToEdit.group
-            : ''
-        );
-        setAssigneeId(
-          taskToEdit.assignee
-            ? typeof taskToEdit.assignee === 'object'
-              ? taskToEdit.assignee._id
-              : (taskToEdit.assignee as string)
-            : ''
-        );
-        setImagePreview(
-          taskToEdit.image ? `http://localhost:5000/${taskToEdit.image}` : null
-        );
-        setSubtasks(taskToEdit.subtasks || []);
-        setExistingAttachments(taskToEdit.attachments || []);
-        setCurrentTask(taskToEdit);
-      } else {
-        setTitle('');
-        setDescription('');
-        setPriority('low');
-        setStatus('todo');
-        setDueDate(format(defaultDate, 'yyyy-MM-dd'));
-        setCategoryId(defaultCategoryId);
-        setGroupId(defaultGroupId);
-        setAssigneeId(user?._id || '');
-        setImagePreview(null);
-        setImageFile(null);
-        setSubtasks([]);
-        setExistingAttachments([]);
-        setNewAttachmentFiles([]);
-        setCurrentTask(null);
-      }
+      Promise.all([
+        axios.get('http://localhost:5000/api/categories', { headers }),
+        axios.get('http://localhost:5000/api/groups/my-groups', { headers }),
+      ]).then(([catRes, groupRes]) => {
+        setCategories(catRes.data.categories || []);
+        setMyGroups(groupRes.data.groups || []);
+      });
     }
-  }, [
-    isOpen,
-    taskToEdit,
-    defaultDate,
-    defaultCategoryId,
-    defaultGroupId,
-    user,
-  ]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && groupId && groupMembers.length === 0) {
+      const fetchGroupMembers = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(
+            `http://localhost:5000/api/groups/${groupId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (res.data.success) {
+            setFetchedMembers(res.data.data.members || []);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      fetchGroupMembers();
+    }
+  }, [isOpen, groupId, groupMembers.length]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (taskToEdit) {
+      setTitle(taskToEdit.title);
+      setDescription(taskToEdit.description || '');
+      setPriority(taskToEdit.priority);
+      setStatus(taskToEdit.status);
+      setDueDate(
+        taskToEdit.dueDate
+          ? format(new Date(taskToEdit.dueDate), 'yyyy-MM-dd')
+          : format(new Date(), 'yyyy-MM-dd')
+      );
+      setCategoryId(
+        taskToEdit.category
+          ? typeof taskToEdit.category === 'object'
+            ? taskToEdit.category._id
+            : taskToEdit.category
+          : ''
+      );
+
+      const gId = taskToEdit.group
+        ? typeof taskToEdit.group === 'object'
+          ? taskToEdit.group._id
+          : taskToEdit.group
+        : '';
+      setGroupId(gId);
+
+      setAssigneeId(
+        taskToEdit.assignee
+          ? typeof taskToEdit.assignee === 'object'
+            ? taskToEdit.assignee._id
+            : (taskToEdit.assignee as string)
+          : ''
+      );
+      setImagePreview(
+        taskToEdit.image ? `http://localhost:5000/${taskToEdit.image}` : null
+      );
+      setSubtasks(taskToEdit.subtasks || []);
+      setExistingAttachments(taskToEdit.attachments || []);
+      setCurrentTask(taskToEdit);
+    } else {
+      setTitle('');
+      setDescription('');
+      setPriority('low');
+      setStatus('todo');
+      setDueDate(format(safeDefaultDate, 'yyyy-MM-dd'));
+      setCategoryId(defaultCategoryId);
+      setGroupId(defaultGroupId);
+      setAssigneeId(user?._id || '');
+      setImagePreview(null);
+      setImageFile(null);
+      setSubtasks([]);
+      setExistingAttachments([]);
+      setNewAttachmentFiles([]);
+      setCurrentTask(null);
+      setFetchedMembers([]);
+    }
+  }, [isOpen, taskToEdit]);
 
   const handleReloadTask = async () => {
     if (!currentTask) return;
@@ -187,9 +226,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
       data.append('priority', priority);
       data.append('status', status);
       data.append('date', new Date(dueDate).toISOString());
+
       if (groupId) data.append('groupId', groupId);
-      if (categoryId && !groupId) data.append('categoryId', categoryId);
-      if (assigneeId) data.append('assignee', assigneeId);
+
+      // 👇 [FIXED] Luôn gửi categoryId nếu KHÔNG có group (Personal Task)
+      if (!groupId) {
+        data.append('categoryId', categoryId); // Có thể là string rỗng để xóa
+      }
+
+      if (groupId && assigneeId) data.append('assignee', assigneeId);
+
       if (imageFile) data.append('image', imageFile);
       data.append('subtasks', JSON.stringify(subtasks));
       data.append('existingAttachments', JSON.stringify(existingAttachments));
@@ -216,7 +262,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  // Subtask Helpers
   const addSubtask = () => {
     if (newSubtaskTitle.trim()) {
       setSubtasks([
@@ -241,6 +286,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
           (subtasks.filter((t) => t.isCompleted).length / subtasks.length) * 100
         );
 
+  const handleGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newGroupId = e.target.value;
+    setGroupId(newGroupId);
+    if (newGroupId) setCategoryId('');
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -264,7 +315,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
         </div>
 
         <div className={cx('formBody')}>
-          {/* Title */}
           <div className={cx('formGroup')}>
             <label>Title</label>
             <input
@@ -277,7 +327,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
           <div className={cx('formRow')}>
             <div className={cx('leftColumn')}>
-              {/* 👇 [UPDATED] Input with Calendar Icon */}
               <div className={cx('formGroup')}>
                 <label>Due date</label>
                 <div className={cx('inputWithIcon')}>
@@ -292,11 +341,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
               <div className={cx('formGroup')}>
                 <label>Group</label>
                 <select
+                  className={cx('selectInput')}
                   value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  disabled={!!defaultGroupId}
+                  onChange={handleGroupChange}
+                  disabled={isEditingGroupTask || !!defaultGroupId}
                 >
-                  <option value="">Personal</option>
+                  <option value="">Personal (No Group)</option>
                   {myGroups.map((g) => (
                     <option key={g._id} value={g._id}>
                       {g.name}
@@ -309,12 +359,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
               <div className={cx('formGroup')}>
                 <label>Category</label>
                 <select
+                  className={cx('selectInput')}
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   disabled={!!groupId}
                 >
                   <option value="">
-                    {groupId ? 'N/A' : 'Select Category'}
+                    {groupId ? 'N/A (Group Task)' : 'Select Category'}
                   </option>
                   {!groupId &&
                     categories.map((c) => (
@@ -324,7 +375,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     ))}
                 </select>
               </div>
-              {/* 👇 [UPDATED] Input with Flag Icon */}
               <div className={cx('formGroup')}>
                 <label>Priority</label>
                 <div className={cx('inputWithIcon')}>
@@ -342,9 +392,39 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
+          {groupId && activeMembers.length > 0 && (
+            <div className={cx('formGroup')}>
+              <label>Assignee</label>
+              <div className={cx('inputWithIcon')}>
+                <User size={18} className={cx('icon')} />
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className={cx('selectInput')}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                  }}
+                >
+                  <option value={user?._id}>Assign to Me</option>
+                  {activeMembers
+                    .filter((m) => m._id !== user?._id)
+                    .map((member) => (
+                      <option key={member._id} value={member._id}>
+                        {member.username} ({member.email})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className={cx('formGroup')}>
             <label>Description</label>
             <textarea
+              className={cx('descInput')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description..."
@@ -405,7 +485,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 <FileText size={16} />{' '}
                 <span className={cx('fileName')}>{att.name}</span>
                 <div className={cx('actionGroup')}>
-                  {/* 👇 [RESTORED] Nút Download */}
                   <a
                     href={`http://localhost:5000/${att.url}`}
                     target="_blank"
@@ -463,7 +542,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             />
           </div>
 
-          {/* Image Upload */}
+          {/* Cover Image */}
           <div className={cx('formGroup')}>
             <label>Cover Image</label>
             <div

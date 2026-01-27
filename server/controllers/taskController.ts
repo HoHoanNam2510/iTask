@@ -87,15 +87,12 @@ export const deleteTask = async (
   }
 };
 
-// 👇 API lấy danh sách Trash
 export const getTrashTasks = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const user = (req as any).user;
-
-    // Tìm các group mà user là Owner
     const ownedGroups = await Group.find({ owner: user._id }).distinct('_id');
 
     const query: any = {
@@ -327,13 +324,10 @@ export const getAllTasksAdmin = async (
 export const getTask = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-
-    // 👇 Kiểm tra ID hợp lệ để tránh lỗi CastError nếu route sai
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: 'Invalid Task ID' });
       return;
     }
-
     const userId = (req as any).user._id;
     const task = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!task) {
@@ -433,6 +427,7 @@ export const createTask = async (
   }
 };
 
+// 👇 [FIXED] Logic update task để map category đúng
 export const updateTask = async (
   req: Request,
   res: Response
@@ -440,14 +435,40 @@ export const updateTask = async (
   try {
     const { id } = req.params;
     const oldTask = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
+
     if (!oldTask) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
     }
+
     const updateData: any = { ...req.body };
+
+    // 1. Nếu task cũ đã thuộc group -> Giữ nguyên group, bỏ category
+    if (oldTask.group) {
+      updateData.group = oldTask.group;
+      updateData.category = null;
+    }
+    // 2. Nếu request chuyển vào group mới -> Set group, bỏ category
+    else if (updateData.groupId) {
+      updateData.group = updateData.groupId;
+      updateData.category = null;
+    }
+    // 3. Nếu là Personal Task (không group)
+    else {
+      // 👇 [QUAN TRỌNG] Map 'categoryId' từ request sang 'category'
+      if (req.body.categoryId) {
+        updateData.category = req.body.categoryId;
+      } else if (req.body.categoryId === '') {
+        // Trường hợp user bỏ chọn category (gửi chuỗi rỗng)
+        updateData.category = null;
+      }
+    }
+
+    // Các logic khác (Priority, Date, Files...)
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     if (files && files['image'] && files['image'][0]) {
       updateData.image = `uploads/${files['image'][0].filename}`;
@@ -482,13 +503,18 @@ export const updateTask = async (
         if (!keptFileUrls.has(oldAtt.url)) safeDeleteFile(oldAtt.url);
       });
     }
+
     const updatedTask = await Task.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true }
-    );
+    )
+      .populate('category', 'name color')
+      .populate('group', 'name');
+
     res.json({ success: true, task: updatedTask });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: 'Update failed' });
   }
 };
