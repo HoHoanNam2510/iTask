@@ -181,6 +181,24 @@ const Group: React.FC = () => {
     }
   };
 
+  // 👇 [MỚI] Hàm rời nhóm cho thành viên
+  const handleLeaveGroup = async () => {
+    if (!window.confirm('Bạn có chắc muốn rời khỏi nhóm này?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `http://localhost:5000/api/groups/${groupId}/leave`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      window.dispatchEvent(new Event('GROUP_INFO_UPDATED'));
+      alert('Đã rời nhóm thành công');
+      navigate('/');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Lỗi khi rời nhóm');
+    }
+  };
+
   const handleKickMember = async (userId: string, username: string) => {
     if (!window.confirm(`Xóa ${username} khỏi nhóm?`)) return;
     try {
@@ -325,7 +343,6 @@ const Group: React.FC = () => {
         </div>
 
         <div className={cx('actions')}>
-          {/* 👇 [UI/UX FIX] Members Wrapper */}
           <div className={cx('membersWrapper')}>
             <div
               className={cx('members')}
@@ -393,7 +410,9 @@ const Group: React.FC = () => {
               </div>
             )}
           </div>
-          {isOwner && (
+
+          {/* 👇 [UPDATED] Nếu là Owner hiện Edit/Delete, nếu không hiện Leave */}
+          {isOwner ? (
             <>
               <button
                 className={cx('actionBtn', 'edit')}
@@ -410,7 +429,16 @@ const Group: React.FC = () => {
                 <Trash2 size={20} />
               </button>
             </>
+          ) : (
+            <button
+              className={cx('actionBtn', 'danger')}
+              onClick={handleLeaveGroup}
+              title="Rời nhóm"
+            >
+              <LogOut size={20} />
+            </button>
           )}
+
           <button
             className={cx('add-task-btn')}
             style={{ backgroundColor: '#e11d48' }}

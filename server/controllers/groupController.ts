@@ -5,6 +5,41 @@ import Group from '../models/Group';
 import Task from '../models/Task';
 import User from '../models/User';
 
+// --- HELPER: Xử lý Task khi thành viên rời nhóm (Dùng chung cho Kick và Leave) ---
+const processMemberDeparture = async (
+  groupId: string,
+  userId: string,
+  groupOwnerId: string
+) => {
+  // TH1: Task tự tạo & tự làm -> Xóa mềm
+  await Task.updateMany(
+    { group: groupId, creator: userId, assignee: userId, isDeleted: false },
+    { $set: { isDeleted: true, deletedAt: new Date() } }
+  );
+
+  // TH2: Task được giao (Assignee) -> Trả về Creator
+  const tasksToReturn = await Task.find({
+    group: groupId,
+    assignee: userId,
+    creator: { $ne: new mongoose.Types.ObjectId(userId) },
+  });
+  for (const task of tasksToReturn) {
+    task.assignee = task.creator;
+    await task.save();
+  }
+
+  // TH3: Task do user tạo (Creator) nhưng người khác làm -> Chuyển Creator thành Owner
+  await Task.updateMany(
+    {
+      group: groupId,
+      creator: userId,
+      assignee: { $ne: new mongoose.Types.ObjectId(userId) },
+      isDeleted: false,
+    },
+    { $set: { creator: groupOwnerId } }
+  );
+};
+
 // Tạo nhóm mới
 export const createGroup = async (
   req: Request,
@@ -56,7 +91,7 @@ export const getGroupDetails = async (
       success: true,
       data: {
         id: group._id,
-        title: group.name, // Mapping name -> title
+        title: group.name,
         description: group.description,
         inviteCode: group.inviteCode,
         members: group.members,
@@ -69,7 +104,7 @@ export const getGroupDetails = async (
   }
 };
 
-// Kick member (Logic 3 TH)
+// Kick member (Chỉ Owner)
 export const removeMember = async (
   req: Request,
   res: Response
@@ -99,34 +134,10 @@ export const removeMember = async (
       return;
     }
 
-    // TH1: Task tự tạo & tự làm -> Xóa mềm
-    await Task.updateMany(
-      { group: groupId, creator: userId, assignee: userId, isDeleted: false },
-      { $set: { isDeleted: true, deletedAt: new Date() } }
-    );
+    // Tái sử dụng logic xử lý Task
+    await processMemberDeparture(groupId, userId, group.owner.toString());
 
-    // TH2: Task được giao -> Trả về Creator
-    const tasksToReturn = await Task.find({
-      group: groupId,
-      assignee: userId,
-      creator: { $ne: new mongoose.Types.ObjectId(userId) },
-    });
-    for (const task of tasksToReturn) {
-      task.assignee = task.creator;
-      await task.save();
-    }
-
-    // TH3: Task do user tạo nhưng người khác làm -> Chuyển Creator thành Owner
-    await Task.updateMany(
-      {
-        group: groupId,
-        creator: userId,
-        assignee: { $ne: new mongoose.Types.ObjectId(userId) },
-        isDeleted: false,
-      },
-      { $set: { creator: group.owner } }
-    );
-
+    // Xóa khỏi mảng members
     group.members = group.members.filter((m) => m.toString() !== userId);
     await group.save();
 
@@ -136,6 +147,59 @@ export const removeMember = async (
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi xóa thành viên' });
+  }
+};
+
+// 👇 [MỚI] Member tự rời nhóm
+export const leaveGroup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const currentUserId = (req as any).user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+
+    // Owner không được rời nhóm (phải chuyển quyền hoặc giải tán)
+    if (group.owner.toString() === currentUserId.toString()) {
+      res.status(400).json({
+        success: false,
+        message:
+          'Trưởng nhóm không thể rời nhóm. Hãy giải tán hoặc chuyển quyền.',
+      });
+      return;
+    }
+
+    // Kiểm tra xem có trong nhóm không
+    if (!group.members.some((m) => m.toString() === currentUserId.toString())) {
+      res.status(400).json({
+        success: false,
+        message: 'Bạn không phải thành viên nhóm này',
+      });
+      return;
+    }
+
+    // Tái sử dụng logic xử lý Task
+    await processMemberDeparture(
+      groupId,
+      currentUserId,
+      group.owner.toString()
+    );
+
+    // Xóa khỏi mảng members
+    group.members = group.members.filter(
+      (m) => m.toString() !== currentUserId.toString()
+    );
+    await group.save();
+
+    res.json({ success: true, message: 'Đã rời nhóm thành công' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi khi rời nhóm' });
   }
 };
 
@@ -170,7 +234,7 @@ export const disbandGroup = async (
   }
 };
 
-// 👇 [CHECKED] Update Group - Trả về new: true để lấy data mới nhất
+// Update Group
 export const updateGroup = async (
   req: Request,
   res: Response
@@ -183,7 +247,7 @@ export const updateGroup = async (
     const group = await Group.findOneAndUpdate(
       { _id: groupId, owner: userId },
       { name, description },
-      { new: true } // Quan trọng: Trả về document sau khi update
+      { new: true }
     );
 
     if (!group) {
