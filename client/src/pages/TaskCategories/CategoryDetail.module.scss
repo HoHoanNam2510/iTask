@@ -1,14 +1,23 @@
-/* CategoryDetail.module.scss */
+/* client/src/pages/CategoryDetail/CategoryDetail.module.scss */
 
 .wrapper {
   padding: 2.4rem 4rem;
   height: 100%;
   overflow-y: auto;
-  background-color: var(--bg-hover); /* Dùng màu nền xám nhạt từ Global */
+  background-color: var(--bg-hover);
   font-family: 'Barlow', sans-serif;
 
   @media (max-width: 768px) {
     padding: 1.6rem;
+  }
+
+  // Custom scrollbar
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
   }
 }
 
@@ -19,7 +28,7 @@
   gap: 0.8rem;
   background: none;
   border: none;
-  color: var(--text-light); /* Màu chữ nhạt */
+  color: var(--text-light);
   font-size: 1.5rem;
   font-weight: 500;
   cursor: pointer;
@@ -29,7 +38,7 @@
   font-family: inherit;
 
   &:hover {
-    color: var(--primary); /* Hover chuyển màu xanh chủ đạo */
+    color: var(--primary);
     transform: translateX(-4px);
   }
 }
@@ -41,195 +50,68 @@
   align-items: flex-end;
   margin-bottom: 3.2rem;
   padding-bottom: 1.6rem;
-  border-bottom: 3px solid transparent; /* Màu border sẽ set inline */
+  border-bottom: 2px solid var(--border-color);
 
-  .headerInfo {
-    .title {
-      font-size: 3.2rem;
+  .info {
+    h1 {
+      font-size: 2.8rem;
       font-weight: 700;
       color: var(--text-main);
-      margin-bottom: 0.8rem;
-      line-height: 1.2;
+      margin: 0 0 0.4rem 0;
     }
-
-    .description {
-      font-size: 1.6rem;
+    p {
+      font-size: 1.4rem;
       color: var(--text-light);
-      max-width: 600px;
-      line-height: 1.5;
+      margin: 0;
     }
   }
 
-  .addBtn {
+  .addTaskBtn {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 1rem 2rem;
     background-color: var(--primary);
     color: var(--white);
     border: none;
+    padding: 1rem 2rem;
     border-radius: 1rem;
     font-size: 1.4rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
-    box-shadow: 0 4px 6px rgba(var(--primary-rgb), 0.2);
-    font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px rgba(64, 165, 120, 0.2);
 
     &:hover {
       background-color: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(64, 165, 120, 0.3);
     }
   }
 }
 
-// --- Danh sách Task ---
+// --- 👇 [UPDATED] Layout danh sách task hiện đại ---
 .taskList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.6rem;
+  display: grid;
+  // Responsive: Tự động chia cột, tối thiểu 350px mỗi task
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  padding-bottom: 40px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr; // Mobile 1 cột
+  }
 }
 
 .emptyState {
   text-align: center;
-  padding: 6rem 0;
+  padding: 60px 0;
   color: var(--text-light);
-
-  p {
-    font-size: 1.6rem;
-    margin-top: 1rem;
-    font-style: italic;
-  }
-}
-
-// --- Task Item (Card từng task) ---
-.taskItem {
+  font-size: 1.6rem;
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  background-color: var(--white);
-  padding: 1.6rem 2.4rem;
-  border-radius: 1.6rem;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s ease;
-  cursor: pointer;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.05);
-    border-color: var(--primary-light);
-  }
-
-  // Cột Trái: Checkbox + Tên
-  .taskLeft {
-    display: flex;
-    align-items: center;
-    gap: 1.6rem;
-
-    .statusCheckbox {
-      width: 2.4rem;
-      height: 2.4rem;
-      border-radius: 50%;
-      border: 2px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: transparent;
-      transition: all 0.2s;
-      flex-shrink: 0;
-
-      &.completed {
-        background-color: var(--primary);
-        border-color: var(--primary);
-        color: var(--white);
-      }
-    }
-
-    .taskContent {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-
-      .taskTitle {
-        font-size: 1.6rem;
-        font-weight: 600;
-        color: var(--text-main);
-        transition: color 0.2s;
-
-        &.completed {
-          text-decoration: line-through;
-          color: var(--text-light);
-        }
-      }
-    }
-  }
-
-  // Cột Phải: Meta info
-  .taskRight {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-
-    .metaInfo {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      font-size: 1.3rem;
-      color: var(--text-light);
-      background-color: var(--bg-hover);
-      padding: 0.6rem 1.2rem;
-      border-radius: 0.8rem;
-      font-weight: 500;
-    }
-
-    .priorityBadge {
-      font-size: 1.2rem;
-      font-weight: 600;
-      padding: 0.4rem 1rem;
-      border-radius: 0.6rem;
-      text-transform: capitalize;
-      display: flex;
-      align-items: center;
-
-      // Các màu priority cụ thể (có thể thêm vào global sau này nếu muốn)
-      &.low {
-        background-color: #d1fae5;
-        color: #059669;
-      }
-      &.moderate {
-        background-color: #fef3c7;
-        color: #d97706;
-      }
-      &.extreme {
-        background-color: #fee2e2; // Đỏ nhạt
-        color: var(--danger); // Dùng biến danger từ global
-      }
-    }
-  }
-}
-
-// Responsive cho Mobile
-@media (max-width: 600px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1.6rem;
-
-    .addBtn {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
-  .taskItem {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1.6rem;
-
-    .taskRight {
-      width: 100%;
-      justify-content: space-between;
-    }
-  }
+  gap: 12px;
 }

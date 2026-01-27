@@ -1,183 +1,148 @@
-import React, { useState, useEffect } from 'react';
+/* client/src/pages/CategoryDetail/CategoryDetail.tsx */
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import classNames from 'classnames/bind';
-import { ArrowLeft, Plus, Calendar, Flag, Check, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Layers } from 'lucide-react';
 
-// có thêm 1 vấn đề là mình đã nhờ bạn xây dựng phần TaskModel để tạo task trong cả Calendar và  CategoryDetail page nhưng các task đc tạo trong CategoryDetail lại ko hiển thị đc trong db, còn calendar thì ngược lại. Bạn hãy giải thích và khắc phục, mình gửi code
-
-// Import file SCSS vừa tạo
 import styles from './CategoryDetail.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
+// 👇 [MỚI] Import TaskItem để tái sử dụng UI
+import TaskItem from '~/components/TaskItem/TaskItem';
+import type { ITaskResponse } from '~/types/task';
 
 const cx = classNames.bind(styles);
 
-interface Task {
-  _id: string;
-  title: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  priority: 'low' | 'moderate' | 'extreme';
-  dueDate: string;
-}
-
 const CategoryDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Category ID
   const navigate = useNavigate();
 
   const [category, setCategory] = useState<any>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // 👇 Sử dụng ITaskResponse chuẩn
+  const [tasks, setTasks] = useState<ITaskResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // [MỚI] State để điều khiển modal
+  // Modal State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  // 👇 [MỚI] State để lưu task đang cần edit
+  const [taskToEdit, setTaskToEdit] = useState<ITaskResponse | null>(null);
 
-  // [MỚI] Hàm reload lại dữ liệu sau khi thêm task thành công
-  const handleTaskAdded = () => {
-    // Gọi lại hàm fetchDetail để list task cập nhật mới nhất
-    // Bạn cần tách hàm fetchDetail ra khỏi useEffect để gọi được ở đây
-    fetchDetail();
-  };
-
-  // Tách hàm fetchDetail ra ngoài useEffect
-  const fetchDetail = async () => {
+  const fetchCategoryDetail = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true); // Có thể bỏ dòng này nếu muốn update ngầm không hiện loading
       const token = localStorage.getItem('token');
-      const res = await axios.get(
+      // 1. Lấy thông tin category
+      const catRes = await axios.get(
         `http://localhost:5000/api/categories/${id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      if (res.data.success) {
-        setCategory(res.data.category);
-        setTasks(res.data.tasks);
+
+      // 2. Lấy danh sách task thuộc category này
+      // (Lưu ý: Backend cần hỗ trợ filter ?categoryId=... hoặc ta filter ở FE nếu API trả về all)
+      // Ở đây giả định bạn có API get tasks hỗ trợ filter hoặc ta fetch all rồi filter
+      const taskRes = await axios.get(`http://localhost:5000/api/tasks`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (catRes.data.success) {
+        setCategory(catRes.data.category);
+      }
+      if (taskRes.data.success) {
+        // Filter tasks thuộc category này
+        const allTasks = taskRes.data.tasks as ITaskResponse[];
+        const filteredTasks = allTasks.filter(
+          (t) =>
+            t.category &&
+            typeof t.category === 'object' &&
+            t.category._id === id
+        );
+        setTasks(filteredTasks);
       }
     } catch (error) {
-      console.error('Lỗi tải chi tiết:', error);
+      console.error('Lỗi tải dữ liệu:', error);
+      // alert('Không thể tải dữ liệu category');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (id) fetchDetail();
+    fetchCategoryDetail();
   }, [id]);
 
-  // Format ngày tháng: 12/12
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-    });
+  // Handler: Mở modal tạo mới
+  const handleAddTask = () => {
+    setTaskToEdit(null);
+    setIsTaskModalOpen(true);
   };
 
-  if (isLoading) return <div className={cx('wrapper')}>Loading...</div>;
-  if (!category) return <div className={cx('wrapper')}>Category not found</div>;
+  // 👇 [MỚI] Handler: Mở modal edit khi click vào item
+  const handleEditTask = (task: ITaskResponse) => {
+    setTaskToEdit(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsTaskModalOpen(false);
+    setTaskToEdit(null);
+  };
+
+  const handleSuccess = () => {
+    fetchCategoryDetail(); // Refresh data sau khi save
+  };
 
   return (
     <div className={cx('wrapper')}>
-      {/* 1. Nút quay lại */}
-      <button
-        className={cx('backBtn')}
-        onClick={() => navigate('/task-categories')}
-      >
-        <ArrowLeft size={20} />
-        Quay lại danh sách
+      {/* Nút Back */}
+      <button className={cx('backBtn')} onClick={() => navigate(-1)}>
+        <ArrowLeft size={20} /> Quay lại
       </button>
 
-      {/* 2. Header Category */}
-      <header
-        className={cx('header')}
-        style={{ borderBottomColor: category.color }} // Border màu động theo category
-      >
-        <div className={cx('headerInfo')}>
-          <h1
-            className={cx('title')}
-            style={{ color: category.color }} // Tiêu đề màu động
-          >
-            {category.name}
-          </h1>
-          <p className={cx('description')}>
-            {category.description || 'Chưa có mô tả cho danh mục này.'}
+      {/* Header */}
+      <div className={cx('header')}>
+        <div className={cx('info')}>
+          <h1>{category?.name || 'Category Detail'}</h1>
+          <p>
+            {category?.description ||
+              'Quản lý các công việc trong danh mục này'}
           </p>
         </div>
-
-        {/* [MỚI] Bắt sự kiện click mở Modal */}
-        <button
-          className={cx('addBtn')}
-          onClick={() => setIsTaskModalOpen(true)}
-        >
-          <Plus size={18} /> Thêm Task mới
+        <button className={cx('addTaskBtn')} onClick={handleAddTask}>
+          <Plus size={20} /> Thêm Task
         </button>
-      </header>
+      </div>
 
-      {/* 3. Danh sách Tasks */}
+      {/* Danh sách Task */}
       <div className={cx('taskList')}>
-        {tasks.length === 0 ? (
+        {isLoading ? (
+          <p style={{ textAlign: 'center', color: '#888' }}>Đang tải...</p>
+        ) : tasks.length === 0 ? (
           <div className={cx('emptyState')}>
-            <Clock size={48} style={{ opacity: 0.2 }} />
+            <Layers size={48} style={{ opacity: 0.2 }} />
             <p>Chưa có công việc nào trong danh mục này.</p>
           </div>
         ) : (
+          // 👇 [MỚI] Render bằng TaskItem Component
           tasks.map((task) => (
-            // --- Render trực tiếp Task Item tại đây ---
-            <div key={task._id} className={cx('taskItem')}>
-              {/* Bên trái: Checkbox + Title */}
-              <div className={cx('taskLeft')}>
-                <div
-                  className={cx('statusCheckbox', {
-                    completed: task.status === 'completed',
-                  })}
-                >
-                  {task.status === 'completed' && (
-                    <Check size={14} strokeWidth={4} />
-                  )}
-                </div>
-
-                <div className={cx('taskContent')}>
-                  <span
-                    className={cx('taskTitle', {
-                      completed: task.status === 'completed',
-                    })}
-                  >
-                    {task.title}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bên phải: Metadata (Ngày, Priority) */}
-              <div className={cx('taskRight')}>
-                {/* Ngày hết hạn */}
-                <div className={cx('metaInfo')}>
-                  <Calendar size={14} />
-                  <span>{formatDate(task.dueDate)}</span>
-                </div>
-
-                {/* Độ ưu tiên */}
-                <div className={cx('priorityBadge', task.priority)}>
-                  {task.priority === 'extreme' && (
-                    <Flag
-                      size={12}
-                      style={{ marginRight: 4 }}
-                      fill="currentColor"
-                    />
-                  )}
-                  {task.priority}
-                </div>
-              </div>
-            </div>
+            <TaskItem
+              key={task._id}
+              task={task}
+              isActive={false} // Trong trang này không cần highlight active
+              onClick={() => handleEditTask(task)} // Click để edit
+            />
           ))
         )}
       </div>
 
-      {/* [MỚI] Chèn Modal vào cuối file */}
+      {/* Task Modal */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
-        onSuccess={handleTaskAdded}
-        defaultCategoryId={id} // Truyền ID category hiện tại vào để form tự chọn
+        onClose={handleModalClose}
+        onSuccess={handleSuccess}
+        taskToEdit={taskToEdit} // Truyền task cần edit
+        defaultCategoryId={id} // Mặc định category hiện tại nếu tạo mới
       />
     </div>
   );
