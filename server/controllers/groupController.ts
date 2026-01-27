@@ -11,33 +11,50 @@ const processMemberDeparture = async (
   userId: string,
   groupOwnerId: string
 ) => {
-  // TH1: Task tự tạo & tự làm -> Xóa mềm
-  await Task.updateMany(
-    { group: groupId, creator: userId, assignee: userId, isDeleted: false },
-    { $set: { isDeleted: true, deletedAt: new Date() } }
-  );
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // TH2: Task được giao (Assignee) -> Trả về Creator
-  const tasksToReturn = await Task.find({
-    group: groupId,
-    assignee: userId,
-    creator: { $ne: new mongoose.Types.ObjectId(userId) },
-  });
-  for (const task of tasksToReturn) {
-    task.assignee = task.creator;
-    await task.save();
-  }
-
-  // TH3: Task do user tạo (Creator) nhưng người khác làm -> Chuyển Creator thành Owner
-  await Task.updateMany(
-    {
+  try {
+    // 1. Task do user đang LÀM (Assignee) nhưng do người khác tạo -> Trả về cho Creator
+    // (Logic: User đi rồi thì trả việc lại cho người tạo ra nó)
+    const tasksAssignedToUser = await Task.find({
       group: groupId,
-      creator: userId,
-      assignee: { $ne: new mongoose.Types.ObjectId(userId) },
-      isDeleted: false,
-    },
-    { $set: { creator: groupOwnerId } }
-  );
+      assignee: userId,
+      creator: { $ne: new mongoose.Types.ObjectId(userId) },
+    }).session(session);
+
+    for (const task of tasksAssignedToUser) {
+      task.assignee = task.creator;
+      await task.save({ session });
+    }
+
+    // 2. Task do user TẠO (Creator) và TỰ LÀM (Assignee) -> Xóa mềm
+    // (Logic: Việc của họ tự nghĩ ra tự làm thì xóa đi cho đỡ rác, Owner muốn thì restore sau)
+    await Task.updateMany(
+      { group: groupId, creator: userId, assignee: userId, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: new Date() } }
+    ).session(session);
+
+    // 3. QUAN TRỌNG NHẤT: Chuyển quyền sở hữu (Creator)
+    // Tất cả task do user này tạo trong nhóm (dù đang active hay đã xóa mềm ở bước 2)
+    // đều phải chuyển sang tên của Group Owner.
+    // Điều này đảm bảo trong Trash của Owner sẽ hiện "Created by [Owner]"
+    await Task.updateMany(
+      {
+        group: groupId,
+        creator: userId,
+        // Không lọc assignee hay isDeleted nữa, chuyển hết cái gì do nó tạo
+      },
+      { $set: { creator: groupOwnerId } }
+    ).session(session);
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error; // Ném lỗi để controller bắt
+  } finally {
+    session.endSession();
+  }
 };
 
 // Tạo nhóm mới
@@ -104,7 +121,36 @@ export const getGroupDetails = async (
   }
 };
 
-// Kick member (Chỉ Owner)
+// Add member
+export const addMember = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params;
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Email không tồn tại' });
+      return;
+    }
+    const group = await Group.findById(groupId);
+    if (!group) {
+      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+      return;
+    }
+    if (group.members.some((m) => m.toString() === user._id.toString())) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Thành viên này đã ở trong nhóm' });
+      return;
+    }
+    group.members.push(user._id as any);
+    await group.save();
+    res.json({ success: true, message: 'Thêm thành viên thành công' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// Kick member
 export const removeMember = async (
   req: Request,
   res: Response
@@ -134,23 +180,24 @@ export const removeMember = async (
       return;
     }
 
-    // Tái sử dụng logic xử lý Task
+    // Xử lý task
     await processMemberDeparture(groupId, userId, group.owner.toString());
 
-    // Xóa khỏi mảng members
+    // Xóa khỏi nhóm
     group.members = group.members.filter((m) => m.toString() !== userId);
     await group.save();
 
     res.json({
       success: true,
-      message: 'Đã xóa thành viên và xử lý bàn giao công việc',
+      message: 'Đã xóa thành viên và chuyển giao công việc cho bạn',
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: 'Lỗi xóa thành viên' });
   }
 };
 
-// 👇 [MỚI] Member tự rời nhóm
+// Leave group
 export const leaveGroup = async (
   req: Request,
   res: Response
@@ -165,17 +212,14 @@ export const leaveGroup = async (
       return;
     }
 
-    // Owner không được rời nhóm (phải chuyển quyền hoặc giải tán)
     if (group.owner.toString() === currentUserId.toString()) {
       res.status(400).json({
         success: false,
-        message:
-          'Trưởng nhóm không thể rời nhóm. Hãy giải tán hoặc chuyển quyền.',
+        message: 'Trưởng nhóm không thể rời nhóm.',
       });
       return;
     }
 
-    // Kiểm tra xem có trong nhóm không
     if (!group.members.some((m) => m.toString() === currentUserId.toString())) {
       res.status(400).json({
         success: false,
@@ -184,14 +228,12 @@ export const leaveGroup = async (
       return;
     }
 
-    // Tái sử dụng logic xử lý Task
     await processMemberDeparture(
       groupId,
       currentUserId,
       group.owner.toString()
     );
 
-    // Xóa khỏi mảng members
     group.members = group.members.filter(
       (m) => m.toString() !== currentUserId.toString()
     );
@@ -203,7 +245,7 @@ export const leaveGroup = async (
   }
 };
 
-// Giải tán nhóm
+// Disband Group
 export const disbandGroup = async (
   req: Request,
   res: Response
@@ -211,23 +253,19 @@ export const disbandGroup = async (
   try {
     const { groupId } = req.params;
     const currentUserId = (req as any).user._id;
-
     const group = await Group.findById(groupId);
     if (!group) {
       res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
       return;
     }
-
     if (group.owner.toString() !== currentUserId.toString()) {
       res
         .status(403)
         .json({ success: false, message: 'Chỉ trưởng nhóm được giải tán' });
       return;
     }
-
     await Task.deleteMany({ group: groupId });
     await Group.findByIdAndDelete(groupId);
-
     res.json({ success: true, message: 'Đã giải tán nhóm thành công' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi giải tán nhóm' });
@@ -241,12 +279,20 @@ export const updateGroup = async (
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
-    const { name, description } = req.body;
+    const { name, title, description } = req.body;
+    const newName = name || title;
     const userId = (req as any).user._id;
+
+    if (!newName) {
+      res
+        .status(400)
+        .json({ success: false, message: 'Tên nhóm không được để trống' });
+      return;
+    }
 
     const group = await Group.findOneAndUpdate(
       { _id: groupId, owner: userId },
-      { name, description },
+      { name: newName, description },
       { new: true }
     );
 
@@ -264,34 +310,6 @@ export const updateGroup = async (
 };
 
 // ... Các hàm khác giữ nguyên
-export const addMember = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { groupId } = req.params;
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      res.status(404).json({ success: false, message: 'Email không tồn tại' });
-      return;
-    }
-    const group = await Group.findById(groupId);
-    if (!group) {
-      res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
-      return;
-    }
-    if (group.members.some((m) => m.toString() === user._id.toString())) {
-      res
-        .status(400)
-        .json({ success: false, message: 'Thành viên này đã ở trong nhóm' });
-      return;
-    }
-    group.members.push(user._id as any);
-    await group.save();
-    res.json({ success: true, message: 'Thêm thành viên thành công' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-};
-
 export const getMyGroups = async (
   req: Request,
   res: Response
@@ -315,7 +333,6 @@ export const getMyGroups = async (
     res.status(500).json({ success: false, message: 'Lỗi tải danh sách nhóm' });
   }
 };
-
 export const joinGroupByCode = async (req: Request, res: Response) => {
   try {
     const { inviteCode } = req.body;
@@ -337,7 +354,6 @@ export const joinGroupByCode = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Lỗi join group' });
   }
 };
-
 export const getGroupLeaderboard = async (
   req: Request,
   res: Response
