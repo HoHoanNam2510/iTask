@@ -18,7 +18,7 @@ export const createGroup = async (
       name,
       description,
       owner: ownerId,
-      members: [ownerId], // Người tạo tự động là thành viên
+      members: [ownerId],
     });
 
     await newGroup.save();
@@ -28,7 +28,7 @@ export const createGroup = async (
   }
 };
 
-// Lấy chi tiết nhóm (Populate Creator để hiển thị ở FE)
+// Lấy chi tiết nhóm
 export const getGroupDetails = async (
   req: Request,
   res: Response
@@ -49,14 +49,14 @@ export const getGroupDetails = async (
       isDeleted: { $ne: true },
     })
       .populate('assignee', 'username avatar email')
-      .populate('creator', 'username avatar') // 👇 [CẬP NHẬT] Populate creator
+      .populate('creator', 'username avatar')
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       data: {
         id: group._id,
-        title: group.name,
+        title: group.name, // Mapping name -> title
         description: group.description,
         inviteCode: group.inviteCode,
         members: group.members,
@@ -69,14 +69,14 @@ export const getGroupDetails = async (
   }
 };
 
-// 👇 [OVERWRITE] Logic Kick Member xử lý 3 trường hợp Task
+// Kick member (Logic 3 TH)
 export const removeMember = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
-    const { userId } = req.body; // ID người bị kick
+    const { userId } = req.body;
     const currentUserId = (req as any).user._id;
 
     const group = await Group.findById(groupId);
@@ -85,7 +85,6 @@ export const removeMember = async (
       return;
     }
 
-    // 1. Chỉ Owner mới có quyền kick
     if (group.owner.toString() !== currentUserId.toString()) {
       res
         .status(403)
@@ -100,26 +99,24 @@ export const removeMember = async (
       return;
     }
 
-    // --- XỬ LÝ TASK ---
-
-    // TH1: Task do member bị kick TẠO và TỰ LÀM -> Xóa mềm (vào trash của họ)
+    // TH1: Task tự tạo & tự làm -> Xóa mềm
     await Task.updateMany(
       { group: groupId, creator: userId, assignee: userId, isDeleted: false },
       { $set: { isDeleted: true, deletedAt: new Date() } }
     );
 
-    // TH2: Task do member bị kick LÀM (Assignee) nhưng người khác tạo -> Trả về cho Creator
+    // TH2: Task được giao -> Trả về Creator
     const tasksToReturn = await Task.find({
       group: groupId,
       assignee: userId,
       creator: { $ne: new mongoose.Types.ObjectId(userId) },
     });
     for (const task of tasksToReturn) {
-      task.assignee = task.creator; // Gán lại assignee = creator
+      task.assignee = task.creator;
       await task.save();
     }
 
-    // TH3: Task do member bị kick TẠO (Creator) nhưng người khác làm -> Chuyển Creator thành Group Owner
+    // TH3: Task do user tạo nhưng người khác làm -> Chuyển Creator thành Owner
     await Task.updateMany(
       {
         group: groupId,
@@ -130,7 +127,6 @@ export const removeMember = async (
       { $set: { creator: group.owner } }
     );
 
-    // Xóa khỏi danh sách thành viên
     group.members = group.members.filter((m) => m.toString() !== userId);
     await group.save();
 
@@ -143,7 +139,7 @@ export const removeMember = async (
   }
 };
 
-// Owner giải tán nhóm
+// Giải tán nhóm
 export const disbandGroup = async (
   req: Request,
   res: Response
@@ -174,7 +170,7 @@ export const disbandGroup = async (
   }
 };
 
-// Owner cập nhật nhóm
+// 👇 [CHECKED] Update Group - Trả về new: true để lấy data mới nhất
 export const updateGroup = async (
   req: Request,
   res: Response
@@ -187,7 +183,7 @@ export const updateGroup = async (
     const group = await Group.findOneAndUpdate(
       { _id: groupId, owner: userId },
       { name, description },
-      { new: true }
+      { new: true } // Quan trọng: Trả về document sau khi update
     );
 
     if (!group) {
@@ -203,7 +199,7 @@ export const updateGroup = async (
   }
 };
 
-// ... (Các hàm khác giữ nguyên: addMember, getMyGroups, joinGroupByCode, getGroupLeaderboard, Admin...)
+// ... Các hàm khác giữ nguyên
 export const addMember = async (req: Request, res: Response): Promise<void> => {
   try {
     const { groupId } = req.params;
