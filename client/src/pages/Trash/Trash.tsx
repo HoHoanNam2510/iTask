@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import classNames from 'classnames/bind';
-import { Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Trash2, RotateCcw } from 'lucide-react';
 import styles from './Trash.module.scss';
 import { format } from 'date-fns';
 
@@ -22,7 +22,6 @@ interface TrashTask {
   status: string;
   group?: { _id: string; name: string };
   deletedAt: string;
-  // 👇 [MỚI] Thêm thông tin người tạo (cho Admin view)
   creator?: {
     _id: string;
     username: string;
@@ -34,12 +33,12 @@ const Trash = () => {
   const [tasks, setTasks] = useState<TrashTask[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch danh sách thùng rác
   const fetchTrash = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/tasks/trash/all', {
+      // Đã gọi đúng API backend
+      const res = await axios.get('http://localhost:5000/api/tasks/trash', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -57,77 +56,78 @@ const Trash = () => {
   }, []);
 
   const handleRestore = async (id: string) => {
+    if (!confirm('Khôi phục task này?')) return;
     try {
       const token = localStorage.getItem('token');
       await axios.put(
         `http://localhost:5000/api/tasks/${id}/restore`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setTasks((prev) => prev.filter((t) => t._id !== id));
-      alert('Đã khôi phục công việc thành công!');
+      fetchTrash();
     } catch (error) {
-      alert('Lỗi khi khôi phục');
+      alert('Lỗi khôi phục (Bạn có quyền không?)');
     }
   };
 
   const handleForceDelete = async (id: string) => {
-    if (
-      !window.confirm(
-        'CẢNH BÁO: Hành động này không thể hoàn tác! Bạn chắc chắn muốn xóa vĩnh viễn?'
-      )
-    )
-      return;
-
+    if (!confirm('Hành động này không thể hoàn tác. Xóa vĩnh viễn?')) return;
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/tasks/${id}/force`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setTasks((prev) => prev.filter((t) => t._id !== id));
-    } catch (error) {
-      alert('Lỗi khi xóa vĩnh viễn');
+      fetchTrash();
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Lỗi xóa vĩnh viễn');
     }
   };
 
-  if (loading) return <div className={cx('wrapper')}>Đang tải...</div>;
-
   return (
     <div className={cx('wrapper')}>
-      <header className={cx('header')}>
-        <h1>Thùng rác</h1>
-        <p>Các công việc đã xóa sẽ bị xóa vĩnh viễn sau 30 ngày.</p>
-      </header>
+      <div className={cx('header')}>
+        <h1>
+          <Trash2 size={28} /> Thùng rác ({tasks.length})
+        </h1>
+        <p>Các công việc đã xóa có thể được khôi phục hoặc xóa vĩnh viễn.</p>
+      </div>
 
-      {tasks.length === 0 ? (
+      {loading ? (
+        <p style={{ textAlign: 'center', marginTop: 20 }}>Đang tải...</p>
+      ) : tasks.length === 0 ? (
         <div className={cx('emptyState')}>
-          <CheckCircle2 size={48} color="#10b981" />
-          <p>Thùng rác trống. Tuyệt vời!</p>
+          <Trash2 size={48} style={{ opacity: 0.2 }} />
+          <p>Thùng rác trống</p>
         </div>
       ) : (
-        <div className={cx('taskList')}>
+        <div className={cx('trashList')}>
           {tasks.map((task) => (
-            <div key={task._id} className={cx('taskRow')}>
+            <div key={task._id} className={cx('trashCard')}>
               <div className={cx('info')}>
-                <h3 className={cx('title')}>{task.title}</h3>
+                <h3 className={cx('taskTitle')}>{task.title}</h3>
                 <div className={cx('meta')}>
-                  {/* Badge Priority */}
-                  <span className={cx('badge', task.priority)}>
-                    {task.priority}
+                  <span className={cx('badge', task.status)}>
+                    {task.status.replace('_', ' ')}
                   </span>
 
-                  {/* Badge Group */}
                   {task.group && (
                     <span className={cx('groupName')}>
                       📂 {task.group.name}
                     </span>
                   )}
 
-                  {/* 👇 [MỚI] Hiển thị Owner (dành cho Admin) */}
                   {task.creator && (
                     <div className={cx('creator')}>
-                      <span style={{ color: '#6b7280', fontSize: '1.2rem' }}>
-                        by
+                      <span
+                        style={{
+                          marginRight: 4,
+                          color: '#64748b',
+                          fontSize: '1rem',
+                        }}
+                      >
+                        Owner:
                       </span>
                       <img
                         src={getAvatarUrl(task.creator.avatar)}
@@ -144,7 +144,8 @@ const Trash = () => {
                   )}
 
                   <span className={cx('deletedDate')}>
-                    | Xóa: {format(new Date(task.deletedAt), 'dd/MM HH:mm')}
+                    Deleted:{' '}
+                    {format(new Date(task.deletedAt), 'dd/MM/yyyy HH:mm')}
                   </span>
                 </div>
               </div>
@@ -153,16 +154,16 @@ const Trash = () => {
                 <button
                   className={cx('btn', 'restore')}
                   onClick={() => handleRestore(task._id)}
-                  title="Khôi phục"
+                  title="Khôi phục lại danh sách"
                 >
-                  <RotateCcw size={18} /> Restore
+                  <RotateCcw size={16} /> Restore
                 </button>
                 <button
                   className={cx('btn', 'delete')}
                   onClick={() => handleForceDelete(task._id)}
-                  title="Xóa vĩnh viễn"
+                  title="Xóa hoàn toàn khỏi hệ thống"
                 >
-                  <Trash2 size={18} /> Delete
+                  <Trash2 size={16} /> Delete
                 </button>
               </div>
             </div>
