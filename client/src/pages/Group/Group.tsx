@@ -133,6 +133,38 @@ const Group: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
+  const handleUpdateGroup = async (formData: {
+    name: string;
+    description: string;
+  }) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(
+        `http://localhost:5000/api/groups/${groupId}`,
+        formData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (res.data.success) {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: formData.name,
+                description: formData.description,
+              }
+            : null
+        );
+        setIsGroupModalOpen(false);
+        window.dispatchEvent(new Event('GROUP_INFO_UPDATED'));
+      }
+    } catch (error) {
+      alert('Lỗi cập nhật nhóm');
+    }
+  };
+
   const handleDeleteGroup = async () => {
     if (!window.confirm('CẢNH BÁO: Giải tán nhóm? Dữ liệu sẽ mất vĩnh viễn!'))
       return;
@@ -214,7 +246,6 @@ const Group: React.FC = () => {
       completed: data.tasks.filter((t) => t.status === 'completed'),
     };
 
-    // Tính toán dữ liệu biểu đồ tuần
     const weeklyData = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(new Date(), i);
@@ -294,6 +325,7 @@ const Group: React.FC = () => {
         </div>
 
         <div className={cx('actions')}>
+          {/* 👇 [UI/UX FIX] Members Wrapper */}
           <div className={cx('membersWrapper')}>
             <div
               className={cx('members')}
@@ -305,7 +337,10 @@ const Group: React.FC = () => {
                   className={cx('avatar')}
                   src={getAvatarUrl(m.avatar)}
                   alt={m.username}
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display =
+                      'none';
+                  }}
                 />
               ))}
               {data.members.length > 4 && (
@@ -333,12 +368,13 @@ const Group: React.FC = () => {
                           }
                           alt=""
                         />
-                        <span>
-                          {mem.username}{' '}
-                          {data.owner._id === mem._id && (
-                            <span className={cx('ownerLabel')}>Owner</span>
-                          )}
-                        </span>
+                        <div className={cx('textInfo')}>
+                          <span>{mem.username}</span>
+                          <span className={cx('email')}>{mem.email}</span>
+                        </div>
+                        {data.owner._id === mem._id && (
+                          <span className={cx('ownerLabel')}>Owner</span>
+                        )}
                       </div>
                       {isOwner && data.owner._id !== mem._id && (
                         <button
@@ -348,7 +384,7 @@ const Group: React.FC = () => {
                           }
                           title="Kick"
                         >
-                          <LogOut size={14} />
+                          <LogOut size={16} />
                         </button>
                       )}
                     </div>
@@ -394,7 +430,6 @@ const Group: React.FC = () => {
         </div>
       </header>
 
-      {/* 👇 [FIXED] Khôi phục Stats Grid & Charts */}
       <div className={cx('statsGrid')}>
         <StatCard
           title="Tổng"
@@ -432,7 +467,10 @@ const Group: React.FC = () => {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                  y: { beginAtZero: true, grid: { display: false } },
+                  y: {
+                    beginAtZero: true,
+                    grid: { display: false },
+                  },
                   x: { grid: { display: false } },
                 },
               }}
@@ -524,8 +562,11 @@ const Group: React.FC = () => {
       <GroupModal
         isOpen={isGroupModalOpen}
         onClose={() => setIsGroupModalOpen(false)}
-        onSubmit={fetchGroupData}
-        initialData={{ name: data.title, description: data.description }}
+        onSubmit={handleUpdateGroup}
+        initialData={{
+          name: data.title,
+          description: data.description,
+        }}
         title="Cài đặt nhóm"
       />
     </div>
