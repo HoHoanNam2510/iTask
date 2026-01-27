@@ -1,3 +1,4 @@
+/* server/routes/groupRoutes.ts */
 import express from 'express';
 import {
   createGroup,
@@ -12,22 +13,24 @@ import {
   updateGroup,
   disbandGroup,
   removeMember,
+  leaveGroup, // 👇 [MỚI] Import hàm leaveGroup
 } from '../controllers/groupController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-router.use(verifyToken); // Bắt buộc đăng nhập
+router.use(verifyToken);
 
 // Routes cho User
 router.post('/', createGroup);
 router.post('/join', joinGroupByCode);
 router.get('/my-groups', getMyGroups);
 router.get('/:groupId', getGroupDetails);
-router.put('/:groupId', updateGroup); // Update thông tin nhóm
-router.delete('/:groupId', disbandGroup); // Giải tán nhóm
+router.put('/:groupId', updateGroup);
+router.delete('/:groupId', disbandGroup);
 router.post('/:groupId/invite', addMember);
-router.post('/:groupId/remove-member', removeMember); // Kick member
+router.post('/:groupId/remove-member', removeMember); // Kick member (Owner)
+router.post('/:groupId/leave', leaveGroup); // 👇 [MỚI] Rời nhóm (Member)
 router.get('/:groupId/leaderboard', getGroupLeaderboard);
 
 // Routes cho Admin
