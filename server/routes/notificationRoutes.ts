@@ -1,9 +1,10 @@
+/* server/routes/notificationRoutes.ts */
 import express from 'express';
 import {
   getMyNotifications,
   markAsRead,
   deleteNotification,
-  createMeetingNotification,
+  // Đã xóa createMeetingNotification
 } from '../controllers/notificationController';
 import { verifyToken } from '../middleware/authMiddleware';
 
@@ -13,7 +14,6 @@ router.get('/', verifyToken, getMyNotifications);
 router.put('/:id/read', verifyToken, markAsRead);
 router.delete('/:id', verifyToken, deleteNotification);
 
-// 👇 Route mới: Tạo thông báo họp
-router.post('/meeting', verifyToken, createMeetingNotification);
+// Đã xóa route /meeting
 
 export default router;

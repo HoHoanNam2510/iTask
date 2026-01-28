@@ -1,9 +1,10 @@
+/* server/models/Notification.ts */
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INotification extends Document {
   recipient: mongoose.Types.ObjectId; // Người nhận thông báo
   sender: mongoose.Types.ObjectId; // Người gây ra (ví dụ: người comment)
-  type: 'mention' | 'assign' | 'invite' | 'deadline'; // Loại thông báo
+  type: 'mention' | 'assign' | 'deadline'; // Đã xóa 'invite'
   text: string; // Nội dung hiển thị
   link?: string; // Link để click vào (ví dụ: /tasks/123)
   isRead: boolean;
@@ -16,7 +17,7 @@ const NotificationSchema: Schema = new Schema(
     sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['mention', 'assign', 'invite', 'deadline'],
+      enum: ['mention', 'assign', 'deadline'], // Đã xóa 'invite'
       required: true,
     },
     text: { type: String, required: true },
