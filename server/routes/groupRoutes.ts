@@ -13,7 +13,7 @@ import {
   updateGroup,
   disbandGroup,
   removeMember,
-  leaveGroup, // 👇 [MỚI] Import hàm leaveGroup
+  leaveGroup,
 } from '../controllers/groupController';
 import { verifyToken, verifyAdmin } from '../middleware/authMiddleware';
 
@@ -29,8 +29,8 @@ router.get('/:groupId', getGroupDetails);
 router.put('/:groupId', updateGroup);
 router.delete('/:groupId', disbandGroup);
 router.post('/:groupId/invite', addMember);
-router.post('/:groupId/remove-member', removeMember); // Kick member (Owner)
-router.post('/:groupId/leave', leaveGroup); // 👇 [MỚI] Rời nhóm (Member)
+router.post('/:groupId/remove-member', removeMember);
+router.post('/:groupId/leave', leaveGroup);
 router.get('/:groupId/leaderboard', getGroupLeaderboard);
 
 // Routes cho Admin

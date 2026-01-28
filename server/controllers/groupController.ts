@@ -5,7 +5,7 @@ import Group from '../models/Group';
 import Task from '../models/Task';
 import User from '../models/User';
 
-// --- HELPER: Xử lý Task khi thành viên rời nhóm (Dùng chung cho Kick và Leave) ---
+// Helper: Xử lý Task khi thành viên rời nhóm
 const processMemberDeparture = async (
   groupId: string,
   userId: string,
@@ -15,8 +15,6 @@ const processMemberDeparture = async (
   session.startTransaction();
 
   try {
-    // 1. Task do user đang LÀM (Assignee) nhưng do người khác tạo -> Trả về cho Creator
-    // (Logic: User đi rồi thì trả việc lại cho người tạo ra nó)
     const tasksAssignedToUser = await Task.find({
       group: groupId,
       assignee: userId,
@@ -28,22 +26,15 @@ const processMemberDeparture = async (
       await task.save({ session });
     }
 
-    // 2. Task do user TẠO (Creator) và TỰ LÀM (Assignee) -> Xóa mềm
-    // (Logic: Việc của họ tự nghĩ ra tự làm thì xóa đi cho đỡ rác, Owner muốn thì restore sau)
     await Task.updateMany(
       { group: groupId, creator: userId, assignee: userId, isDeleted: false },
       { $set: { isDeleted: true, deletedAt: new Date() } }
     ).session(session);
 
-    // 3. QUAN TRỌNG NHẤT: Chuyển quyền sở hữu (Creator)
-    // Tất cả task do user này tạo trong nhóm (dù đang active hay đã xóa mềm ở bước 2)
-    // đều phải chuyển sang tên của Group Owner.
-    // Điều này đảm bảo trong Trash của Owner sẽ hiện "Created by [Owner]"
     await Task.updateMany(
       {
         group: groupId,
         creator: userId,
-        // Không lọc assignee hay isDeleted nữa, chuyển hết cái gì do nó tạo
       },
       { $set: { creator: groupOwnerId } }
     ).session(session);
@@ -51,7 +42,7 @@ const processMemberDeparture = async (
     await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
-    throw error; // Ném lỗi để controller bắt
+    throw error;
   } finally {
     session.endSession();
   }
@@ -180,19 +171,16 @@ export const removeMember = async (
       return;
     }
 
-    // Xử lý task
     await processMemberDeparture(groupId, userId, group.owner.toString());
 
-    // Xóa khỏi nhóm
     group.members = group.members.filter((m) => m.toString() !== userId);
     await group.save();
 
     res.json({
       success: true,
-      message: 'Đã xóa thành viên và chuyển giao công việc cho bạn',
+      message: 'Đã xóa thành viên và xử lý bàn giao công việc',
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, message: 'Lỗi xóa thành viên' });
   }
 };
@@ -309,7 +297,6 @@ export const updateGroup = async (
   }
 };
 
-// ... Các hàm khác giữ nguyên
 export const getMyGroups = async (
   req: Request,
   res: Response
@@ -333,6 +320,7 @@ export const getMyGroups = async (
     res.status(500).json({ success: false, message: 'Lỗi tải danh sách nhóm' });
   }
 };
+
 export const joinGroupByCode = async (req: Request, res: Response) => {
   try {
     const { inviteCode } = req.body;
@@ -354,6 +342,7 @@ export const joinGroupByCode = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Lỗi join group' });
   }
 };
+
 export const getGroupLeaderboard = async (
   req: Request,
   res: Response

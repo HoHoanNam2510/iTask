@@ -6,7 +6,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Video,
   ListTodo,
   Loader,
   CheckCircle2,
@@ -41,7 +40,7 @@ import TaskModal from '~/components/TaskModal/TaskModal';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
-import VideoRoom from '~/components/VideoRoom/VideoRoom';
+// Đã xóa import VideoRoom
 import type { IGroupDetail } from '~/types/group';
 
 ChartJS.register(
@@ -75,7 +74,7 @@ const Group: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [isMeetingActive, setIsMeetingActive] = useState(false);
+  // Đã xóa state isMeetingActive
   const [showMembers, setShowMembers] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -181,7 +180,6 @@ const Group: React.FC = () => {
     }
   };
 
-  // 👇 [MỚI] Hàm rời nhóm cho thành viên
   const handleLeaveGroup = async () => {
     if (!window.confirm('Bạn có chắc muốn rời khỏi nhóm này?')) return;
     try {
@@ -318,15 +316,7 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {isMeetingActive && currentUser && (
-        <VideoRoom
-          roomId={groupId!}
-          userId={currentUser._id}
-          userName={currentUser.username}
-          groupName={data.title}
-          onLeave={() => setIsMeetingActive(false)}
-        />
-      )}
+      {/* Đã xóa VideoRoom component */}
 
       <header className={cx('header')}>
         <div className={cx('headerLeft')}>
@@ -411,7 +401,7 @@ const Group: React.FC = () => {
             )}
           </div>
 
-          {/* 👇 [UPDATED] Nếu là Owner hiện Edit/Delete, nếu không hiện Leave */}
+          {/* Action Buttons */}
           {isOwner ? (
             <>
               <button
@@ -439,13 +429,8 @@ const Group: React.FC = () => {
             </button>
           )}
 
-          <button
-            className={cx('add-task-btn')}
-            style={{ backgroundColor: '#e11d48' }}
-            onClick={() => setIsMeetingActive(true)}
-          >
-            <Video size={16} /> Meeting
-          </button>
+          {/* Đã xóa nút Meeting */}
+
           <button className={cx('add-task-btn')} onClick={handleAddTask}>
             <Plus size={16} /> New Task
           </button>
