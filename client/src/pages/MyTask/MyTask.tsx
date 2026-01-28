@@ -17,9 +17,9 @@ import {
   Layers,
   User,
   Users,
-  Clock, // 👇 Khôi phục icon
-  Trash2, // 👇 Khôi phục icon
-  Edit, // 👇 Khôi phục icon
+  Clock,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 
 import styles from './MyTask.module.scss';
@@ -102,12 +102,14 @@ const MyTask = () => {
     openFromUrl();
   }, [openTaskId, tasks.length]);
 
+  // 👇 [FIXED] Logic cập nhật chi tiết task và reset FullScreen khi đóng
   useEffect(() => {
     if (selectedTaskId) {
       const found = tasks.find((t) => t._id === selectedTaskId);
       if (found) setSelectedTaskDetail(found);
     } else {
       setSelectedTaskDetail(null);
+      setIsFullScreen(false); // [QUAN TRỌNG] Tắt FullScreen nếu không chọn task nào -> Tránh màn hình trắng
     }
   }, [selectedTaskId, tasks]);
 
@@ -223,6 +225,7 @@ const MyTask = () => {
               <button
                 className={cx('toolBtn')}
                 onClick={() => setIsFullScreen(!isFullScreen)}
+                title={isFullScreen ? 'Thu nhỏ' : 'Phóng to'}
               >
                 {isFullScreen ? (
                   <Minimize2 size={20} />
@@ -234,8 +237,10 @@ const MyTask = () => {
                 className={cx('toolBtn', 'close')}
                 onClick={() => {
                   setSelectedTaskId(null);
+                  setIsFullScreen(false); // [QUAN TRỌNG] Reset state khi bấm đóng
                   setSearchParams({});
                 }}
+                title="Đóng"
               >
                 <X size={20} />
               </button>
@@ -373,7 +378,6 @@ const MyTask = () => {
               </div>
             </div>
 
-            {/* 👇 Khôi phục icon cho Footer */}
             <div className={cx('detailFooter')}>
               <button
                 className={cx('footerBtn', 'delete')}
