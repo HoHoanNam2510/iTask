@@ -5,7 +5,7 @@ import {
   Route,
   Navigate,
 } from 'react-router-dom';
-import { publicRoutes, privateRoutes, adminRoutes } from './routes'; // [QUAN TRỌNG] Import adminRoutes
+import { publicRoutes, privateRoutes, adminRoutes } from './routes';
 import DefaultLayout from './layouts/DefaultLayout';
 import React, { Fragment } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -13,11 +13,27 @@ import { ThemeProvider } from './context/ThemeContext';
 import AdminRoute from './components/Routing/AdminRoute';
 import GlobalBanner from '~/components/GlobalBanner/GlobalBanner';
 
-// ProtectedRoute cho User
+// ProtectedRoute cho User (Giữ nguyên)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <div>Loading...</div>;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+};
+
+// 👇 [MỚI] Component điều hướng thông minh cho trang chủ
+const HomeRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  // Đợi load user xong mới quyết định
+  if (isLoading) return <div>Loading...</div>;
+
+  // Nếu đã login và là Admin -> Buộc chuyển sang trang Admin Dashboard
+  if (isAuthenticated && user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  // Nếu là User hoặc Khách -> Hiển thị trang chủ bình thường
+  return <>{children}</>;
 };
 
 const AppRoutes = () => {
@@ -29,6 +45,23 @@ const AppRoutes = () => {
         let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
         if (route.layout) Layout = route.layout;
         else if (route.layout === null) Layout = Fragment;
+
+        // 👇 [FIX] Xử lý riêng cho route '/'
+        if (route.path === '/') {
+          return (
+            <Route
+              key={index}
+              path={route.path}
+              element={
+                <HomeRoute>
+                  <Layout>
+                    <Page />
+                  </Layout>
+                </HomeRoute>
+              }
+            />
+          );
+        }
 
         return (
           <Route
@@ -65,14 +98,12 @@ const AppRoutes = () => {
         );
       })}
 
-      {/* 3. ADMIN ROUTES [SỬA ĐOẠN NÀY] */}
-      {/* Thay vì hardcode div, ta map qua mảng adminRoutes */}
+      {/* 3. ADMIN ROUTES */}
       <Route element={<AdminRoute />}>
         {adminRoutes.map((route, index) => {
           const Page = route.component;
 
-          // Lấy Layout được định nghĩa trong routes/index.tsx (AdminLayout)
-          // Nếu không có thì dùng Default, nhưng adminRoutes mình đã gán AdminLayout rồi
+          // Ưu tiên lấy layout từ config route (AdminLayout)
           let Layout: React.FC<{ children: React.ReactNode }> = DefaultLayout;
           if (route.layout) Layout = route.layout;
           else if (route.layout === null) Layout = Fragment;
