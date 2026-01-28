@@ -1,4 +1,4 @@
-/* src/components/Sidebar/AdminSidebar/AdminSidebar.tsx */
+/* client/src/components/Sidebar/AdminSidebar/AdminSidebar.tsx */
 import { NavLink, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import {
@@ -10,7 +10,8 @@ import {
   LayoutGrid,
   ShieldCheck,
   LayoutDashboard,
-  Trash2, // 👇 [MỚI] Import icon thùng rác
+  Trash2,
+  MessageSquare, // 👇 [MỚI] Import icon tin nhắn/phản hồi
 } from 'lucide-react';
 import { useAuth } from '~/context/AuthContext';
 import styles from './AdminSidebar.module.scss';
@@ -44,7 +45,12 @@ const AdminSidebar = () => {
       icon: <LayoutGrid size={20} />,
       label: 'Quản lý Nhóm',
     },
-    // 👇 [MỚI] Thêm mục Thùng rác vào menu
+    // 👇 [MỚI] Thêm mục quản lý phản hồi
+    {
+      path: '/admin/feedbacks',
+      icon: <MessageSquare size={20} />,
+      label: 'Quản lý Phản hồi',
+    },
     {
       path: '/admin/trash',
       icon: <Trash2 size={20} />,

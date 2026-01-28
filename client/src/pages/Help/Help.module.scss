@@ -1,126 +1,163 @@
-// Không cần import biến màu cục bộ nữa, dùng trực tiếp biến global từ :root
-
+/* client/src/pages/Help/Help.module.scss */
 .help-container {
-  padding: 24px 32px;
-  background-color: var(--white);
-  min-height: 100%;
-  // Font-family đã được set ở body (GlobalStyles), nên ở đây sẽ tự kế thừa 'Barlow'
+  padding: 40px 20px; // Giảm padding ngang trên mobile
+  background-color: var(--bg-hover);
+  // 👇 [FIX SCROLL] Đặt chiều cao cụ thể và cho phép cuộn dọc
+  height: 100%;
+  overflow-y: auto;
+  font-family: 'Barlow', sans-serif;
+
+  @media (min-width: 768px) {
+    padding: 40px;
+  }
+
+  // Custom scrollbar cho đẹp
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+  }
 }
 
 .help-header {
-  margin-bottom: 32px;
   text-align: center;
+  margin-bottom: 48px;
 
   .title {
-    font-size: 2.8rem; // Đổi sang rem cho đồng bộ với html font-size
-    color: var(--text-main);
-    font-weight: 700;
-    margin-bottom: 8px;
+    font-size: 3.2rem;
+    @media (min-width: 768px) {
+      font-size: 3.6rem;
+    }
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 12px;
+    background: linear-gradient(to right, var(--primary), #3b82f6);
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .subtitle {
-    color: var(--text-light);
+    color: var(--primary-dark);
     font-size: 1.6rem;
+    max-width: 600px;
+    margin: 0 auto;
   }
 }
 
-// Layout chia 2 cột
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  // 👇 [FIX LAYOUT] Đổi thành 1 cột duy nhất để xếp chồng lên nhau
+  grid-template-columns: 1fr;
+  gap: 48px; // Tăng khoảng cách giữa 2 khối khi xếp chồng
+  max-width: 800px; // Giới hạn chiều rộng để dễ đọc hơn khi xếp dọc
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
 
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
+// --- FAQ Section ---
+.faq-section {
+  .section-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-}
-
-.section-title {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--primary); // Dùng màu xanh chủ đạo
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--primary-bg); // Dùng màu nền nhạt làm đường kẻ
-}
-
-/* --- Styles cho FAQ --- */
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .faq-item {
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background: var(--white);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   overflow: hidden;
-  background: var(--white); // Hoặc var(--bg-hover) nếu muốn nền hơi xám
-  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  }
 
   &.active {
-    border-color: var(--primary); // Viền xanh khi active
-    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15); // Tạo bóng dùng biến RGB pha loãng
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.1);
 
     .faq-question {
-      background-color: var(--primary-bg); // Nền xanh nhạt
-      color: var(--primary-dark); // Chữ xanh đậm
+      color: var(--primary);
+      background-color: rgba(var(--primary-rgb), 0.05);
+
+      .icon-arrow {
+        transform: rotate(180deg);
+        color: var(--primary);
+      }
     }
 
     .faq-answer {
-      max-height: 200px;
-      padding: 16px;
+      max-height: 500px;
+      padding: 16px 24px 24px;
       opacity: 1;
     }
   }
 }
 
 .faq-question {
-  padding: 16px;
+  padding: 20px 24px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-main);
   cursor: pointer;
-  font-weight: 500;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--text-main);
-  transition: background 0.2s;
-
-  &:hover {
-    background-color: var(--bg-hover); // Hover xám nhẹ
-  }
-
-  // Ghi đè lại style hover khi đang active
-  .active &:hover {
-    background-color: var(--primary-bg);
-  }
+  transition: all 0.2s;
 
   .icon-arrow {
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--primary);
+    transition: transform 0.3s ease;
+    color: var(--text-light);
   }
 }
 
 .faq-answer {
   max-height: 0;
-  overflow: hidden;
-  padding: 0 16px;
   opacity: 0;
-  transition: all 0.3s ease-in-out;
-  color: var(--text-light);
-  line-height: 1.5;
-  background: var(--white);
+  padding: 0 24px;
   font-size: 1.5rem;
+  color: var(--text-light);
+  line-height: 1.6;
+  transition: all 0.3s ease-in-out;
 }
 
-/* --- Styles cho Feedback Form --- */
-.feedback-form {
+// --- Feedback Section ---
+.feedback-card {
   background: var(--white);
-  padding: 24px;
-  border-radius: 8px;
+  padding: 32px;
+  border-radius: 16px;
   border: 1px solid var(--border-color);
-  // Box shadow nhẹ
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  // 👇 [FIX LAYOUT] Bỏ sticky vì giờ nó nằm dưới cùng
+  // position: sticky;
+  // top: 24px;
+
+  h2 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  p {
+    font-size: 1.4rem;
+    color: var(--text-light);
+    margin-bottom: 24px;
+  }
 }
 
 .form-group {
@@ -128,65 +165,71 @@
 
   label {
     display: block;
+    font-size: 1.4rem;
+    font-weight: 600;
     margin-bottom: 8px;
-    font-weight: 500;
     color: var(--text-main);
   }
 
   input,
-  textarea {
+  textarea,
+  select {
     width: 100%;
-    padding: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
     font-size: 1.4rem;
-    font-family: 'Barlow', sans-serif;
-    color: var(--text-main);
-    transition: border 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    transition: all 0.2s;
     outline: none;
+    background-color: #f8fafc;
 
     &:focus {
       border-color: var(--primary);
-      // Hiệu ứng glow dùng biến RGB
+      background-color: var(--white);
       box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
-    }
-
-    &::placeholder {
-      color: var(--text-light);
-      opacity: 0.7;
     }
   }
 }
 
 .btn-submit {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   background-color: var(--primary);
   color: var(--white);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1.6rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
-  font-family: 'Barlow', sans-serif;
+  transition: all 0.2s;
+  margin-top: 8px;
 
   &:hover {
     background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
   }
 }
 
-.contact-info {
-  margin-top: 20px;
+.support-link {
+  margin-top: 24px;
   text-align: center;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border-color);
   font-size: 1.4rem;
   color: var(--text-light);
 
   a {
     color: var(--primary);
+    font-weight: 600;
     text-decoration: none;
-    font-weight: 500;
-
     &:hover {
       text-decoration: underline;
     }

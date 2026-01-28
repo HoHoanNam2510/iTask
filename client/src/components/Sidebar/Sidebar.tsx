@@ -69,8 +69,8 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
     },
     { path: '/calendar', label: 'Calendar', icon: Calendar, public: false },
     { path: '/trash', label: 'Trash', icon: Trash2, public: false },
-    { path: '/settings', label: 'Settings', icon: Settings, public: false },
     { path: '/help', label: 'Help', icon: HelpCircle, public: false },
+    { path: '/settings', label: 'Settings', icon: Settings, public: false },
   ];
 
   // Hàm xử lý khi click vào menu item

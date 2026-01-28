@@ -1,5 +1,8 @@
+/* client/src/pages/Help/Help.tsx */
 import React, { useState } from 'react';
 import classNames from 'classnames/bind';
+import { ChevronDown, MessageSquare, HelpCircle } from 'lucide-react';
+import axios from 'axios';
 import styles from './Help.module.scss';
 
 const cx = classNames.bind(styles);
@@ -29,61 +32,79 @@ const FAQ_DATA: FaqItem[] = [
     answer:
       "Trong trang chi tiết nhóm (Group), chọn nút 'Invite Member' và nhập địa chỉ email của người bạn muốn mời.",
   },
+  // 👇 [UPDATED] Đổi nội dung hướng dẫn khôi phục Task
   {
     id: 4,
-    question: 'Ứng dụng có hỗ trợ Dark Mode không?',
+    question: 'Làm sao có thể khôi phục task vô tình xóa?',
     answer:
-      'Hiện tại tính năng Dark Mode đang được phát triển và sẽ ra mắt trong phiên bản cập nhật tiếp theo.',
+      "Bạn có thể truy cập vào mục 'Trash' (Thùng rác) ở thanh menu bên trái. Tại đây, tìm task bạn muốn khôi phục và nhấn nút 'Restore' để đưa nó trở lại danh sách làm việc.",
   },
 ];
 
 const Help: React.FC = () => {
-  const [openFaqId, setOpenFaqId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState({ subject: '', message: '' });
+  const [openFaqId, setOpenFaqId] = useState<number | null>(1);
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({
+    subject: '',
+    message: '',
+    type: 'other',
+  });
 
   const toggleFaq = (id: number) => {
     setOpenFaqId(openFaqId === id ? null : id);
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setFeedback((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Feedback submitted:', feedback);
-    alert('Cảm ơn đóng góp của bạn!');
-    setFeedback({ subject: '', message: '' });
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/feedbacks', feedback, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Cảm ơn đóng góp của bạn! Chúng tôi sẽ xem xét sớm nhất.');
+      setFeedback({ subject: '', message: '', type: 'other' });
+    } catch (error) {
+      alert('Gửi thất bại, vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className={cx('help-container')}>
       <header className={cx('help-header')}>
         <h1 className={cx('title')}>Trung tâm trợ giúp</h1>
-        <p className={cx('subtitle')}>Giải đáp thắc mắc và hỗ trợ kỹ thuật</p>
+        <p className={cx('subtitle')}>
+          Chúng tôi có thể giúp gì cho bạn hôm nay?
+        </p>
       </header>
 
       <div className={cx('content-grid')}>
         {/* Phần FAQ */}
         <section className={cx('faq-section')}>
-          <h2 className={cx('section-title')}>Câu hỏi thường gặp</h2>
+          <h2 className={cx('section-title')}>
+            <HelpCircle size={24} /> Câu hỏi thường gặp
+          </h2>
           <div className={cx('faq-list')}>
             {FAQ_DATA.map((item) => (
               <div
                 key={item.id}
                 className={cx('faq-item', { active: openFaqId === item.id })}
+                onClick={() => toggleFaq(item.id)}
               >
-                <div
-                  className={cx('faq-question')}
-                  onClick={() => toggleFaq(item.id)}
-                >
+                <div className={cx('faq-question')}>
                   <span>{item.question}</span>
-                  <span className={cx('icon-arrow')}>
-                    {openFaqId === item.id ? '−' : '+'}
-                  </span>
+                  <ChevronDown className={cx('icon-arrow')} size={20} />
                 </div>
                 <div className={cx('faq-answer')}>
                   <p>{item.answer}</p>
@@ -93,44 +114,69 @@ const Help: React.FC = () => {
           </div>
         </section>
 
-        {/* Phần Feedback */}
+        {/* Phần Feedback Form */}
         <section className={cx('feedback-section')}>
-          <h2 className={cx('section-title')}>Gửi phản hồi</h2>
-          <form className={cx('feedback-form')} onSubmit={handleSubmit}>
-            <div className={cx('form-group')}>
-              <label htmlFor="subject">Tiêu đề</label>
-              <input
-                type="text"
-                id="subject"
-                name="subject"
-                placeholder="Ví dụ: Lỗi hiển thị..."
-                value={feedback.subject}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className={cx('form-group')}>
-              <label htmlFor="message">Nội dung</label>
-              <textarea
-                id="message"
-                name="message"
-                rows={5}
-                placeholder="Mô tả vấn đề..."
-                value={feedback.message}
-                onChange={handleInputChange}
-                required
-              ></textarea>
-            </div>
-            <button type="submit" className={cx('btn-submit')}>
-              Gửi ngay
-            </button>
-          </form>
+          <div className={cx('feedback-card')}>
+            <h2>
+              <MessageSquare
+                size={24}
+                style={{ marginBottom: -4, marginRight: 8 }}
+              />{' '}
+              Gửi phản hồi
+            </h2>
+            <p>Báo lỗi hoặc đề xuất tính năng mới để giúp iTask tốt hơn.</p>
 
-          <div className={cx('contact-info')}>
-            <p>
-              Email hỗ trợ:{' '}
+            <form onSubmit={handleSubmit}>
+              <div className={cx('form-group')}>
+                <label>Loại phản hồi</label>
+                <select
+                  name="type"
+                  value={feedback.type}
+                  onChange={handleInputChange}
+                >
+                  <option value="other">💡 Góp ý chung</option>
+                  <option value="bug">🐛 Báo lỗi (Bug)</option>
+                  <option value="feature">🚀 Đề xuất tính năng</option>
+                </select>
+              </div>
+
+              <div className={cx('form-group')}>
+                <label>Tiêu đề</label>
+                <input
+                  type="text"
+                  name="subject"
+                  placeholder="Tóm tắt vấn đề..."
+                  value={feedback.subject}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div className={cx('form-group')}>
+                <label>Nội dung chi tiết</label>
+                <textarea
+                  name="message"
+                  rows={5}
+                  placeholder="Mô tả chi tiết vấn đề của bạn..."
+                  value={feedback.message}
+                  onChange={handleInputChange}
+                  required
+                ></textarea>
+              </div>
+
+              <button
+                type="submit"
+                className={cx('btn-submit')}
+                disabled={loading}
+              >
+                {loading ? 'Đang gửi...' : 'Gửi phản hồi'}
+              </button>
+            </form>
+
+            <div className={cx('support-link')}>
+              Email hỗ trợ trực tiếp:{' '}
               <a href="mailto:support@itask.com">support@itask.com</a>
-            </p>
+            </div>
           </div>
         </section>
       </div>

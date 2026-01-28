@@ -1,0 +1,185 @@
+/* client/src/pages/Admin/FeedbackManagement/FeedbackManagement.module.scss */
+.wrapper {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .title {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .countBadge {
+    background-color: var(--primary);
+    color: var(--white);
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 1.4rem;
+  }
+}
+
+.toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.selectInput,
+.searchInput {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  outline: none;
+  font-size: 1.4rem;
+  &:focus {
+    border-color: var(--primary);
+  }
+}
+
+.tableContainer {
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.feedbackTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+
+  th {
+    background-color: #f8fafc;
+    padding: 16px 24px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    font-size: 1.2rem;
+    user-select: none; // Không cho bôi đen text header
+
+    // 👇 [MỚI] Style cho cột có thể sort
+    &.thSortable {
+      cursor: pointer;
+      transition: background-color 0.2s;
+      &:hover {
+        background-color: #e2e8f0;
+      }
+    }
+  }
+
+  td {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 1.4rem;
+    vertical-align: top;
+  }
+
+  tr:hover {
+    background-color: #f1f5f9;
+  }
+}
+
+// 👇 [MỚI] Flex container cho header content (để căn giữa icon sort)
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  span {
+    font-weight: 600;
+  }
+  small {
+    color: var(--text-light);
+  }
+}
+
+// 👇 [MỚI] Dropdown chọn status ngay trong bảng
+.statusSelect {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  text-transform: uppercase;
+
+  // Màu động dựa trên value
+  &.pending {
+    background: #fef3c7;
+    color: #d97706;
+    border-color: #fcd34d;
+  }
+  &.reviewing {
+    background: #dbeafe;
+    color: #2563eb;
+    border-color: #93c5fd;
+  }
+  &.resolved {
+    background: #dcfce7;
+    color: #16a34a;
+    border-color: #86efac;
+  }
+}
+
+.typeBadge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+
+  &.bug {
+    color: #ef4444;
+    border-color: #fecaca;
+    background: #fef2f2;
+  }
+  &.feature {
+    color: #8b5cf6;
+    border-color: #ddd6fe;
+    background: #f5f3ff;
+  }
+  &.other {
+    color: #64748b;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+  }
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #e2e8f0;
+    color: var(--text-main);
+  }
+  &.delete:hover {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+}
