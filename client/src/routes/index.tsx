@@ -18,6 +18,7 @@ import UserManagement from '~/pages/Admin/UserManagement/UserManagement';
 import TaskManagement from '~/pages/Admin/TaskManagement/TaskManagement';
 import GroupManagement from '~/pages/Admin/GroupManagement/GroupManagement';
 import CategoryManagement from '~/pages/Admin/CategoryManagement/CategoryManagement';
+import FeedbackManagement from '~/pages/Admin/FeedbackManagement/FeedbackManagement';
 
 // Layouts
 import AuthLayout from '~/layouts/AuthLayout';
@@ -88,6 +89,11 @@ const adminRoutes: RouteType[] = [
   {
     path: '/admin/categories',
     component: CategoryManagement,
+    layout: AdminLayout,
+  },
+  {
+    path: '/admin/feedbacks',
+    component: FeedbackManagement,
     layout: AdminLayout,
   },
   {
