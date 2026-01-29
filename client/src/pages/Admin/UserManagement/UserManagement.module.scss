@@ -73,9 +73,8 @@
   text-align: left;
 
   thead {
-    background-color: var(--primary);
-
     th {
+      background-color: var(--primary);
       padding: 16px 24px;
       font-weight: 700;
       color: var(--white);
@@ -89,9 +88,9 @@
 
       &.thSortable {
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background-color 0.2s;
         &:hover {
-          background-color: rgba(255, 255, 255, 0.1);
+          background-color: var(--primary-light);
         }
       }
     }
