@@ -6,11 +6,11 @@ import Trash from '~/pages/Trash/Trash';
 import Group from '~/pages/Group/Group';
 import MyTask from '~/pages/MyTask/MyTask';
 import Setting from '~/pages/Setting/Setting';
-import { Login, Register } from '~/pages/Auth';
 import Calendar from '~/pages/Calendar/Calendar';
 import Dashboard from '~/pages/Dashboard/Dashboard';
 import TaskCategories from '~/pages/TaskCategories/TaskCategories';
 import CategoryDetail from '~/pages/TaskCategories/CategoryDetail';
+import { Login, Register, ForgotPassword, ResetPassword } from '~/pages/Auth';
 
 // Admin Pages
 import AdminDashboard from '~/pages/Admin/Dashboard/Dashboard';
@@ -35,6 +35,12 @@ type RouteType = {
 const publicRoutes: RouteType[] = [
   { path: '/login', component: Login, layout: AuthLayout },
   { path: '/register', component: Register, layout: AuthLayout },
+  { path: '/forgot-password', component: ForgotPassword, layout: AuthLayout },
+  {
+    path: '/reset-password/:token',
+    component: ResetPassword,
+    layout: AuthLayout,
+  },
   { path: '/', component: Dashboard, layout: DefaultLayout },
 ];
 

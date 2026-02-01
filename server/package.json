@@ -22,6 +22,7 @@
     "mongoose": "^9.0.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.13",
     "peer": "^1.0.2",
     "shortid": "^2.2.17",
     "socket.io": "^4.8.3"
@@ -35,6 +36,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^24.10.2",
     "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.9",
     "@types/shortid": "^2.2.0",
     "@types/socket.io": "^3.0.1",
     "nodemon": "^3.1.11",

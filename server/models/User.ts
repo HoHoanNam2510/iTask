@@ -8,13 +8,15 @@ export interface IUser extends Document {
   avatar?: string;
   role: 'user' | 'admin';
   createdAt: Date;
-  // 👇 [MỚI] Thêm field badges
   badges: Array<{
     code: string;
     name: string;
     icon: string;
     awardedAt: Date;
   }>;
+  // 👇 [MỚI] Fields cho Reset Password
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
 }
 
 const UserSchema: Schema = new Schema(
@@ -28,15 +30,17 @@ const UserSchema: Schema = new Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
-    // 👇 [MỚI] Định nghĩa mảng badges
     badges: [
       {
-        code: { type: String }, // VD: HARD_BEE
-        name: { type: String }, // VD: Ong Chăm Chỉ
-        icon: { type: String }, // VD: 🐝
+        code: { type: String },
+        name: { type: String },
+        icon: { type: String },
         awardedAt: { type: Date, default: Date.now },
       },
     ],
+    // 👇 [MỚI] Lưu token reset và thời gian hết hạn
+    resetPasswordToken: { type: String, default: undefined },
+    resetPasswordExpires: { type: Date, default: undefined },
   },
   { timestamps: true }
 );
