@@ -22,7 +22,6 @@ import categoryRoutes from './routes/categoryRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import notificationRoutes from './routes/notificationRoutes';
-import aiRoutes from './routes/aiRoutes'; // Import route AI
 
 import Task from './models/Task';
 import { auditLogger } from './middleware/auditMiddleware';
@@ -70,7 +69,6 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/ai', aiRoutes);
 
 // [CRON JOB] Dọn dẹp thùng rác (Giữ nguyên logic cũ)
 cron.schedule('0 0 * * *', async () => {
