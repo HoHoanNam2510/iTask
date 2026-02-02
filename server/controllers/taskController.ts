@@ -5,18 +5,47 @@ import path from 'path';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
 import Group from '../models/Group';
+import cloudinary from '../config/cloudinary';
 
+// Helper: Xóa file trên Cloudinary
+const deleteCloudImage = async (fileUrl: string | undefined) => {
+  if (!fileUrl || !fileUrl.includes('cloudinary')) return;
+  try {
+    // Cloudinary URL format: .../upload/v1234/folder/filename.ext
+    // Cần lấy public_id: folder/filename (bỏ extension)
+    const splitUrl = fileUrl.split('/');
+    const folderIndex = splitUrl.findIndex((part) => part === 'iTask_Uploads'); // Tên folder đã config
+
+    if (folderIndex !== -1) {
+      // Lấy từ tên folder đến hết, bỏ đuôi file
+      const publicIdWithExt = splitUrl.slice(folderIndex).join('/');
+      const publicId = publicIdWithExt.split('.')[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
+  } catch (error) {
+    console.error(`❌ Error deleting cloud image:`, error);
+  }
+};
+
+// Helper cũ (Giữ lại để xóa file local cũ nếu còn sót lại)
 const getLocalPath = (dbPath: string) => {
   return path.join(process.cwd(), '../', dbPath);
 };
-
-const safeDeleteFile = (dbPath: string | undefined) => {
+const safeDeleteFileLocal = (dbPath: string | undefined) => {
   if (!dbPath || dbPath.startsWith('http')) return;
   try {
     const absolutePath = getLocalPath(dbPath);
     if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
-  } catch (error) {
-    console.error(`❌ Error deleting file ${dbPath}:`, error);
+  } catch (error) {}
+};
+
+// Hàm Wrapper xóa file (Thông minh: check cloud hay local)
+const safeDeleteFile = async (filePath: string | undefined) => {
+  if (!filePath) return;
+  if (filePath.includes('cloudinary')) {
+    await deleteCloudImage(filePath);
+  } else {
+    safeDeleteFileLocal(filePath);
   }
 };
 
@@ -37,7 +66,6 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       .populate('group', 'name')
       .populate('assignee', 'username avatar')
       .populate('creator', 'username avatar')
-      // 👇 [FIX] Populate user trong timeEntries để hiển thị đúng tên người làm
       .populate('timeEntries.user', 'username avatar');
 
     res.status(200).json({ success: true, count: tasks.length, tasks });
@@ -189,9 +217,12 @@ export const forceDeleteTask = async (
       return;
     }
 
-    if (task.image) safeDeleteFile(task.image);
+    // 👇 [UPDATE] Xóa ảnh trên Cloudinary
+    if (task.image) await safeDeleteFile(task.image);
     if (task.attachments && task.attachments.length > 0) {
-      task.attachments.forEach((att) => safeDeleteFile(att.url));
+      for (const att of task.attachments) {
+        await safeDeleteFile(att.url);
+      }
     }
 
     await Task.findByIdAndDelete(id);
@@ -389,14 +420,17 @@ export const createTask = async (
       return;
     }
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    // 👇 [UPDATE] Sử dụng .path từ Cloudinary thay vì logic cũ
     let imageUrl = '';
     if (files && files['image'] && files['image'][0])
-      imageUrl = `uploads/${files['image'][0].filename}`;
+      imageUrl = files['image'][0].path;
+
     let attachmentsData: any[] = [];
     if (files && files['attachments']) {
       attachmentsData = files['attachments'].map((file) => ({
         name: file.originalname,
-        url: `uploads/${file.filename}`,
+        url: file.path, // 👇 Cloudinary URL
         type: file.mimetype,
         uploadDate: new Date(),
       }));
@@ -429,7 +463,6 @@ export const createTask = async (
   }
 };
 
-// [UPDATED] Hàm updateTask đã bổ sung populate để fix lỗi "Unknown User"
 export const updateTask = async (
   req: Request,
   res: Response
@@ -467,12 +500,15 @@ export const updateTask = async (
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    // 2. Logic xử lý ảnh
+    // 2. Logic xử lý ảnh [UPDATE]
     if (files && files['image'] && files['image'][0]) {
-      updateData.image = `uploads/${files['image'][0].filename}`;
-      if (oldTask.image) safeDeleteFile(oldTask.image);
+      // Có ảnh mới -> Lấy URL Cloudinary
+      updateData.image = files['image'][0].path;
+      // Xóa ảnh cũ
+      if (oldTask.image) await safeDeleteFile(oldTask.image);
     } else if (deleteImage === 'true') {
-      if (oldTask.image) safeDeleteFile(oldTask.image);
+      // Xóa ảnh
+      if (oldTask.image) await safeDeleteFile(oldTask.image);
       updateData.image = '';
     }
 
@@ -483,7 +519,7 @@ export const updateTask = async (
       } catch (e) {}
     }
 
-    // 4. Logic attachments
+    // 4. Logic attachments [UPDATE]
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
@@ -495,7 +531,7 @@ export const updateTask = async (
     if (files && files['attachments']) {
       newFiles = files['attachments'].map((file) => ({
         name: file.originalname,
-        url: `uploads/${file.filename}`,
+        url: file.path, // 👇 Cloudinary URL
         type: file.mimetype,
         uploadDate: new Date(),
       }));
@@ -503,11 +539,14 @@ export const updateTask = async (
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
 
+    // Xóa attachment cũ bị gỡ bỏ
     if (oldTask.attachments && oldTask.attachments.length > 0) {
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
-      oldTask.attachments.forEach((oldAtt: any) => {
-        if (!keptFileUrls.has(oldAtt.url)) safeDeleteFile(oldAtt.url);
-      });
+      for (const oldAtt of oldTask.attachments) {
+        if (!keptFileUrls.has(oldAtt.url)) {
+          await safeDeleteFile(oldAtt.url);
+        }
+      }
     }
 
     const updatedTask = await Task.findByIdAndUpdate(
@@ -517,7 +556,6 @@ export const updateTask = async (
     )
       .populate('category', 'name color')
       .populate('group', 'name')
-      // 👇 [FIX] Thêm populate assignee, creator và timeEntries.user
       .populate('assignee', 'username avatar')
       .populate('creator', 'username avatar')
       .populate('timeEntries.user', 'username avatar');

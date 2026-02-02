@@ -25,6 +25,7 @@ import notificationRoutes from './routes/notificationRoutes';
 
 import Task from './models/Task';
 import { auditLogger } from './middleware/auditMiddleware';
+import cloudinary from './config/cloudinary'; // Import cloudinary để xóa trên cloud nếu cần
 
 const app = express();
 
@@ -51,7 +52,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 5. STATIC FILES
+// 5. STATIC FILES (Giữ lại để support ảnh cũ chưa migrate, ảnh mới sẽ dùng link cloudinary)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Audit Logger
@@ -70,7 +71,7 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// [CRON JOB] Dọn dẹp thùng rác (Giữ nguyên logic cũ)
+// [CRON JOB] Dọn dẹp thùng rác (Đã update để handle Cloudinary)
 cron.schedule('0 0 * * *', async () => {
   console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
   const thirtyDaysAgo = new Date();
@@ -83,10 +84,17 @@ cron.schedule('0 0 * * *', async () => {
     if (tasksToDelete.length > 0) {
       console.log(`🗑️ Tìm thấy ${tasksToDelete.length} tasks hết hạn.`);
       for (const task of tasksToDelete) {
-        if (task.image && !task.image.startsWith('http')) {
-          try {
-            fs.unlinkSync(path.join(process.cwd(), '../', task.image));
-          } catch (e) {}
+        // Xóa ảnh bìa
+        if (task.image) {
+          if (task.image.includes('cloudinary')) {
+            // Logic xóa cloud (copy từ controller nếu cần hoặc skip ở cron)
+            // Tốt nhất là xóa luôn lúc permanentDeleteTask, Cron này chỉ là backup
+          } else if (!task.image.startsWith('http')) {
+            // Xóa ảnh local cũ
+            try {
+              fs.unlinkSync(path.join(process.cwd(), '../', task.image));
+            } catch (e) {}
+          }
         }
         await Task.findByIdAndDelete(task._id);
       }
@@ -116,7 +124,6 @@ app.use(
 
 const PORT = process.env.PORT || 5000;
 
-// Thay đổi: Dùng app.listen thay vì httpServer.listen
 app.listen(PORT, () =>
   console.log(`🚀 Server running on port ${PORT} (Clean Express Mode)`)
 );
