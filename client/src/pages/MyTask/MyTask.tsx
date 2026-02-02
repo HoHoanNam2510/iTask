@@ -28,23 +28,9 @@ import type { ITaskResponse } from '~/types/task';
 import CommentSection from '~/components/TaskModal/CommentSection/CommentSection';
 import { useAuth } from '~/context/AuthContext';
 import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
+import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
 
 const cx = classNames.bind(styles);
-
-// 👇 [FIXED] Hàm helper hỗ trợ cả link Cloudinary (http) và link Local
-const getImageUrl = (imagePath?: string) => {
-  if (!imagePath) return null;
-  // Nếu là link Cloudinary hoặc link tuyệt đối
-  if (
-    imagePath.startsWith('http') ||
-    imagePath.startsWith('https') ||
-    imagePath.startsWith('blob:')
-  ) {
-    return imagePath;
-  }
-  // Fallback cho ảnh local cũ
-  return `http://localhost:5000/${imagePath.replace(/\\/g, '/')}`;
-};
 
 const MyTask = () => {
   const { user } = useAuth();
@@ -337,10 +323,12 @@ const MyTask = () => {
                           {selectedTaskDetail.attachments.map((file, i) => (
                             <a
                               key={i}
-                              href={getImageUrl(file.url)!}
+                              // 👇 [UPDATE] Dùng getDownloadUrl để force download
+                              href={getDownloadUrl(file.url)}
                               target="_blank"
                               rel="noreferrer"
                               className={cx('fileItem')}
+                              download // Attribute hỗ trợ local file
                             >
                               <div className={cx('fileIcon')}>
                                 <FileText size={20} />

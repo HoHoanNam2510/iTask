@@ -1,13 +1,27 @@
 /* server/controllers/userController.ts */
 import { Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import User from '../models/User';
+import cloudinary from '../config/cloudinary';
 
-// [MỚI] Hàm lấy đường dẫn file chuẩn xác
-const getLocalImagePath = (dbPath: string) => {
-  return path.join(process.cwd(), '../', dbPath);
+// Helper: Xóa ảnh trên Cloudinary
+const deleteCloudImage = async (fileUrl: string) => {
+  if (!fileUrl || !fileUrl.includes('cloudinary')) return;
+  try {
+    // URL mẫu: .../iTask_Uploads/avatar-123.jpg
+    const splitUrl = fileUrl.split('/');
+    const folderIndex = splitUrl.findIndex((part) => part === 'iTask_Uploads');
+
+    if (folderIndex !== -1) {
+      // Lấy public_id (bao gồm folder và tên file)
+      const publicIdWithExt = splitUrl.slice(folderIndex).join('/');
+      // Remove extension (đuôi file) để destroy được ảnh
+      const publicId = publicIdWithExt.replace(/\.[^/.]+$/, '');
+      await cloudinary.uploader.destroy(publicId);
+    }
+  } catch (error) {
+    console.error('Lỗi xóa ảnh cũ trên Cloud:', error);
+  }
 };
 
 export const updateUserProfile = async (
@@ -16,33 +30,28 @@ export const updateUserProfile = async (
 ): Promise<void> => {
   try {
     const userId = (req as any).user._id;
-    console.log('--- DEBUG UPDATE PROFILE ---');
-    console.log('📂 req.file:', req.file);
-    console.log('📝 req.body:', req.body);
     const { name } = req.body;
-    let avatarPath = '';
     const user = await User.findById(userId);
+
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
+
+    // 1. Xử lý Avatar mới
     if (req.file) {
-      avatarPath = `uploads/${req.file.filename}`;
-      if (user.avatar && !user.avatar.startsWith('http')) {
-        const oldAbsolutePath = getLocalImagePath(user.avatar);
-        if (fs.existsSync(oldAbsolutePath)) {
-          try {
-            fs.unlinkSync(oldAbsolutePath);
-            console.log('🗑️ Đã xóa avatar cũ:', oldAbsolutePath);
-          } catch (err) {
-            console.error('❌ Lỗi không xóa được ảnh cũ:', err);
-          }
-        }
+      // Nếu user đang có avatar cũ trên Cloud -> Xóa đi
+      if (user.avatar && user.avatar.includes('cloudinary')) {
+        await deleteCloudImage(user.avatar);
       }
+      // Lưu URL mới (đã là link https://res.cloudinary...)
+      user.avatar = req.file.path;
     }
+
     if (name) user.username = name;
-    if (avatarPath) user.avatar = avatarPath;
+
     await user.save();
+
     res.json({
       success: true,
       message: 'Cập nhật thông tin thành công',

@@ -21,6 +21,7 @@ import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
 import CommentSection from './CommentSection/CommentSection';
 import TimeTracker from './TimeTracker/TimeTracker';
+import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
 
 const cx = classNames.bind(styles);
 
@@ -39,21 +40,6 @@ interface TaskModalProps {
   groupMembers?: UserBasic[];
   defaultGroupId?: string;
 }
-
-// 👇 Helper xử lý URL ảnh (Hỗ trợ cả Cloudinary và Local)
-const getImageUrl = (imagePath?: string) => {
-  if (!imagePath) return null;
-  // Nếu là link online (Cloudinary) hoặc blob (preview local) -> Giữ nguyên
-  if (
-    imagePath.startsWith('http') ||
-    imagePath.startsWith('https') ||
-    imagePath.startsWith('blob:')
-  ) {
-    return imagePath;
-  }
-  // Nếu là path local cũ -> Cộng localhost
-  return `http://localhost:5000/${imagePath.replace(/\\/g, '/')}`;
-};
 
 const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
@@ -194,7 +180,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
           : ''
       );
 
-      // 👇 [UPDATE] Sử dụng helper getImageUrl để hiển thị đúng ảnh (Cloud/Local)
       setImagePreview(getImageUrl(taskToEdit.image));
 
       setSubtasks(taskToEdit.subtasks || []);
@@ -517,12 +502,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 <FileText size={16} />{' '}
                 <span className={cx('fileName')}>{att.name}</span>
                 <div className={cx('actionGroup')}>
-                  {/* 👇 [UPDATE] Dùng getImageUrl cho file đính kèm */}
+                  {/* 👇 [UPDATE] Sử dụng getDownloadUrl để buộc tải về */}
                   <a
-                    href={getImageUrl(att.url)!}
+                    href={getDownloadUrl(att.url)}
                     target="_blank"
                     className={cx('actionBtn', 'download')}
                     rel="noreferrer"
+                    download // Thêm attribute này hỗ trợ local file
                   >
                     <Download size={14} />
                   </a>
