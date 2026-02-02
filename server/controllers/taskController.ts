@@ -36,7 +36,9 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       .populate('category', 'name color')
       .populate('group', 'name')
       .populate('assignee', 'username avatar')
-      .populate('creator', 'username avatar');
+      .populate('creator', 'username avatar')
+      // 👇 [FIX] Populate user trong timeEntries để hiển thị đúng tên người làm
+      .populate('timeEntries.user', 'username avatar');
 
     res.status(200).json({ success: true, count: tasks.length, tasks });
   } catch (error) {
@@ -427,7 +429,7 @@ export const createTask = async (
   }
 };
 
-// 👇 [FIXED] Logic update task để map category đúng
+// [UPDATED] Hàm updateTask đã bổ sung populate để fix lỗi "Unknown User"
 export const updateTask = async (
   req: Request,
   res: Response
@@ -442,43 +444,46 @@ export const updateTask = async (
     }
 
     const updateData: any = { ...req.body };
+    const { deleteImage } = req.body;
 
-    // 1. Nếu task cũ đã thuộc group -> Giữ nguyên group, bỏ category
+    // 1. Logic Category/Group Mapping
     if (oldTask.group) {
       updateData.group = oldTask.group;
       updateData.category = null;
-    }
-    // 2. Nếu request chuyển vào group mới -> Set group, bỏ category
-    else if (updateData.groupId) {
+    } else if (updateData.groupId) {
       updateData.group = updateData.groupId;
       updateData.category = null;
-    }
-    // 3. Nếu là Personal Task (không group)
-    else {
-      // 👇 [QUAN TRỌNG] Map 'categoryId' từ request sang 'category'
+    } else {
       if (req.body.categoryId) {
         updateData.category = req.body.categoryId;
       } else if (req.body.categoryId === '') {
-        // Trường hợp user bỏ chọn category (gửi chuỗi rỗng)
         updateData.category = null;
       }
     }
 
-    // Các logic khác (Priority, Date, Files...)
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    // 2. Logic xử lý ảnh
     if (files && files['image'] && files['image'][0]) {
       updateData.image = `uploads/${files['image'][0].filename}`;
       if (oldTask.image) safeDeleteFile(oldTask.image);
+    } else if (deleteImage === 'true') {
+      if (oldTask.image) safeDeleteFile(oldTask.image);
+      updateData.image = '';
     }
+
+    // 3. Logic subtasks
     if (updateData.subtasks) {
       try {
         updateData.subtasks = JSON.parse(updateData.subtasks);
       } catch (e) {}
     }
+
+    // 4. Logic attachments
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
@@ -497,6 +502,7 @@ export const updateTask = async (
     }
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
+
     if (oldTask.attachments && oldTask.attachments.length > 0) {
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
       oldTask.attachments.forEach((oldAtt: any) => {
@@ -510,7 +516,11 @@ export const updateTask = async (
       { new: true }
     )
       .populate('category', 'name color')
-      .populate('group', 'name');
+      .populate('group', 'name')
+      // 👇 [FIX] Thêm populate assignee, creator và timeEntries.user
+      .populate('assignee', 'username avatar')
+      .populate('creator', 'username avatar')
+      .populate('timeEntries.user', 'username avatar');
 
     res.json({ success: true, task: updatedTask });
   } catch (error) {
