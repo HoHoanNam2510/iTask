@@ -1,7 +1,5 @@
 /* server/controllers/taskController.ts */
 import { Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
 import mongoose from 'mongoose';
 import Task from '../models/Task';
 import Group from '../models/Group';
@@ -11,41 +9,34 @@ import cloudinary from '../config/cloudinary';
 const deleteCloudImage = async (fileUrl: string | undefined) => {
   if (!fileUrl || !fileUrl.includes('cloudinary')) return;
   try {
-    // Cloudinary URL format: .../upload/v1234/folder/filename.ext
-    // Cần lấy public_id: folder/filename (bỏ extension)
     const splitUrl = fileUrl.split('/');
-    const folderIndex = splitUrl.findIndex((part) => part === 'iTask_Uploads'); // Tên folder đã config
-
+    const folderIndex = splitUrl.findIndex((part) => part === 'iTask_Uploads');
     if (folderIndex !== -1) {
-      // Lấy từ tên folder đến hết, bỏ đuôi file
       const publicIdWithExt = splitUrl.slice(folderIndex).join('/');
-      const publicId = publicIdWithExt.split('.')[0];
-      await cloudinary.uploader.destroy(publicId);
+      // Với Cloudinary raw files (attachment), đôi khi id có đuôi, đôi khi không
+      // An toàn nhất là thử xóa luôn publicId gốc, nếu là ảnh thì bỏ extension
+      let publicId = publicIdWithExt;
+
+      // Nếu là ảnh (thường nằm trong folder image/upload), cần bỏ extension
+      // Nhưng ở đây ta dùng chung 1 folder, nên ta xử lý:
+      // Thử xóa dạng raw trước (cho attachment)
+      await cloudinary.uploader
+        .destroy(publicId, { resource_type: 'raw' })
+        .catch(() => {});
+      // Thử xóa dạng image (bỏ extension)
+      const publicIdNoExt = publicId.replace(/\.[^/.]+$/, '');
+      await cloudinary.uploader.destroy(publicIdNoExt).catch(() => {});
     }
   } catch (error) {
-    console.error(`❌ Error deleting cloud image:`, error);
+    console.error(`❌ Error deleting cloud file:`, error);
   }
 };
 
-// Helper cũ (Giữ lại để xóa file local cũ nếu còn sót lại)
-const getLocalPath = (dbPath: string) => {
-  return path.join(process.cwd(), '../', dbPath);
-};
-const safeDeleteFileLocal = (dbPath: string | undefined) => {
-  if (!dbPath || dbPath.startsWith('http')) return;
-  try {
-    const absolutePath = getLocalPath(dbPath);
-    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
-  } catch (error) {}
-};
-
-// Hàm Wrapper xóa file (Thông minh: check cloud hay local)
+// Hàm Wrapper xóa file
 const safeDeleteFile = async (filePath: string | undefined) => {
   if (!filePath) return;
   if (filePath.includes('cloudinary')) {
     await deleteCloudImage(filePath);
-  } else {
-    safeDeleteFileLocal(filePath);
   }
 };
 
@@ -413,34 +404,39 @@ export const createTask = async (
       assignee,
     } = req.body;
     const finalDate = date || dueDate;
+
     if (!title || !finalDate) {
       res
         .status(400)
         .json({ success: false, message: 'Title and Date required' });
       return;
     }
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    // 👇 [UPDATE] Sử dụng .path từ Cloudinary thay vì logic cũ
+    // 1. Cover Image
     let imageUrl = '';
     if (files && files['image'] && files['image'][0])
       imageUrl = files['image'][0].path;
 
+    // 2. Attachments
     let attachmentsData: any[] = [];
     if (files && files['attachments']) {
       attachmentsData = files['attachments'].map((file) => ({
-        name: file.originalname,
-        url: file.path, // 👇 Cloudinary URL
+        name: file.originalname, // Giữ tên gốc (VD: "Báo cáo.xlsx") để hiển thị
+        url: file.path, // URL Cloudinary
         type: file.mimetype,
         uploadDate: new Date(),
       }));
     }
+
     let subtasksData = [];
     if (req.body.subtasks) {
       try {
         subtasksData = JSON.parse(req.body.subtasks);
       } catch (e) {}
     }
+
     const newTask = new Task({
       title,
       description,
@@ -456,6 +452,7 @@ export const createTask = async (
       subtasks: subtasksData,
       attachments: attachmentsData,
     });
+
     await newTask.save();
     res.status(201).json({ success: true, task: newTask });
   } catch (error) {
@@ -470,7 +467,6 @@ export const updateTask = async (
   try {
     const { id } = req.params;
     const oldTask = await Task.findOne({ _id: id, isDeleted: { $ne: true } });
-
     if (!oldTask) {
       res.status(404).json({ success: false, message: 'Task not found' });
       return;
@@ -479,7 +475,7 @@ export const updateTask = async (
     const updateData: any = { ...req.body };
     const { deleteImage } = req.body;
 
-    // 1. Logic Category/Group Mapping
+    // Mapping Group/Category (Giữ nguyên logic cũ)
     if (oldTask.group) {
       updateData.group = oldTask.group;
       updateData.category = null;
@@ -487,11 +483,8 @@ export const updateTask = async (
       updateData.group = updateData.groupId;
       updateData.category = null;
     } else {
-      if (req.body.categoryId) {
-        updateData.category = req.body.categoryId;
-      } else if (req.body.categoryId === '') {
-        updateData.category = null;
-      }
+      if (req.body.categoryId) updateData.category = req.body.categoryId;
+      else if (req.body.categoryId === '') updateData.category = null;
     }
 
     if (updateData.priority)
@@ -500,26 +493,23 @@ export const updateTask = async (
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    // 2. Logic xử lý ảnh [UPDATE]
+    // Update Image
     if (files && files['image'] && files['image'][0]) {
-      // Có ảnh mới -> Lấy URL Cloudinary
       updateData.image = files['image'][0].path;
-      // Xóa ảnh cũ
       if (oldTask.image) await safeDeleteFile(oldTask.image);
     } else if (deleteImage === 'true') {
-      // Xóa ảnh
       if (oldTask.image) await safeDeleteFile(oldTask.image);
       updateData.image = '';
     }
 
-    // 3. Logic subtasks
+    // Subtasks
     if (updateData.subtasks) {
       try {
         updateData.subtasks = JSON.parse(updateData.subtasks);
       } catch (e) {}
     }
 
-    // 4. Logic attachments [UPDATE]
+    // Update Attachments
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
@@ -530,8 +520,8 @@ export const updateTask = async (
     let newFiles: any[] = [];
     if (files && files['attachments']) {
       newFiles = files['attachments'].map((file) => ({
-        name: file.originalname,
-        url: file.path, // 👇 Cloudinary URL
+        name: file.originalname, // Giữ tên hiển thị
+        url: file.path, // URL Cloud
         type: file.mimetype,
         uploadDate: new Date(),
       }));
@@ -539,7 +529,7 @@ export const updateTask = async (
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
 
-    // Xóa attachment cũ bị gỡ bỏ
+    // Clean rác attachments
     if (oldTask.attachments && oldTask.attachments.length > 0) {
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
       for (const oldAtt of oldTask.attachments) {

@@ -17,6 +17,7 @@ import axios from 'axios';
 import styles from './Setting.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import { useTheme, THEMES } from '~/context/ThemeContext';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 Import helper
 
 const cx = classNames.bind(styles);
 
@@ -40,10 +41,10 @@ const Setting = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isPassLoading, setIsPassLoading] = useState(false);
 
-  // --- [MỚI] STATE CHO MÀU TÙY CHỈNH ---
+  // --- STATE CHO MÀU TÙY CHỈNH ---
   const [customColor, setCustomColor] = useState(currentColor);
 
-  // Sync customColor khi theme thay đổi (ví dụ khi user click chọn màu có sẵn)
+  // Sync customColor khi theme thay đổi
   useEffect(() => {
     setCustomColor(currentColor);
   }, [currentColor]);
@@ -52,11 +53,14 @@ const Setting = () => {
   useEffect(() => {
     if (user) {
       setName(user.username || '');
-      if (user.avatar) setAvatarPreview(user.avatar);
+      // 👇 Dùng helper để lấy URL ảnh chuẩn (Cloudinary hoặc Local)
+      if (user.avatar) {
+        setAvatarPreview(getImageUrl(user.avatar));
+      }
     }
   }, [user]);
 
-  // Xử lý chọn ảnh
+  // Xử lý chọn ảnh (Preview local blob)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -143,10 +147,9 @@ const Setting = () => {
     }
   };
 
-  // --- [MỚI] XỬ LÝ ĐỔI MÀU TÙY CHỈNH ---
+  // XỬ LÝ ĐỔI MÀU TÙY CHỈNH
   const handleCustomColorChange = (newColor: string) => {
     setCustomColor(newColor);
-    // Gọi đổi theme ngay lập tức (context sẽ lo validate)
     changeTheme(newColor);
   };
 
@@ -175,16 +178,8 @@ const Setting = () => {
               >
                 {avatarPreview ? (
                   <img
-                    src={
-                      avatarPreview.startsWith('blob:')
-                        ? avatarPreview
-                        : avatarPreview.startsWith('http')
-                        ? avatarPreview
-                        : `http://localhost:5000/${avatarPreview.replace(
-                            /\\/g,
-                            '/'
-                          )}`
-                    }
+                    // 👇 Đã được xử lý bởi getImageUrl ở useEffect hoặc Blob ở handleFileChange
+                    src={avatarPreview}
                     alt="Avatar"
                     style={{
                       width: '100%',
@@ -344,7 +339,7 @@ const Setting = () => {
               ))}
             </div>
 
-            {/* 👇 [MỚI] Khu vực chọn màu tùy chỉnh */}
+            {/* Khu vực chọn màu tùy chỉnh */}
             <div className={cx('customThemeSection')}>
               <p className={cx('label')}>Hoặc chọn màu tùy chỉnh</p>
               <div className={cx('customColorControl')}>
