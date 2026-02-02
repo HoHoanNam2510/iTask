@@ -17,7 +17,6 @@ import {
   Layers,
   User,
   Users,
-  Clock,
   Trash2,
   Edit,
 } from 'lucide-react';
@@ -32,10 +31,18 @@ import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
 
 const cx = classNames.bind(styles);
 
+// 👇 [FIXED] Hàm helper hỗ trợ cả link Cloudinary (http) và link Local
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return null;
-  if (imagePath.startsWith('http') || imagePath.startsWith('blob:'))
+  // Nếu là link Cloudinary hoặc link tuyệt đối
+  if (
+    imagePath.startsWith('http') ||
+    imagePath.startsWith('https') ||
+    imagePath.startsWith('blob:')
+  ) {
     return imagePath;
+  }
+  // Fallback cho ảnh local cũ
   return `http://localhost:5000/${imagePath.replace(/\\/g, '/')}`;
 };
 
@@ -102,14 +109,13 @@ const MyTask = () => {
     openFromUrl();
   }, [openTaskId, tasks.length]);
 
-  // 👇 [FIXED] Logic cập nhật chi tiết task và reset FullScreen khi đóng
   useEffect(() => {
     if (selectedTaskId) {
       const found = tasks.find((t) => t._id === selectedTaskId);
       if (found) setSelectedTaskDetail(found);
     } else {
       setSelectedTaskDetail(null);
-      setIsFullScreen(false); // [QUAN TRỌNG] Tắt FullScreen nếu không chọn task nào -> Tránh màn hình trắng
+      setIsFullScreen(false);
     }
   }, [selectedTaskId, tasks]);
 
@@ -237,7 +243,7 @@ const MyTask = () => {
                 className={cx('toolBtn', 'close')}
                 onClick={() => {
                   setSelectedTaskId(null);
-                  setIsFullScreen(false); // [QUAN TRỌNG] Reset state khi bấm đóng
+                  setIsFullScreen(false);
                   setSearchParams({});
                 }}
                 title="Đóng"
