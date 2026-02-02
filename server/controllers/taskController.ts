@@ -20,7 +20,6 @@ const safeDeleteFile = (dbPath: string | undefined) => {
   }
 };
 
-// ... [GIỮ NGUYÊN CÁC HÀM GET, CREATE, DELETE...]
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
@@ -37,7 +36,9 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       .populate('category', 'name color')
       .populate('group', 'name')
       .populate('assignee', 'username avatar')
-      .populate('creator', 'username avatar');
+      .populate('creator', 'username avatar')
+      // 👇 [FIX] Populate user trong timeEntries để hiển thị đúng tên người làm
+      .populate('timeEntries.user', 'username avatar');
 
     res.status(200).json({ success: true, count: tasks.length, tasks });
   } catch (error) {
@@ -428,7 +429,7 @@ export const createTask = async (
   }
 };
 
-// 👇 [FIXED] Cập nhật logic updateTask để xử lý xóa ảnh
+// [UPDATED] Hàm updateTask đã bổ sung populate để fix lỗi "Unknown User"
 export const updateTask = async (
   req: Request,
   res: Response
@@ -443,7 +444,7 @@ export const updateTask = async (
     }
 
     const updateData: any = { ...req.body };
-    const { deleteImage } = req.body; // Lấy cờ xóa ảnh
+    const { deleteImage } = req.body;
 
     // 1. Logic Category/Group Mapping
     if (oldTask.group) {
@@ -468,14 +469,11 @@ export const updateTask = async (
 
     // 2. Logic xử lý ảnh
     if (files && files['image'] && files['image'][0]) {
-      // Trường hợp 1: Có upload ảnh mới -> Ghi đè
       updateData.image = `uploads/${files['image'][0].filename}`;
-      // Xóa ảnh cũ (nếu có)
       if (oldTask.image) safeDeleteFile(oldTask.image);
     } else if (deleteImage === 'true') {
-      // 👇 Trường hợp 2: Có cờ xóa ảnh -> Xóa ảnh cũ & set null
       if (oldTask.image) safeDeleteFile(oldTask.image);
-      updateData.image = ''; // Hoặc null
+      updateData.image = '';
     }
 
     // 3. Logic subtasks
@@ -505,7 +503,6 @@ export const updateTask = async (
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
 
-    // Xóa attachment cũ bị gỡ bỏ
     if (oldTask.attachments && oldTask.attachments.length > 0) {
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
       oldTask.attachments.forEach((oldAtt: any) => {
@@ -519,7 +516,11 @@ export const updateTask = async (
       { new: true }
     )
       .populate('category', 'name color')
-      .populate('group', 'name');
+      .populate('group', 'name')
+      // 👇 [FIX] Thêm populate assignee, creator và timeEntries.user
+      .populate('assignee', 'username avatar')
+      .populate('creator', 'username avatar')
+      .populate('timeEntries.user', 'username avatar');
 
     res.json({ success: true, task: updatedTask });
   } catch (error) {
