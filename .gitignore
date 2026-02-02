@@ -38,3 +38,7 @@ lerna-debug.log*
 
 # --- Testing / Coverage ---
 coverage/
+
+# Chặn không cho git theo dõi file upload
+uploads/
+server/uploads/
