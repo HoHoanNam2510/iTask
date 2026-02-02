@@ -20,6 +20,7 @@ const safeDeleteFile = (dbPath: string | undefined) => {
   }
 };
 
+// ... [GIỮ NGUYÊN CÁC HÀM GET, CREATE, DELETE...]
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user._id;
@@ -427,7 +428,7 @@ export const createTask = async (
   }
 };
 
-// 👇 [FIXED] Logic update task để map category đúng
+// 👇 [FIXED] Cập nhật logic updateTask để xử lý xóa ảnh
 export const updateTask = async (
   req: Request,
   res: Response
@@ -442,43 +443,49 @@ export const updateTask = async (
     }
 
     const updateData: any = { ...req.body };
+    const { deleteImage } = req.body; // Lấy cờ xóa ảnh
 
-    // 1. Nếu task cũ đã thuộc group -> Giữ nguyên group, bỏ category
+    // 1. Logic Category/Group Mapping
     if (oldTask.group) {
       updateData.group = oldTask.group;
       updateData.category = null;
-    }
-    // 2. Nếu request chuyển vào group mới -> Set group, bỏ category
-    else if (updateData.groupId) {
+    } else if (updateData.groupId) {
       updateData.group = updateData.groupId;
       updateData.category = null;
-    }
-    // 3. Nếu là Personal Task (không group)
-    else {
-      // 👇 [QUAN TRỌNG] Map 'categoryId' từ request sang 'category'
+    } else {
       if (req.body.categoryId) {
         updateData.category = req.body.categoryId;
       } else if (req.body.categoryId === '') {
-        // Trường hợp user bỏ chọn category (gửi chuỗi rỗng)
         updateData.category = null;
       }
     }
 
-    // Các logic khác (Priority, Date, Files...)
     if (updateData.priority)
       updateData.priority = updateData.priority.toLowerCase();
     if (updateData.date) updateData.dueDate = new Date(updateData.date);
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    // 2. Logic xử lý ảnh
     if (files && files['image'] && files['image'][0]) {
+      // Trường hợp 1: Có upload ảnh mới -> Ghi đè
       updateData.image = `uploads/${files['image'][0].filename}`;
+      // Xóa ảnh cũ (nếu có)
       if (oldTask.image) safeDeleteFile(oldTask.image);
+    } else if (deleteImage === 'true') {
+      // 👇 Trường hợp 2: Có cờ xóa ảnh -> Xóa ảnh cũ & set null
+      if (oldTask.image) safeDeleteFile(oldTask.image);
+      updateData.image = ''; // Hoặc null
     }
+
+    // 3. Logic subtasks
     if (updateData.subtasks) {
       try {
         updateData.subtasks = JSON.parse(updateData.subtasks);
       } catch (e) {}
     }
+
+    // 4. Logic attachments
     let currentAttachments: any[] = [];
     if (updateData.existingAttachments) {
       try {
@@ -497,6 +504,8 @@ export const updateTask = async (
     }
     const finalAttachments = [...currentAttachments, ...newFiles];
     updateData.attachments = finalAttachments;
+
+    // Xóa attachment cũ bị gỡ bỏ
     if (oldTask.attachments && oldTask.attachments.length > 0) {
       const keptFileUrls = new Set(finalAttachments.map((f: any) => f.url));
       oldTask.attachments.forEach((oldAtt: any) => {

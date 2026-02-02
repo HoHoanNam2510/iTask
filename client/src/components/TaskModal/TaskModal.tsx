@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import {
-  Check,
   Image as ImageIcon,
   Plus,
   Trash2,
@@ -80,6 +79,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // Media & Subtasks
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isImageDeleted, setIsImageDeleted] = useState(false); // 👇 [MỚI] State cờ xóa ảnh
+
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]);
   const [subtasks, setSubtasks] = useState<
@@ -183,6 +184,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setSubtasks(taskToEdit.subtasks || []);
       setExistingAttachments(taskToEdit.attachments || []);
       setCurrentTask(taskToEdit);
+      setIsImageDeleted(false); // 👇 Reset state khi mở modal edit
     } else {
       setTitle('');
       setDescription('');
@@ -199,6 +201,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setNewAttachmentFiles([]);
       setCurrentTask(null);
       setFetchedMembers([]);
+      setIsImageDeleted(false); // 👇 Reset state khi tạo mới
     }
   }, [isOpen, taskToEdit]);
 
@@ -212,6 +215,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
     if (res.data.success) {
       setCurrentTask(res.data.task);
       onSuccess();
+    }
+  };
+
+  // 👇 [MỚI] Hàm xóa ảnh cover
+  const handleDeleteImage = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn sự kiện click lan ra uploadBox
+    setImagePreview(null);
+    setImageFile(null);
+    if (taskToEdit && taskToEdit.image) {
+      setIsImageDeleted(true); // Đánh dấu là đã xóa ảnh gốc
     }
   };
 
@@ -229,14 +242,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       if (groupId) data.append('groupId', groupId);
 
-      // 👇 [FIXED] Luôn gửi categoryId nếu KHÔNG có group (Personal Task)
       if (!groupId) {
-        data.append('categoryId', categoryId); // Có thể là string rỗng để xóa
+        data.append('categoryId', categoryId);
       }
 
       if (groupId && assigneeId) data.append('assignee', assigneeId);
 
-      if (imageFile) data.append('image', imageFile);
+      // 👇 [UPDATE] Logic gửi ảnh hoặc cờ xóa
+      if (imageFile) {
+        data.append('image', imageFile);
+      } else if (isImageDeleted) {
+        data.append('deleteImage', 'true');
+      }
+
       data.append('subtasks', JSON.stringify(subtasks));
       data.append('existingAttachments', JSON.stringify(existingAttachments));
       newAttachmentFiles.forEach((file) => data.append('attachments', file));
@@ -545,20 +563,27 @@ const TaskModal: React.FC<TaskModalProps> = ({
           {/* Cover Image */}
           <div className={cx('formGroup')}>
             <label>Cover Image</label>
+            {/* 👇 [UPDATE] ClassName có điều kiện để thêm style khi có ảnh */}
             <div
-              className={cx('uploadBox', { dragOver: isDragOver })}
-              onClick={() => fileInputRef.current?.click()}
+              className={cx('uploadBox', {
+                dragOver: isDragOver,
+                hasImage: !!imagePreview, // Class này kích hoạt UI có ảnh (như hover hiện thùng rác)
+              })}
+              onClick={() => !imagePreview && fileInputRef.current?.click()}
               onDragOver={(e) => {
+                if (imagePreview) return;
                 e.preventDefault();
                 setIsDragOver(true);
               }}
               onDragLeave={() => setIsDragOver(false)}
               onDrop={(e) => {
+                if (imagePreview) return;
                 e.preventDefault();
                 setIsDragOver(false);
                 if (e.dataTransfer.files[0]) {
                   setImagePreview(URL.createObjectURL(e.dataTransfer.files[0]));
                   setImageFile(e.dataTransfer.files[0]);
+                  setIsImageDeleted(false);
                 }
               }}
             >
@@ -570,12 +595,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   if (e.target.files?.[0]) {
                     setImagePreview(URL.createObjectURL(e.target.files[0]));
                     setImageFile(e.target.files[0]);
+                    setIsImageDeleted(false);
                   }
                 }}
                 accept="image/*"
               />
+
               {imagePreview ? (
-                <img src={imagePreview} className={cx('previewImage')} />
+                <>
+                  <img
+                    src={imagePreview}
+                    className={cx('previewImage')}
+                    alt="Cover"
+                  />
+                  {/* 👇 [MỚI] Nút thùng rác */}
+                  <div
+                    className={cx('deleteImageBtn')}
+                    onClick={handleDeleteImage}
+                    title="Xóa ảnh bìa"
+                  >
+                    <Trash2 size={18} />
+                  </div>
+                </>
               ) : (
                 <>
                   <ImageIcon size={32} className={cx('uploadIcon')} />
