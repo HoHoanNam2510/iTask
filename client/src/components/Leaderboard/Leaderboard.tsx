@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Trophy, Medal } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './Leaderboard.module.scss';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 
 const cx = classNames.bind(styles);
 
@@ -78,10 +79,8 @@ const Leaderboard = ({ groupId, refreshTrigger = 0 }: LeaderboardProps) => {
               <div className={cx('userInfo')}>
                 {user.avatar ? (
                   <img
-                    src={`http://localhost:5000/${user.avatar.replace(
-                      /\\/g,
-                      '/'
-                    )}`}
+                    // 👇 [FIXED] Sử dụng helper để hiển thị đúng ảnh Cloudinary
+                    src={getImageUrl(user.avatar)}
                     className={cx('avatar')}
                     alt="avt"
                   />
