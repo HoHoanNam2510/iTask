@@ -1,6 +1,5 @@
 /* client/src/pages/Calendar/Calendar.tsx */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   format,
   startOfMonth,
@@ -28,8 +27,9 @@ import {
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './Calendar.module.scss';
-import TaskModal from '~/components/TaskModal/TaskModal';
+import httpRequest from '~/utils/httpRequest';
 import type { ITaskResponse } from '~/types/task';
+import TaskModal from '~/components/TaskModal/TaskModal';
 
 const cx = classNames.bind(styles);
 
@@ -47,7 +47,7 @@ const Calendar: React.FC = () => {
   const fetchTasks = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/tasks', {
+      const res = await httpRequest.get('/api/tasks', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setTasks(res.data.tasks || []);
@@ -106,7 +106,7 @@ const Calendar: React.FC = () => {
       try {
         const token = localStorage.getItem('token');
         // Gọi API soft delete (không có /force)
-        await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+        await httpRequest.delete(`/api/tasks/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchTasks();
@@ -182,7 +182,7 @@ const Calendar: React.FC = () => {
             </div>
             {task.image && (
               <img
-                src={`http://localhost:5000/${task.image}`}
+                src={`/${task.image}`}
                 alt="Task"
                 style={{
                   width: 40,

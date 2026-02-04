@@ -1,6 +1,5 @@
 /* src/pages/Dashboard/Dashboard.tsx */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
 import {
@@ -32,6 +31,7 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 
 import styles from './Dashboard.module.scss';
+import httpRequest from '~/utils/httpRequest';
 import { useAuth } from '~/context/AuthContext';
 import type { ITaskResponse } from '~/types/task';
 import TaskModal from '~/components/TaskModal/TaskModal';
@@ -81,9 +81,11 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const res = await axios.get(
-        `http://localhost:5000/api/dashboard/summary?date=${dateStr}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await httpRequest.get(
+        `/api/dashboard/summary?date=${dateStr}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (res.data.success) {
         const newStats = res.data.stats;
@@ -122,7 +124,7 @@ const Dashboard = () => {
       return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+      await httpRequest.delete(`/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchDashboardData();
@@ -178,8 +180,8 @@ const Dashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/tasks/${draggableId}`,
+      await httpRequest.put(
+        `/api/tasks/${draggableId}`,
         { status: destColId },
         { headers: { Authorization: `Bearer ${token}` } }
       );

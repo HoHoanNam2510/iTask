@@ -1,5 +1,4 @@
 /* client/src/components/Sidebar/Sidebar.tsx */
-import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import classNames from 'classnames/bind';
@@ -21,6 +20,7 @@ import styles from './Sidebar.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 import { getImageUrl } from '~/utils/imageHelper'; // 👇 Import helper
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -35,10 +35,9 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
     if (!isAuthenticated) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        'http://localhost:5000/api/groups/my-groups',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await httpRequest.get('/api/groups/my-groups', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.success) setGroups(res.data.groups);
     } catch (error) {
       console.error('Lỗi sidebar', error);

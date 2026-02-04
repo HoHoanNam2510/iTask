@@ -1,11 +1,11 @@
 /* src/components/TaskModal/CommentSection/CommentSection.tsx */
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
 import { format } from 'date-fns';
 import { Send, Edit2, Trash2, MessageSquare, Check, X } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './CommentSection.module.scss';
 import type { UserBasic } from '~/types/user';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -63,10 +63,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const fetchComments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `http://localhost:5000/api/comments/${taskId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await httpRequest.get(`/api/comments/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.success) {
         setComments(res.data.comments);
       }
@@ -129,8 +128,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     try {
       setIsCommentLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.post(
-        'http://localhost:5000/api/comments',
+      const res = await httpRequest.post(
+        '/api/comments',
         { taskId: taskId, content: newComment },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -159,8 +158,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     if (!editContent.trim()) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(
-        `http://localhost:5000/api/comments/${commentId}`,
+      const res = await httpRequest.put(
+        `/api/comments/${commentId}`,
         { content: editContent },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -179,10 +178,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     if (!window.confirm('Bạn có chắc muốn xóa bình luận này?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.delete(
-        `http://localhost:5000/api/comments/${commentId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await httpRequest.delete(`/api/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.success) {
         setComments((prev) => prev.filter((c) => c._id !== commentId));
       }
@@ -215,10 +213,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             <div key={comment._id} className={cx('commentItem')}>
               {comment.user.avatar ? (
                 <img
-                  src={`http://localhost:5000/${comment.user.avatar.replace(
-                    /\\/g,
-                    '/'
-                  )}`}
+                  src={`/${comment.user.avatar.replace(/\\/g, '/')}`}
                   className={cx('cmtAvatar')}
                   alt="avt"
                 />

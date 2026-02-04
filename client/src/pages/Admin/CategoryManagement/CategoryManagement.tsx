@@ -1,7 +1,6 @@
 /* client/src/pages/Admin/CategoryManagement/CategoryManagement.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import {
   Trash2,
   Search,
@@ -11,6 +10,7 @@ import {
   ArrowUpDown,
   Edit2,
 } from 'lucide-react';
+import httpRequest from '~/utils/httpRequest';
 import styles from './CategoryManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
 import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
@@ -55,19 +55,16 @@ const CategoryManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        'http://localhost:5000/api/categories/admin/all',
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            page,
-            limit,
-            search: searchTerm,
-            sortBy: sortConfig.key,
-            order: sortConfig.direction,
-          },
-        }
-      );
+      const res = await httpRequest.get('/api/categories/admin/all', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page,
+          limit,
+          search: searchTerm,
+          sortBy: sortConfig.key,
+          order: sortConfig.direction,
+        },
+      });
       if (res.data.success) {
         setCategories(res.data.categories);
         setTotalPages(res.data.totalPages);
@@ -111,7 +108,7 @@ const CategoryManagement = () => {
     if (!window.confirm('Bạn có chắc muốn xóa Danh mục này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/categories/admin/${id}`, {
+      await httpRequest.delete(`/api/categories/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchCategories();
@@ -130,13 +127,9 @@ const CategoryManagement = () => {
     if (!categoryToEdit) return;
     const token = localStorage.getItem('token');
     try {
-      await axios.put(
-        `http://localhost:5000/api/categories/${categoryToEdit._id}`,
-        data,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await httpRequest.put(`/api/categories/${categoryToEdit._id}`, data, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchCategories();
       alert('Cập nhật thành công!');
     } catch (error) {
@@ -250,10 +243,7 @@ const CategoryManagement = () => {
                     <div className={cx('creatorInfo')}>
                       {cat.createdBy?.avatar ? (
                         <img
-                          src={`http://localhost:5000/${cat.createdBy.avatar.replace(
-                            /\\/g,
-                            '/'
-                          )}`}
+                          src={`/${cat.createdBy.avatar.replace(/\\/g, '/')}`}
                           alt="avt"
                         />
                       ) : (

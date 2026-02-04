@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import { ArrowLeft, Mail } from 'lucide-react';
 
 import images from '~/assets/images';
 import styles from '../Auth.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 // Tái sử dụng hình nền giống Login/Register
 const bgImage = images.general.todolist;
@@ -27,12 +27,9 @@ const ForgotPassword: React.FC = () => {
     try {
       setIsLoading(true);
       // Gọi API Backend (Logic này sẽ được viết ở bước sau)
-      const res = await axios.post(
-        'http://localhost:5000/api/auth/forgot-password',
-        {
-          email,
-        }
-      );
+      const res = await httpRequest.post('/api/auth/forgot-password', {
+        email,
+      });
 
       if (res.data.success) {
         setIsSuccess(true);

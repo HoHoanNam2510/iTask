@@ -1,17 +1,17 @@
 /* client/src/pages/Trash/Trash.tsx */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { Trash2, RotateCcw } from 'lucide-react';
-import styles from './Trash.module.scss';
 import { format } from 'date-fns';
+import styles from './Trash.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
 const getAvatarUrl = (avatarPath?: string) => {
   if (!avatarPath) return '';
   if (avatarPath.startsWith('http')) return avatarPath;
-  return `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
+  return `/${avatarPath.replace(/\\/g, '/')}`;
 };
 
 interface TrashTask {
@@ -38,7 +38,7 @@ const Trash = () => {
     try {
       const token = localStorage.getItem('token');
       // Đã gọi đúng API backend
-      const res = await axios.get('http://localhost:5000/api/tasks/trash', {
+      const res = await httpRequest.get('/api/tasks/trash', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -59,8 +59,8 @@ const Trash = () => {
     if (!confirm('Khôi phục task này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/tasks/${id}/restore`,
+      await httpRequest.put(
+        `/api/tasks/${id}/restore`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -76,7 +76,7 @@ const Trash = () => {
     if (!confirm('Hành động này không thể hoàn tác. Xóa vĩnh viễn?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/tasks/${id}/force`, {
+      await httpRequest.delete(`/api/tasks/${id}/force`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchTrash();

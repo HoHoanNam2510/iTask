@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import classNames from 'classnames/bind';
 import { ChevronDown, MessageSquare, HelpCircle } from 'lucide-react';
-import axios from 'axios';
 import styles from './Help.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -68,7 +68,7 @@ const Help: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/feedbacks', feedback, {
+      await httpRequest.post('/api/feedbacks', feedback, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Cảm ơn đóng góp của bạn! Chúng tôi sẽ xem xét sớm nhất.');

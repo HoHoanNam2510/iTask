@@ -1,6 +1,5 @@
 /* client/src/components/TaskModal/TaskModal.tsx */
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import axios from 'axios';
 import { format } from 'date-fns';
 import {
   Image as ImageIcon,
@@ -22,6 +21,7 @@ import { useAuth } from '~/context/AuthContext';
 import CommentSection from './CommentSection/CommentSection';
 import TimeTracker from './TimeTracker/TimeTracker';
 import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -114,8 +114,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       Promise.all([
-        axios.get('http://localhost:5000/api/categories', { headers }),
-        axios.get('http://localhost:5000/api/groups/my-groups', { headers }),
+        httpRequest.get('/api/categories', { headers }),
+        httpRequest.get('/api/groups/my-groups', { headers }),
       ]).then(([catRes, groupRes]) => {
         setCategories(catRes.data.categories || []);
         setMyGroups(groupRes.data.groups || []);
@@ -128,12 +128,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
       const fetchGroupMembers = async () => {
         try {
           const token = localStorage.getItem('token');
-          const res = await axios.get(
-            `http://localhost:5000/api/groups/${groupId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          const res = await httpRequest.get(`/api/groups/${groupId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           if (res.data.success) {
             setFetchedMembers(res.data.data.members || []);
           }
@@ -210,10 +207,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleReloadTask = async () => {
     if (!currentTask) return;
     const token = localStorage.getItem('token');
-    const res = await axios.get(
-      `http://localhost:5000/api/tasks/${currentTask._id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await httpRequest.get(`/api/tasks/${currentTask._id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (res.data.success) {
       setCurrentTask(res.data.task);
       onSuccess();
@@ -258,10 +254,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       data.append('existingAttachments', JSON.stringify(existingAttachments));
       newAttachmentFiles.forEach((file) => data.append('attachments', file));
 
-      const url = taskToEdit
-        ? `http://localhost:5000/api/tasks/${taskToEdit._id}`
-        : 'http://localhost:5000/api/tasks';
-      await axios({
+      const url = taskToEdit ? `/api/tasks/${taskToEdit._id}` : '/api/tasks';
+      await httpRequest({
         method: taskToEdit ? 'put' : 'post',
         url,
         data,
@@ -640,14 +634,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 className={cx('deleteBtn')}
                 onClick={async () => {
                   if (!confirm('Xóa?')) return;
-                  await axios.delete(
-                    `http://localhost:5000/api/tasks/${taskToEdit._id}`,
-                    {
-                      headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`,
-                      },
-                    }
-                  );
+                  await httpRequest.delete(`/api/tasks/${taskToEdit._id}`, {
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    },
+                  });
                   onSuccess();
                   onClose();
                 }}

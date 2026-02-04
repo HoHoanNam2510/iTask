@@ -1,8 +1,8 @@
 /* src/components/Leaderboard/Leaderboard.tsx */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Trophy, Medal } from 'lucide-react';
 import classNames from 'classnames/bind';
+import httpRequest from '~/utils/httpRequest';
 import styles from './Leaderboard.module.scss';
 import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 
@@ -30,8 +30,8 @@ const Leaderboard = ({ groupId, refreshTrigger = 0 }: LeaderboardProps) => {
       if (!groupId) return;
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(
-          `http://localhost:5000/api/groups/${groupId}/leaderboard`,
+        const res = await httpRequest.get(
+          `/api/groups/${groupId}/leaderboard`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.data.success) {

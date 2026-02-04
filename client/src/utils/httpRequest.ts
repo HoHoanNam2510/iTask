@@ -1,22 +1,49 @@
 /* client/src/utils/httpRequest.ts */
 import axios from 'axios';
 
-// Tạo instance axios với cấu hình mặc định
+// 👇 Vite sẽ tự động lấy biến môi trường
+// - Local: http://localhost:5000 (nếu bạn set trong .env local hoặc fallback ở dưới)
+// - Vercel: https://itask-backend.onrender.com (do bạn set trên dashboard Vercel)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const httpRequest = axios.create({
-  // 👇 Vite sẽ thay thế import.meta.env.VITE_API_URL bằng giá trị thật khi build
-  // Khi chạy local: http://localhost:5000
-  // Khi deploy: https://your-backend.onrender.com
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
-
-  // Quan trọng: Gửi kèm cookie/token trong mọi request
-  withCredentials: true,
-
+  baseURL: API_URL,
+  withCredentials: true, // QUAN TRỌNG: Để gửi cookie/token
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Có thể thêm interceptors ở đây nếu cần xử lý token tự động
-// httpRequest.interceptors.request.use(...)
+// (Optional) Interceptor để debug hoặc xử lý token nếu cần
+httpRequest.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error(
+      'API Error:',
+      error?.response?.data?.message || error.message
+    );
+    return Promise.reject(error);
+  }
+);
+
+export const get = async (path: string, options = {}) => {
+  const response = await httpRequest.get(path, options);
+  return response.data;
+};
+
+export const post = async (path: string, data = {}, options = {}) => {
+  const response = await httpRequest.post(path, data, options);
+  return response.data;
+};
+
+export const put = async (path: string, data = {}, options = {}) => {
+  const response = await httpRequest.put(path, data, options);
+  return response.data;
+};
+
+export const del = async (path: string, options = {}) => {
+  const response = await httpRequest.delete(path, options);
+  return response.data;
+};
 
 export default httpRequest;

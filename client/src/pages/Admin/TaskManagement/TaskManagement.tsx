@@ -1,7 +1,6 @@
 /* client/src/pages/Admin/TaskManagement/TaskManagement.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import {
   Trash2,
   Search,
@@ -14,9 +13,10 @@ import {
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
+import httpRequest from '~/utils/httpRequest';
+import type { ITaskResponse } from '~/types/task';
 import styles from './TaskManagement.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
-import type { ITaskResponse } from '~/types/task';
 
 const cx = classNames.bind(styles);
 
@@ -54,7 +54,7 @@ const TaskManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/tasks/admin/all`, {
+      const res = await httpRequest.get(`/api/tasks/admin/all`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page,
@@ -108,7 +108,7 @@ const TaskManagement = () => {
       return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/tasks/${id}`, {
+      await httpRequest.delete(`/api/tasks/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchTasks();
@@ -342,10 +342,7 @@ const TaskManagement = () => {
                     <div className={cx('creatorInfo')}>
                       {task.creator?.avatar ? (
                         <img
-                          src={`http://localhost:5000/${task.creator.avatar.replace(
-                            /\\/g,
-                            '/'
-                          )}`}
+                          src={`/${task.creator.avatar.replace(/\\/g, '/')}`}
                           alt="avt"
                           className={cx('avatar')}
                         />

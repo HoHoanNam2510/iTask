@@ -1,7 +1,6 @@
 /* client/src/pages/CategoryDetail/CategoryDetail.tsx */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { ArrowLeft, Plus, Layers } from 'lucide-react';
 
@@ -10,6 +9,7 @@ import TaskModal from '~/components/TaskModal/TaskModal';
 // 👇 [MỚI] Import TaskItem để tái sử dụng UI
 import TaskItem from '~/components/TaskItem/TaskItem';
 import type { ITaskResponse } from '~/types/task';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -32,17 +32,14 @@ const CategoryDetail = () => {
     try {
       const token = localStorage.getItem('token');
       // 1. Lấy thông tin category
-      const catRes = await axios.get(
-        `http://localhost:5000/api/categories/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const catRes = await httpRequest.get(`/api/categories/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       // 2. Lấy danh sách task thuộc category này
       // (Lưu ý: Backend cần hỗ trợ filter ?categoryId=... hoặc ta filter ở FE nếu API trả về all)
       // Ở đây giả định bạn có API get tasks hỗ trợ filter hoặc ta fetch all rồi filter
-      const taskRes = await axios.get(`http://localhost:5000/api/tasks`, {
+      const taskRes = await httpRequest.get(`/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

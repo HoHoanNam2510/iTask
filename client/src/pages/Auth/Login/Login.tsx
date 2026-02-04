@@ -3,13 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
-import axios from 'axios';
 
 // Import Context
 import { useAuth } from '~/context/AuthContext';
 
 import images from '~/assets/images';
 import styles from '../Auth.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const loginBg = images.general.todolist;
 const cx = classNames.bind(styles);
@@ -29,7 +29,7 @@ const Login: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await httpRequest.post('/api/auth/login', {
         email,
         password,
       });

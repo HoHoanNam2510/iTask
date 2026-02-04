@@ -2,7 +2,6 @@
 import classNames from 'classnames/bind';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import {
   Search,
   Bell,
@@ -15,6 +14,7 @@ import {
 import { format } from 'date-fns';
 import styles from './Header.module.scss';
 import useDebounce from '~/hooks/useDebounce';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -71,7 +71,7 @@ const Header = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await axios.get('http://localhost:5000/api/notifications', {
+      const res = await httpRequest.get('/api/notifications', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -107,10 +107,8 @@ const Header = () => {
       setIsSearching(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(
-          `http://localhost:5000/api/tasks/search?q=${encodeURIComponent(
-            debouncedQuery
-          )}`,
+        const res = await httpRequest.get(
+          `/api/tasks/search?q=${encodeURIComponent(debouncedQuery)}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -152,7 +150,7 @@ const Header = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/notifications/${notiId}`, {
+      await httpRequest.delete(`/api/notifications/${notiId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -169,8 +167,8 @@ const Header = () => {
     if (!noti.isRead) {
       try {
         const token = localStorage.getItem('token');
-        await axios.put(
-          `http://localhost:5000/api/notifications/${noti._id}/read`,
+        await httpRequest.put(
+          `/api/notifications/${noti._id}/read`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -194,12 +192,9 @@ const Header = () => {
     ) {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(
-          `http://localhost:5000/api/tasks/${taskId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await httpRequest.get(`/api/tasks/${taskId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (res.data.success) {
           const task = res.data.task;

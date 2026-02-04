@@ -1,7 +1,6 @@
 /* client/src/pages/MyTasks/MyTask.tsx */
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { format } from 'date-fns';
 import {
@@ -29,6 +28,7 @@ import CommentSection from '~/components/TaskModal/CommentSection/CommentSection
 import { useAuth } from '~/context/AuthContext';
 import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
 import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -53,7 +53,7 @@ const MyTask = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/tasks', {
+      const res = await httpRequest.get('/api/tasks', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) setTasks(res.data.tasks);
@@ -78,10 +78,9 @@ const MyTask = () => {
         } else {
           try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(
-              `http://localhost:5000/api/tasks/${openTaskId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const res = await httpRequest.get(`/api/tasks/${openTaskId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
             if (res.data.success) {
               setSelectedTaskId(openTaskId);
               setSelectedTaskDetail(res.data.task);
@@ -108,10 +107,9 @@ const MyTask = () => {
   const handleReloadDetail = async () => {
     if (!selectedTaskId) return;
     const token = localStorage.getItem('token');
-    const res = await axios.get(
-      `http://localhost:5000/api/tasks/${selectedTaskId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await httpRequest.get(`/api/tasks/${selectedTaskId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (res.data.success) {
       fetchTasks();
       setSelectedTaskDetail(res.data.task);
@@ -131,12 +129,9 @@ const MyTask = () => {
   const handleDeleteTask = async () => {
     if (!selectedTaskDetail || !confirm('Xóa task?')) return;
     try {
-      await axios.delete(
-        `http://localhost:5000/api/tasks/${selectedTaskDetail._id}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        }
-      );
+      await httpRequest.delete(`/api/tasks/${selectedTaskDetail._id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
       setSelectedTaskId(null);
       fetchTasks();
     } catch (e) {
