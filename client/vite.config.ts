@@ -10,4 +10,18 @@ export default defineConfig({
       '~': path.resolve(__dirname, './src'),
     },
   },
+  // 👇 Cấu hình Build để sửa lỗi Chunk Size Warning
+  build: {
+    chunkSizeWarningLimit: 1600, // Tăng giới hạn lên 1600kB
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Tách các thư viện lớn ra khỏi file chính
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
 });
