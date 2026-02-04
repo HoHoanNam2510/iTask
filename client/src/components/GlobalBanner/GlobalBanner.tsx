@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   AlertTriangle,
-  Info,
+  // Info, // 👈 [ĐÃ XÓA] Biến thừa gây lỗi TS6133
   CheckCircle,
   XCircle,
   Megaphone,
-  X, // 👈 [MỚI] Import icon X
+  X,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import styles from './GlobalBanner.module.scss';
@@ -22,7 +22,7 @@ interface BannerConfig {
 
 const GlobalBanner = () => {
   const [config, setConfig] = useState<BannerConfig | null>(null);
-  const [isVisible, setIsVisible] = useState(true); // 👈 [MỚI] State kiểm soát hiển thị
+  const [isVisible, setIsVisible] = useState(true);
 
   // Hàm lấy cấu hình từ Server
   const fetchConfig = async () => {
@@ -44,7 +44,6 @@ const GlobalBanner = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // 👇 [SỬA] Thêm điều kiện !isVisible
   if (!isVisible || !config || !config.isActive || !config.content) return null;
 
   const getIcon = () => {
@@ -67,7 +66,6 @@ const GlobalBanner = () => {
         <span>{config.content}</span>
       </div>
 
-      {/* 👇 [MỚI] Nút Đóng */}
       <button
         className={cx('closeBtn')}
         onClick={() => setIsVisible(false)}
