@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Calendar,
   FileClock,
-  Settings, // Icon Settings
+  Settings,
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -30,7 +30,6 @@ import { Bar, Line } from 'react-chartjs-2';
 import styles from './Dashboard.module.scss';
 import { format, subDays, isSameDay } from 'date-fns';
 
-// Register ChartJS
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -46,7 +45,6 @@ ChartJS.register(
 
 const cx = classNames.bind(styles);
 
-// 👇 [CẬP NHẬT] Thêm 'settings' vào TabType
 type TabType =
   | 'users'
   | 'tasks'
@@ -57,7 +55,8 @@ type TabType =
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>('users');
-  const [loading, setLoading] = useState(false);
+  // 👇 [ĐÃ SỬA] Bỏ biến loading ra khỏi destructuring vì không dùng, chỉ giữ setLoading
+  const [, setLoading] = useState(false);
 
   // Data State
   const [dataList, setDataList] = useState<any[]>([]);
@@ -94,18 +93,15 @@ const AdminDashboard = () => {
       if (activeTab === 'groups') endpoint = '/api/groups/admin/all';
       if (activeTab === 'categories') endpoint = '/api/categories/admin/all';
       if (activeTab === 'logs') endpoint = '/api/admin/logs?limit=50';
-      // 👇 [MỚI] Endpoint cho Settings
       if (activeTab === 'settings') endpoint = '/api/system';
 
       const res = await axios.get(`http://localhost:5000${endpoint}`, config);
 
       if (res.data.success) {
-        // Xử lý riêng cho tab Settings
         if (activeTab === 'settings') {
           setSysConfig(res.data.config);
-          setDataList([]); // Tab này không dùng bảng dataList
+          setDataList([]);
         } else {
-          // Các tab dữ liệu thông thường
           let list = [];
           if (activeTab === 'users') list = res.data.users;
           if (activeTab === 'tasks') list = res.data.tasks;
@@ -115,7 +111,6 @@ const AdminDashboard = () => {
 
           setDataList(list);
 
-          // Chỉ tính toán stats nếu KHÔNG PHẢI là logs (vì logs có logic khác)
           if (activeTab !== 'logs') {
             calculateStats(list);
           }
@@ -157,7 +152,6 @@ const AdminDashboard = () => {
 
   // --- 3. HANDLE ACTIONS ---
   const handleDelete = async (id: string) => {
-    // Không cho phép xóa Log/Settings từ giao diện này
     if (activeTab === 'logs' || activeTab === 'settings') return;
 
     if (!window.confirm('Bạn có chắc muốn xóa đối tượng này?')) return;
@@ -173,7 +167,6 @@ const AdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Update UI
       const newList = dataList.filter((item) => item._id !== id);
       setDataList(newList);
       calculateStats(newList);
@@ -182,7 +175,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 👇 [HÀM MỚI] Lưu Settings
   const handleSaveSettings = async () => {
     try {
       setSavingConfig(true);
@@ -225,7 +217,6 @@ const AdminDashboard = () => {
     };
   };
 
-  // --- 5. HELPER: RENDER METHOD BADGE (Cho Audit Logs) ---
   const renderMethodBadge = (action: string) => {
     let type = 'update';
     if (action === 'CREATE') type = 'create';
@@ -237,13 +228,11 @@ const AdminDashboard = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* Header */}
       <div className={cx('header')}>
         <h1 className={cx('title')}>Admin Dashboard</h1>
         <p className={cx('subtitle')}>Quản lý toàn bộ hệ thống tập trung</p>
       </div>
 
-      {/* Tabs */}
       <div className={cx('tabsContainer')}>
         <button
           className={cx('tabItem', { active: activeTab === 'users' })}
@@ -275,7 +264,6 @@ const AdminDashboard = () => {
         >
           <FileClock size={18} /> Audit Logs
         </button>
-        {/* 👇 [MỚI] Nút Tab Settings */}
         <button
           className={cx('tabItem', { active: activeTab === 'settings' })}
           onClick={() => setActiveTab('settings')}
@@ -284,7 +272,6 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      {/* Stats Cards & Chart (Ẩn khi xem Logs và Settings) */}
       {activeTab !== 'logs' && activeTab !== 'settings' && (
         <>
           <div className={cx('statsGrid')}>
@@ -351,10 +338,8 @@ const AdminDashboard = () => {
         </>
       )}
 
-      {/* Content Section (Table or Board) */}
       <div className={cx('contentSection')}>
         {activeTab === 'tasks' ? (
-          // --- VIEW CHO TASKS (KANBAN STYLE) ---
           <div className={cx('kanbanBoard')}>
             {['todo', 'in_progress', 'completed'].map((status) => (
               <div key={status} className={cx('kanbanColumn')}>
@@ -416,7 +401,6 @@ const AdminDashboard = () => {
             ))}
           </div>
         ) : activeTab === 'logs' ? (
-          // --- VIEW CHO AUDIT LOGS ---
           <div className={cx('tableScrollContainer')}>
             <table className={cx('adminTable')}>
               <thead>
@@ -443,7 +427,6 @@ const AdminDashboard = () => {
                           gap: 8,
                         }}
                       >
-                        {/* Avatar nhỏ */}
                         <div
                           style={{
                             width: 24,
@@ -520,7 +503,6 @@ const AdminDashboard = () => {
             </table>
           </div>
         ) : activeTab === 'settings' ? (
-          // 👇 [VIEW MỚI] GIAO DIỆN SETTINGS
           <div className={cx('settingsContainer')}>
             <div className={cx('settingCard')}>
               <h3 className={cx('cardTitle')}>
@@ -609,7 +591,6 @@ const AdminDashboard = () => {
             </div>
           </div>
         ) : (
-          // --- VIEW CHO USERS, GROUPS, CATEGORIES (TABLE STYLE) ---
           <div className={cx('tableScrollContainer')}>
             <table className={cx('adminTable')}>
               <thead>
@@ -639,7 +620,6 @@ const AdminDashboard = () => {
                           fontWeight: 500,
                         }}
                       >
-                        {/* Logic hiển thị Avatar/Icon tùy loại */}
                         {activeTab === 'users' && (
                           <div
                             style={{
@@ -665,7 +645,6 @@ const AdminDashboard = () => {
                       </div>
                     </td>
 
-                    {/* Cột Email cho User */}
                     {activeTab === 'users' && <td>{item.email}</td>}
                     {activeTab === 'users' && (
                       <td>
@@ -680,12 +659,10 @@ const AdminDashboard = () => {
                       </td>
                     )}
 
-                    {/* Cột Members cho Group */}
                     {activeTab === 'groups' && (
                       <td>{item.members?.length || 0} users</td>
                     )}
 
-                    {/* Cột Color cho Category */}
                     {activeTab === 'categories' && (
                       <td>
                         <div
@@ -721,9 +698,7 @@ const AdminDashboard = () => {
   );
 };
 
-// Sub-component StatCard (Tái sử dụng)
 const StatCard = ({ title, value, icon, color }: any) => {
-  // Map màu string sang class scss
   const colorMap: any = {
     blue: 'blue',
     green: 'green',

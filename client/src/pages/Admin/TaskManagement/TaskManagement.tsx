@@ -20,8 +20,8 @@ import type { ITaskResponse } from '~/types/task';
 
 const cx = classNames.bind(styles);
 
-// Interface mở rộng
-interface IAdminTask extends ITaskResponse {
+// 👇 [ĐÃ SỬA] Dùng Omit để loại bỏ 'creator' gốc trước khi định nghĩa lại
+interface IAdminTask extends Omit<ITaskResponse, 'creator'> {
   creator?: {
     _id: string;
     username: string;
@@ -114,7 +114,7 @@ const TaskManagement = () => {
       fetchTasks();
       alert('Đã xóa task thành công!');
     } catch (error) {
-      console.error(error); // Log lỗi ra console trình duyệt
+      console.error(error);
       alert('Xóa thất bại');
     }
   };
@@ -342,7 +342,10 @@ const TaskManagement = () => {
                     <div className={cx('creatorInfo')}>
                       {task.creator?.avatar ? (
                         <img
-                          src={`http://localhost:5000/${task.creator.avatar.replace(/\\/g, '/')}`}
+                          src={`http://localhost:5000/${task.creator.avatar.replace(
+                            /\\/g,
+                            '/'
+                          )}`}
                           alt="avt"
                           className={cx('avatar')}
                         />
@@ -418,7 +421,11 @@ const TaskManagement = () => {
           setTaskToEdit(null);
         }}
         onSuccess={() => fetchTasks()}
-        taskToEdit={taskToEdit}
+        // TaskToEdit ở đây là IAdminTask nhưng TaskModal nhận ITaskResponse
+        // Vì IAdminTask extends ITaskResponse (dù có sửa creator), nên về cơ bản vẫn pass được nếu TaskModal không strict quá mức.
+        // Tuy nhiên do ta dùng Omit, có thể cần ép kiểu nếu TS vẫn báo lỗi tại đây.
+        // Nếu lỗi xảy ra ở đây: taskToEdit={taskToEdit as unknown as ITaskResponse}
+        taskToEdit={taskToEdit as any}
       />
     </div>
   );

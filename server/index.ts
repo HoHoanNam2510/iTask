@@ -32,14 +32,31 @@ const app = express();
 // 2. KẾT NỐI DB
 connectDB();
 
-// Cấu hình CORS
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+// 3. CẤU HÌNH CORS (QUAN TRỌNG CHO DEPLOY)
+// allowedOrigins bao gồm:
+// - Localhost frontend (để bạn code ở máy)
+// - Biến CLIENT_URL (để sau này điền domain Vercel vào cấu hình trên Render)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  process.env.CLIENT_URL || '', // URL Frontend sau khi deploy
+];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Cho phép request không có origin (như Postman, Mobile App, hoặc server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log('Blocked by CORS:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
+    credentials: true, // Cho phép gửi cookie/token
   })
 );
 

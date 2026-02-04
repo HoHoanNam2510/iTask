@@ -23,7 +23,7 @@ interface INotification {
   _id: string;
   text: string;
   type: string;
-  link?: string; // 👈 [MỚI] Thêm trường link (chứa taskId)
+  link?: string;
   isRead: boolean;
   sender: {
     username: string;
@@ -47,23 +47,23 @@ const Header = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [showNoti, setShowNoti] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false); // Vẫn giữ state để tránh lỗi logic cũ
+  // [ĐÃ XÓA] showCalendar state thừa
   const [now, setNow] = useState(new Date());
 
   const [notifications, setNotifications] = useState<INotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 👇 [STATE MỚI] Cho Search
+  // State Search
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  // Áp dụng Debounce 1000ms (1 giây)
+  // Áp dụng Debounce
   const debouncedQuery = useDebounce(query, 1000);
 
   const notiRef = useRef<HTMLDivElement | null>(null);
   const calRef = useRef<HTMLDivElement | null>(null);
-  const searchRef = useRef<HTMLFormElement | null>(null); // Ref cho vùng search
+  const searchRef = useRef<HTMLFormElement | null>(null);
 
   // Hàm gọi API lấy thông báo
   const fetchNotifications = async () => {
@@ -98,20 +98,6 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (notiRef.current && !notiRef.current.contains(e.target as Node)) {
-        setShowNoti(false);
-      }
-      if (calRef.current && !calRef.current.contains(e.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-    document.addEventListener('click', onDoc);
-    return () => document.removeEventListener('click', onDoc);
-  }, []);
-
-  // 👇 [MỚI] Effect xử lý gọi API Search khi debouncedQuery thay đổi
-  useEffect(() => {
     const fetchSearch = async () => {
       if (!debouncedQuery.trim()) {
         setSearchResults([]);
@@ -143,13 +129,12 @@ const Header = () => {
     fetchSearch();
   }, [debouncedQuery]);
 
-  // Handle click ra ngoài để đóng dropdown search
+  // Handle click ra ngoài
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (notiRef.current && !notiRef.current.contains(e.target as Node))
         setShowNoti(false);
-      if (calRef.current && !calRef.current.contains(e.target as Node))
-        setShowCalendar(false);
+      // [ĐÃ SỬA] Bỏ logic setShowCalendar vì biến đã xóa, calRef chỉ dùng để navigate
 
       // Đóng search result
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -160,9 +145,9 @@ const Header = () => {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
-  // 👇 [MỚI] Hàm xóa thông báo
+  // Hàm xóa thông báo
   const handleDeleteNoti = async (e: React.MouseEvent, notiId: string) => {
-    e.stopPropagation(); // Ngăn click lan ra ngoài
+    e.stopPropagation();
     if (!window.confirm('Bạn có chắc muốn xóa thông báo này?')) return;
 
     try {
@@ -171,9 +156,7 @@ const Header = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Update UI
       setNotifications((prev) => prev.filter((n) => n._id !== notiId));
-      // Nếu xóa thông báo chưa đọc thì giảm count
       const isUnread = notifications.find((n) => n._id === notiId && !n.isRead);
       if (isUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -181,9 +164,8 @@ const Header = () => {
     }
   };
 
-  // 👇 [CẬP NHẬT] Xử lý click thông báo -> Đánh dấu đọc & Điều hướng
+  // Xử lý click thông báo
   const handleNotiClick = async (noti: INotification) => {
-    // 1. Đánh dấu đã đọc
     if (!noti.isRead) {
       try {
         const token = localStorage.getItem('token');
@@ -201,10 +183,8 @@ const Header = () => {
       }
     }
 
-    setShowNoti(false); // Đóng dropdown
+    setShowNoti(false);
 
-    // 2. Logic điều hướng Deep Link
-    // Giả sử noti.link chứa taskId
     const taskId = noti.link;
     if (
       taskId &&
@@ -213,7 +193,6 @@ const Header = () => {
         noti.type === 'deadline')
     ) {
       try {
-        // Gọi API lấy thông tin task để biết nó thuộc Group nào
         const token = localStorage.getItem('token');
         const res = await axios.get(
           `http://localhost:5000/api/tasks/${taskId}`,
@@ -225,14 +204,10 @@ const Header = () => {
         if (res.data.success) {
           const task = res.data.task;
           if (task.group) {
-            // 👇 [SỬA] Kiểm tra nếu group là object (đã populate) thì lấy _id, ngược lại giữ nguyên
             const groupId =
               typeof task.group === 'object' ? task.group._id : task.group;
-
-            // Navigate với ID chuẩn
             navigate(`/groups/${groupId}?openTask=${task._id}`);
           } else {
-            // Nếu là task cá nhân -> Qua Dashboard (hoặc MyTask)
             navigate(`/?openTask=${task._id}`);
           }
         }
@@ -243,21 +218,8 @@ const Header = () => {
     }
   };
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query.trim()) {
-      navigate(`/?q=${encodeURIComponent(query.trim())}`);
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('vi-VN', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-    }).format(date);
-  };
+  // [ĐÃ XÓA] handleSearch (không dùng)
+  // [ĐÃ XÓA] formatDate (không dùng)
 
   const renderNotificationText = (text: string) => {
     const parts = text.split(/(@\w+)/g);
@@ -273,23 +235,19 @@ const Header = () => {
     });
   };
 
-  // 👇 [MỚI] Xử lý khi click vào kết quả tìm kiếm
   const handleResultClick = (task: SearchResult) => {
     setShowSearchResults(false);
     setQuery('');
 
     if (task.group) {
-      // Nếu thuộc nhóm -> Vào trang Group Detail
       navigate(`/groups/${task.group._id}?openTask=${task._id}`);
     } else {
-      // Nếu là task cá nhân -> Vào trang My Task
       navigate(`/my-task?openTask=${task._id}`);
     }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Nếu user nhấn Enter mà chưa có kết quả load xong, có thể force search hoặc bỏ qua
   };
 
   return (
@@ -330,7 +288,6 @@ const Header = () => {
             )}
           </button>
 
-          {/* 👇 DROPDOWN KẾT QUẢ TÌM KIẾM */}
           {showSearchResults && query && (
             <div className={cx('searchDropdown')}>
               {searchResults.length === 0 && !isSearching ? (
@@ -407,10 +364,9 @@ const Header = () => {
                     <div
                       className={cx('dropdownItem')}
                       key={n._id}
-                      onClick={() => handleNotiClick(n)} // Gọi hàm click mới
+                      onClick={() => handleNotiClick(n)}
                       style={{ opacity: n.isRead ? 0.7 : 1 }}
                     >
-                      {/* Chấm trạng thái */}
                       <div
                         style={{
                           width: 8,
@@ -442,7 +398,6 @@ const Header = () => {
                         </span>
                       </div>
 
-                      {/* 👇 [MỚI] Nút xóa */}
                       <button
                         className={cx('deleteBtn')}
                         onClick={(e) => handleDeleteNoti(e, n._id)}
@@ -459,7 +414,6 @@ const Header = () => {
         </div>
 
         {/* Calendar */}
-        {/* 👇 [ĐÃ SỬA] Click vào đây để điều hướng trang Calendar */}
         <div className={cx('iconWrapper')} ref={calRef}>
           <button
             className={cx('iconBtn')}
