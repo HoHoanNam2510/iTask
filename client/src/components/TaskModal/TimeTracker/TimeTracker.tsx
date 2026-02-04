@@ -6,6 +6,7 @@ import classNames from 'classnames/bind';
 import styles from './TimeTracker.module.scss';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper xử lý ảnh
 
 const cx = classNames.bind(styles);
 
@@ -220,7 +221,8 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
                   <div className={cx('avatar')}>
                     {isUserObject && item.user.avatar ? (
                       <img
-                        src={`http://localhost:5000/${item.user.avatar}`}
+                        // 👇 [FIXED] Sử dụng getImageUrl thay vì hardcode localhost
+                        src={getImageUrl(item.user.avatar)}
                         alt="avt"
                       />
                     ) : (
