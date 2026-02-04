@@ -1,7 +1,6 @@
 /* client/src/pages/Admin/UserManagement/UserManagement.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import {
   Trash2,
   Search,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import styles from './UserManagement.module.scss';
+import httpRequest from '~/utils/httpRequest';
 import { useAuth } from '~/context/AuthContext';
 import Pagination from '~/components/Pagination/Pagination';
 import UserModal from '~/components/Modals/UserModal/UserModal'; // Import Modal
@@ -52,7 +52,7 @@ const UserManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/users', {
+      const res = await httpRequest.get('/api/users', {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page,
@@ -109,7 +109,7 @@ const UserManagement = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/users/${userId}`, {
+      await httpRequest.delete(`/api/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchUsers();
@@ -214,7 +214,7 @@ const UserManagement = () => {
                     <div className={cx('userInfo')}>
                       {u.avatar ? (
                         <img
-                          src={`http://localhost:5000/${u.avatar.replace(/\\/g, '/')}`}
+                          src={`/${u.avatar.replace(/\\/g, '/')}`}
                           alt="avatar"
                           className={cx('avatar')}
                           onError={(e) => {

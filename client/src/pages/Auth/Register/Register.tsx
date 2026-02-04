@@ -3,10 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import classNames from 'classnames/bind';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
-import axios from 'axios'; // Import Axios
 
 import images from '~/assets/images';
 import styles from '../Auth.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const registerBg = images.general.todolist;
 const cx = classNames.bind(styles);
@@ -32,7 +32,7 @@ const Register: React.FC = () => {
     try {
       setIsLoading(true);
       // Gọi API Register (Giả định route là /api/auth/register)
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
+      const res = await httpRequest.post('/api/auth/register', {
         name,
         email,
         password,

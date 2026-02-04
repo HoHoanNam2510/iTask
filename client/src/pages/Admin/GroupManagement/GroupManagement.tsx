@@ -1,7 +1,6 @@
 /* client/src/pages/Admin/GroupManagement/GroupManagement.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import {
   Trash2,
   Search,
@@ -11,6 +10,7 @@ import {
   ArrowUpDown,
   Edit2,
 } from 'lucide-react';
+import httpRequest from '~/utils/httpRequest';
 import styles from './GroupManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal'; // Import Modal
@@ -57,19 +57,16 @@ const GroupManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        'http://localhost:5000/api/groups/admin/all',
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            page,
-            limit,
-            search: searchTerm,
-            sortBy: sortConfig.key,
-            order: sortConfig.direction,
-          },
-        }
-      );
+      const res = await httpRequest.get('/api/groups/admin/all', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page,
+          limit,
+          search: searchTerm,
+          sortBy: sortConfig.key,
+          order: sortConfig.direction,
+        },
+      });
       if (res.data.success) {
         setGroups(res.data.groups);
         setTotalPages(res.data.totalPages);
@@ -119,7 +116,7 @@ const GroupManagement = () => {
       return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/groups/admin/${id}`, {
+      await httpRequest.delete(`/api/groups/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchGroups();
@@ -140,13 +137,9 @@ const GroupManagement = () => {
     if (!groupToEdit) return;
     const token = localStorage.getItem('token');
     try {
-      await axios.put(
-        `http://localhost:5000/api/groups/admin/${groupToEdit._id}`,
-        data,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await httpRequest.put(`/api/groups/admin/${groupToEdit._id}`, data, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchGroups();
       alert('Cập nhật nhóm thành công!');
     } catch (error) {
@@ -246,7 +239,7 @@ const GroupManagement = () => {
                     >
                       {group.owner?.avatar ? (
                         <img
-                          src={`http://localhost:5000/${group.owner.avatar.replace(/\\/g, '/')}`}
+                          src={`/${group.owner.avatar.replace(/\\/g, '/')}`}
                           style={{
                             width: 28,
                             height: 28,
@@ -274,7 +267,7 @@ const GroupManagement = () => {
                           key={mem._id}
                           src={
                             mem.avatar
-                              ? `http://localhost:5000/${mem.avatar.replace(/\\/g, '/')}`
+                              ? `/${mem.avatar.replace(/\\/g, '/')}`
                               : 'https://via.placeholder.com/30'
                           }
                           title={mem.username}

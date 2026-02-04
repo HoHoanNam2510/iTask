@@ -1,8 +1,8 @@
 /* client/src/components/TaskModal/TimeTracker/TimeTracker.tsx */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import axios from 'axios';
 import { Play, Square, Clock } from 'lucide-react';
 import classNames from 'classnames/bind';
+import httpRequest from '~/utils/httpRequest';
 import styles from './TimeTracker.module.scss';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
@@ -140,8 +140,8 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5000/api/tasks/${taskId}/timer/start`,
+      await httpRequest.post(
+        `/api/tasks/${taskId}/timer/start`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -158,8 +158,8 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5000/api/tasks/${taskId}/timer/stop`,
+      await httpRequest.post(
+        `/api/tasks/${taskId}/timer/stop`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

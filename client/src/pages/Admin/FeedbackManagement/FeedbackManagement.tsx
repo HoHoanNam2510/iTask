@@ -1,8 +1,8 @@
 /* client/src/pages/Admin/FeedbackManagement/FeedbackManagement.tsx */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import httpRequest from '~/utils/httpRequest';
 import styles from './FeedbackManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
 
@@ -30,21 +30,18 @@ const FeedbackManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        'http://localhost:5000/api/feedbacks/admin/all',
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            page,
-            limit,
-            search,
-            status: statusFilter,
-            // 👇 Gửi params sort lên server
-            sortBy: sortConfig.key,
-            order: sortConfig.direction,
-          },
-        }
-      );
+      const res = await httpRequest.get('/api/feedbacks/admin/all', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page,
+          limit,
+          search,
+          status: statusFilter,
+          // 👇 Gửi params sort lên server
+          sortBy: sortConfig.key,
+          order: sortConfig.direction,
+        },
+      });
       if (res.data.success) {
         setFeedbacks(res.data.feedbacks);
         setTotalItems(res.data.total);
@@ -92,8 +89,8 @@ const FeedbackManagement = () => {
       );
 
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/feedbacks/admin/${id}`,
+      await httpRequest.put(
+        `/api/feedbacks/admin/${id}`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -108,7 +105,7 @@ const FeedbackManagement = () => {
     if (!confirm('Xóa phản hồi này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/feedbacks/admin/${id}`, {
+      await httpRequest.delete(`/api/feedbacks/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchFeedbacks();

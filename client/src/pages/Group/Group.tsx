@@ -1,7 +1,6 @@
 /* client/src/pages/Group/Group.tsx */
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   Plus,
   Edit2,
@@ -36,6 +35,7 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 
 import styles from './Group.module.scss';
+import httpRequest from '~/utils/httpRequest';
 import TaskModal from '~/components/TaskModal/TaskModal';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
@@ -58,7 +58,7 @@ const getAvatarUrl = (avatarPath?: string) => {
   if (!avatarPath) return '';
   return avatarPath.startsWith('http')
     ? avatarPath
-    : `http://localhost:5000/${avatarPath.replace(/\\/g, '/')}`;
+    : `/${avatarPath.replace(/\\/g, '/')}`;
 };
 
 const Group: React.FC = () => {
@@ -87,10 +87,9 @@ const Group: React.FC = () => {
     if (!data) setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(
-        `http://localhost:5000/api/groups/${groupId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await httpRequest.get(`/api/groups/${groupId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.success) setData(res.data.data);
     } catch (error) {
       console.error(error);
@@ -138,13 +137,9 @@ const Group: React.FC = () => {
   }) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put(
-        `http://localhost:5000/api/groups/${groupId}`,
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await httpRequest.put(`/api/groups/${groupId}`, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (res.data.success) {
         setData((prev) =>
@@ -169,7 +164,7 @@ const Group: React.FC = () => {
       return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/groups/${groupId}`, {
+      await httpRequest.delete(`/api/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       window.dispatchEvent(new Event('GROUP_INFO_UPDATED'));
@@ -184,8 +179,8 @@ const Group: React.FC = () => {
     if (!window.confirm('Bạn có chắc muốn rời khỏi nhóm này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5000/api/groups/${groupId}/leave`,
+      await httpRequest.post(
+        `/api/groups/${groupId}/leave`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -201,8 +196,8 @@ const Group: React.FC = () => {
     if (!window.confirm(`Xóa ${username} khỏi nhóm?`)) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5000/api/groups/${groupId}/remove-member`,
+      await httpRequest.post(
+        `/api/groups/${groupId}/remove-member`,
         { userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -216,7 +211,7 @@ const Group: React.FC = () => {
     if (!window.confirm('Chuyển task vào thùng rác?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
+      await httpRequest.delete(`/api/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       triggerRefresh();
@@ -235,8 +230,8 @@ const Group: React.FC = () => {
     setData({ ...data, tasks: updatedTasks });
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/tasks/${draggableId}`,
+      await httpRequest.put(
+        `/api/tasks/${draggableId}`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );

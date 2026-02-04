@@ -3,11 +3,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import fs from 'fs';
 import cors from 'cors';
 import path from 'path';
 import cron from 'node-cron';
-// Đã xóa http, socket.io, peer
+import fs from 'fs';
 
 // Import các file nội bộ
 import connectDB from './config/db';
@@ -25,38 +24,35 @@ import notificationRoutes from './routes/notificationRoutes';
 
 import Task from './models/Task';
 import { auditLogger } from './middleware/auditMiddleware';
-import cloudinary from './config/cloudinary'; // Import cloudinary để xóa trên cloud nếu cần
 
 const app = express();
 
 // 2. KẾT NỐI DB
 connectDB();
 
-// 3. CẤU HÌNH CORS (QUAN TRỌNG CHO DEPLOY)
-// allowedOrigins bao gồm:
-// - Localhost frontend (để bạn code ở máy)
-// - Biến CLIENT_URL (để sau này điền domain Vercel vào cấu hình trên Render)
+// 3. CẤU HÌNH CORS (QUAN TRỌNG)
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  process.env.CLIENT_URL || '', // URL Frontend sau khi deploy
+  'http://localhost:5173', // Local Frontend
+  'http://127.0.0.1:5173', // Local Frontend (IP)
+  'https://i-task-green-seven.vercel.app', // 👇 [FIX] Domain Vercel của bạn
+  process.env.CLIENT_URL || '', // Biến môi trường trên Render
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Cho phép request không có origin (như Postman, Mobile App, hoặc server-to-server)
+      // Cho phép request không có origin (Postman, Mobile, Server-to-Server)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log('Blocked by CORS:', origin);
+        console.log('❌ Blocked by CORS:', origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true, // Cho phép gửi cookie/token
+    credentials: true, // Cho phép cookie/token
   })
 );
 
@@ -69,7 +65,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 5. STATIC FILES (Giữ lại để support ảnh cũ chưa migrate, ảnh mới sẽ dùng link cloudinary)
+// 5. STATIC FILES
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Audit Logger
@@ -88,7 +84,7 @@ app.use('/api/feedbacks', feedbackRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// [CRON JOB] Dọn dẹp thùng rác (Đã update để handle Cloudinary)
+// [CRON JOB]
 cron.schedule('0 0 * * *', async () => {
   console.log('⏰ [CRON] Bắt đầu quét dọn thùng rác...');
   const thirtyDaysAgo = new Date();
@@ -99,19 +95,11 @@ cron.schedule('0 0 * * *', async () => {
       deletedAt: { $lt: thirtyDaysAgo },
     });
     if (tasksToDelete.length > 0) {
-      console.log(`🗑️ Tìm thấy ${tasksToDelete.length} tasks hết hạn.`);
       for (const task of tasksToDelete) {
-        // Xóa ảnh bìa
-        if (task.image) {
-          if (task.image.includes('cloudinary')) {
-            // Logic xóa cloud (copy từ controller nếu cần hoặc skip ở cron)
-            // Tốt nhất là xóa luôn lúc permanentDeleteTask, Cron này chỉ là backup
-          } else if (!task.image.startsWith('http')) {
-            // Xóa ảnh local cũ
-            try {
-              fs.unlinkSync(path.join(process.cwd(), '../', task.image));
-            } catch (e) {}
-          }
+        if (task.image && !task.image.startsWith('http')) {
+          try {
+            fs.unlinkSync(path.join(process.cwd(), '../', task.image));
+          } catch (e) {}
         }
         await Task.findByIdAndDelete(task._id);
       }
@@ -140,7 +128,4 @@ app.use(
 );
 
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT} (Clean Express Mode)`)
-);
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

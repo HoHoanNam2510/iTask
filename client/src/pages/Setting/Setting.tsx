@@ -12,12 +12,12 @@ import {
   EyeOff,
   Hash, // Icon cho ô nhập Hex
 } from 'lucide-react';
-import axios from 'axios';
 
 import styles from './Setting.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import { useTheme, THEMES } from '~/context/ThemeContext';
 import { getImageUrl } from '~/utils/imageHelper'; // 👇 Import helper
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -84,15 +84,11 @@ const Setting = () => {
         formData.append('avatar', avatarFile);
       }
 
-      const res = await axios.put(
-        'http://localhost:5000/api/users/profile',
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await httpRequest.put('/api/users/profile', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (res.data.success) {
         alert('Cập nhật thành công!');
@@ -128,8 +124,8 @@ const Setting = () => {
       setIsPassLoading(true);
       const token = localStorage.getItem('token');
 
-      const res = await axios.put(
-        'http://localhost:5000/api/users/change-password',
+      const res = await httpRequest.put(
+        '/api/users/change-password',
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

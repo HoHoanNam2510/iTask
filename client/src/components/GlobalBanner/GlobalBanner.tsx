@@ -1,6 +1,5 @@
 /* src/components/GlobalBanner/GlobalBanner.tsx */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import {
   AlertTriangle,
   // Info, // 👈 [ĐÃ XÓA] Biến thừa gây lỗi TS6133
@@ -10,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
+import httpRequest from '~/utils/httpRequest';
 import styles from './GlobalBanner.module.scss';
 
 const cx = classNames.bind(styles);
@@ -27,7 +27,7 @@ const GlobalBanner = () => {
   // Hàm lấy cấu hình từ Server
   const fetchConfig = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/system');
+      const res = await httpRequest.get('/api/system');
       if (res.data.success && res.data.config) {
         setConfig(res.data.config.globalBanner);
         // Nếu nội dung thay đổi thì hiện lại banner (logic tùy chọn)

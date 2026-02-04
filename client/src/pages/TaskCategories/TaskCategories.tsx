@@ -1,9 +1,9 @@
 /* client/src/pages/TaskCategories/TaskCategories.tsx */
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { Plus, Edit2, Trash2, FolderKanban, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import httpRequest from '~/utils/httpRequest';
 import styles from './TaskCategories.module.scss';
 import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
 
@@ -30,7 +30,7 @@ const TaskCategories = () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/categories', {
+      const res = await httpRequest.get('/api/categories', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCategories(res.data.categories || []);
@@ -62,14 +62,12 @@ const TaskCategories = () => {
 
     if (editingCategory) {
       // Update
-      await axios.put(
-        `http://localhost:5000/api/categories/${editingCategory._id}`,
-        data,
-        { headers }
-      );
+      await httpRequest.put(`/api/categories/${editingCategory._id}`, data, {
+        headers,
+      });
     } else {
       // Create
-      await axios.post('http://localhost:5000/api/categories', data, {
+      await httpRequest.post('/api/categories', data, {
         headers,
       });
     }
@@ -80,7 +78,7 @@ const TaskCategories = () => {
     if (window.confirm('Bạn có chắc muốn xóa danh mục này?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/categories/${id}`, {
+        await httpRequest.delete(`/api/categories/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setCategories((prev) => prev.filter((cat) => cat._id !== id));

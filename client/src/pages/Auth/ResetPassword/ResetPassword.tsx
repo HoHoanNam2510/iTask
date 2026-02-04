@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import { ArrowLeft } from 'lucide-react';
 
 import images from '~/assets/images';
 import styles from '../Auth.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const bgImage = images.general.todolist;
 const cx = classNames.bind(styles);
@@ -34,12 +34,9 @@ const ResetPassword: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const res = await axios.put(
-        `http://localhost:5000/api/auth/resetpassword/${token}`,
-        {
-          password,
-        }
-      );
+      const res = await httpRequest.put(`/api/auth/resetpassword/${token}`, {
+        password,
+      });
 
       if (res.data.success) {
         alert('Đổi mật khẩu thành công! Hãy đăng nhập lại.');

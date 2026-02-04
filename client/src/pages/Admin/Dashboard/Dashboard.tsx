@@ -1,7 +1,6 @@
 /* src/pages/Admin/Dashboard/Dashboard.tsx */
 import { useEffect, useState } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import {
   Users,
   Layers,
@@ -27,8 +26,9 @@ import {
   Filler,
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
-import styles from './Dashboard.module.scss';
 import { format, subDays, isSameDay } from 'date-fns';
+import styles from './Dashboard.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 ChartJS.register(
   CategoryScale,
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
       if (activeTab === 'logs') endpoint = '/api/admin/logs?limit=50';
       if (activeTab === 'settings') endpoint = '/api/system';
 
-      const res = await axios.get(`http://localhost:5000${endpoint}`, config);
+      const res = await httpRequest.get(`${endpoint}`, config);
 
       if (res.data.success) {
         if (activeTab === 'settings') {
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
       if (activeTab === 'groups') endpoint = `/api/groups/admin/${id}`;
       if (activeTab === 'categories') endpoint = `/api/categories/admin/${id}`;
 
-      await axios.delete(`http://localhost:5000${endpoint}`, {
+      await httpRequest.delete(`${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -179,7 +179,7 @@ const AdminDashboard = () => {
     try {
       setSavingConfig(true);
       const token = localStorage.getItem('token');
-      await axios.put('http://localhost:5000/api/system', sysConfig, {
+      await httpRequest.put('/api/system', sysConfig, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Đã lưu cấu hình hệ thống!');
@@ -385,9 +385,7 @@ const AdminDashboard = () => {
                         }}
                       >
                         <img
-                          src={`http://localhost:5000/${
-                            task.creator?.avatar || ''
-                          }`}
+                          src={`/${task.creator?.avatar || ''}`}
                           style={{ width: 20, height: 20, borderRadius: '50%' }}
                           onError={(e: any) =>
                             (e.target.style.display = 'none')
@@ -438,7 +436,7 @@ const AdminDashboard = () => {
                         >
                           {log.user?.avatar ? (
                             <img
-                              src={`http://localhost:5000/${log.user.avatar}`}
+                              src={`/${log.user.avatar}`}
                               style={{
                                 width: '100%',
                                 height: '100%',

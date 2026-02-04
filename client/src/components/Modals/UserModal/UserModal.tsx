@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import classNames from 'classnames/bind';
 import { X } from 'lucide-react';
-import axios from 'axios';
 import styles from './UserModal.module.scss';
+import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
 
@@ -42,8 +42,8 @@ const UserModal: React.FC<UserModalProps> = ({
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/users/${user._id}/admin`, // API dành riêng cho Admin update user
+      await httpRequest.put(
+        `/api/users/${user._id}/admin`, // API dành riêng cho Admin update user
         { role, username },
         { headers: { Authorization: `Bearer ${token}` } }
       );

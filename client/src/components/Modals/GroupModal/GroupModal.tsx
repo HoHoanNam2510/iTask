@@ -1,8 +1,8 @@
 /* client/src/components/Modals/GroupModal/GroupModal.tsx */
 import React, { useState, useEffect } from 'react';
 import classNames from 'classnames/bind';
-import axios from 'axios';
 import { X, Users, PlusCircle, Save } from 'lucide-react';
+import httpRequest from '~/utils/httpRequest';
 import styles from './GroupModal.module.scss';
 
 const cx = classNames.bind(styles);
@@ -81,8 +81,8 @@ const GroupModal: React.FC<GroupModalProps> = ({
 
       // --- TRƯỜNG HỢP 2: USER NORMAL (Create/Join) ---
       if (activeTab === 'join') {
-        const res = await axios.post(
-          'http://localhost:5000/api/groups/join',
+        const res = await httpRequest.post(
+          '/api/groups/join',
           { inviteCode: joinId },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -90,8 +90,8 @@ const GroupModal: React.FC<GroupModalProps> = ({
           alert(`Đã tham gia nhóm: ${res.data.group.name}`);
         }
       } else {
-        const res = await axios.post(
-          'http://localhost:5000/api/groups',
+        const res = await httpRequest.post(
+          '/api/groups',
           { name: groupName, description: groupDesc },
           { headers: { Authorization: `Bearer ${token}` } }
         );
