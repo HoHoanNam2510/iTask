@@ -115,6 +115,14 @@
       color: var(--text-main);
       vertical-align: middle;
     }
+
+    .catName {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 1.6rem;
+    }
   }
 }
 
@@ -159,6 +167,22 @@
 
   span {
     font-weight: 500;
+  }
+}
+
+.actionBtn {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.edit {
+    color: #3b82f6;
+    &:hover {
+      background-color: #dbeafe;
+    }
   }
 }
 
