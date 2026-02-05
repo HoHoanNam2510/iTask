@@ -19,7 +19,7 @@ import {
 import styles from './Sidebar.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal';
-import { getImageUrl } from '~/utils/imageHelper'; // 👇 Import helper
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
@@ -84,7 +84,8 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
         <div className={cx('avatar')}>
           {isAuthenticated && user?.avatar ? (
             <img
-              src={getImageUrl(user.avatar)} // 👇 Dùng helper
+              // 👇 [ĐÃ SỬA] Dùng helper để hiển thị avatar chuẩn
+              src={getImageUrl(user.avatar)}
               alt={user.username}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
@@ -103,7 +104,7 @@ const Sidebar = ({ onToggle }: { onToggle?: () => void }) => {
           {isAuthenticated ? user?.email : 'Chưa đăng nhập'}
         </p>
       </div>
-      {/* ... Phần menu items giữ nguyên ... */}
+
       <nav className={cx('menu')}>
         {menuItems.map((item) => {
           const Icon = item.icon;

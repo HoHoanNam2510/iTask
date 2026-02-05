@@ -1,4 +1,4 @@
-/* src/components/TaskModal/CommentSection/CommentSection.tsx */
+/* client/src/components/TaskModal/CommentSection/CommentSection.tsx */
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Send, Edit2, Trash2, MessageSquare, Check, X } from 'lucide-react';
@@ -6,6 +6,7 @@ import classNames from 'classnames/bind';
 import styles from './CommentSection.module.scss';
 import type { UserBasic } from '~/types/user';
 import httpRequest from '~/utils/httpRequest';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 
 const cx = classNames.bind(styles);
 
@@ -22,9 +23,9 @@ interface IComment {
 }
 
 interface CommentSectionProps {
-  taskId: string; // ID của Task đang mở
-  currentUser: UserBasic | null; // User đang đăng nhập
-  groupMembers: UserBasic[]; // List thành viên để mention
+  taskId: string;
+  currentUser: UserBasic | null;
+  groupMembers: UserBasic[];
   groupId?: string;
 }
 
@@ -48,14 +49,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // Load comments khi taskId thay đổi
   useEffect(() => {
     if (taskId) {
       fetchComments();
     }
   }, [taskId]);
 
-  // Cuộn xuống dưới cùng khi có comment mới
   useEffect(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [comments]);
@@ -74,7 +73,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   };
 
-  // --- MENTION LOGIC ---
   const mentionableUsers =
     groupId && groupMembers.length > 0
       ? groupMembers.filter((member) => member._id !== currentUser?._id)
@@ -122,7 +120,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     });
   };
 
-  // --- CRUD OPERATIONS ---
   const handleSendComment = async () => {
     if (!newComment.trim()) return;
     try {
@@ -211,9 +208,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         ) : (
           comments.map((comment) => (
             <div key={comment._id} className={cx('commentItem')}>
+              {/* 👇 [ĐÃ SỬA] Dùng getImageUrl để hiển thị avatar chuẩn */}
               {comment.user.avatar ? (
                 <img
-                  src={`/${comment.user.avatar.replace(/\\/g, '/')}`}
+                  src={getImageUrl(comment.user.avatar)}
                   className={cx('cmtAvatar')}
                   alt="avt"
                 />
