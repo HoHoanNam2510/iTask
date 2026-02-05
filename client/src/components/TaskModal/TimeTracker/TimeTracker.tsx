@@ -10,17 +10,24 @@ import { getImageUrl } from '~/utils/imageHelper';
 
 const cx = classNames.bind(styles);
 
+// Interface User cơ bản để map dữ liệu
+interface UserBasic {
+  _id: string;
+  username: string;
+  avatar?: string;
+  email?: string;
+}
+
 interface TimeTrackerProps {
   taskId: string;
   taskData: ITaskResponse;
   onUpdate: () => void;
+  members?: UserBasic[]; // 👇 [MỚI] Nhận danh sách thành viên để lookup tên
 }
 
 // Helper: Format giây thành HH:mm:ss
 export const formatDuration = (totalSeconds: number) => {
-  // Đảm bảo không format số âm
   const safeSeconds = Math.max(0, totalSeconds);
-
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   const seconds = safeSeconds % 60;
@@ -33,33 +40,31 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
   taskId,
   taskData,
   onUpdate,
+  members = [], // Mặc định rỗng
 }) => {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [localTicker, setLocalTicker] = useState(0); // Số giây chạy hiển thị
+  const [localTicker, setLocalTicker] = useState(0);
 
   const tickerRef = useRef<any>(null);
 
-  // 1. Tìm xem user hiện tại có đang chạy timer không
+  // 1. Tìm active entry (đang chạy)
   const activeEntry = taskData.timeEntries?.find((entry) => {
     const entryUserId =
       typeof entry.user === 'string' ? entry.user : entry.user._id;
-    return !entry.endTime && entryUserId === user?._id;
+    return !entry.endTime && entryUserId === currentUser?._id;
   });
 
-  // 2. Logic đồng hồ đếm
+  // 2. Logic đồng hồ đếm (đã fix lỗi âm thời gian)
   useEffect(() => {
     if (activeEntry) {
       const start = new Date(activeEntry.startTime).getTime();
-
       const updateTicker = () => {
         const now = Date.now();
-        // 👇 [FIX] Thêm Math.max(0, ...) để tránh số âm khi clock lệch
         const diff = Math.floor((now - start) / 1000);
         setLocalTicker(Math.max(0, diff));
       };
-
-      updateTicker(); // Chạy ngay lập tức để tránh delay 1s đầu
+      updateTicker();
       tickerRef.current = setInterval(updateTicker, 1000);
     } else {
       setLocalTicker(0);
@@ -70,14 +75,14 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     };
   }, [activeEntry]);
 
-  // 3. Gộp nhóm lịch sử theo User
+  // 3. Gộp nhóm lịch sử theo User (Đã nâng cấp logic lookup)
   const groupedHistory = useMemo(() => {
     if (!taskData.timeEntries) return [];
 
     const map = new Map<
       string,
       {
-        user: any;
+        user: any; // User Object hoặc String ID
         totalSeconds: number;
         isRunning: boolean;
         lastActive: string;
@@ -85,12 +90,33 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     >();
 
     taskData.timeEntries.forEach((entry) => {
-      const userId =
-        typeof entry.user === 'string' ? entry.user : entry.user._id;
+      // --- LOGIC GIẢI MÃ USER ---
+      let userId: string;
+      let userObj: any = null;
+
+      if (typeof entry.user === 'object' && entry.user !== null) {
+        // Trường hợp 1: Backend đã populate sẵn (ngon lành)
+        userId = entry.user._id;
+        userObj = entry.user;
+      } else {
+        // Trường hợp 2: Chỉ có ID (TaskModal hay bị dính cái này)
+        userId = entry.user as string;
+
+        // Thử tìm trong danh sách members được truyền vào
+        const foundMember = members.find((m) => m._id === userId);
+        if (foundMember) {
+          userObj = foundMember;
+        }
+        // Thử xem có phải chính mình không
+        else if (currentUser && currentUser._id === userId) {
+          userObj = currentUser;
+        }
+      }
+      // ---------------------------
 
       if (!map.has(userId)) {
         map.set(userId, {
-          user: entry.user,
+          user: userObj || userId, // Nếu không tìm được thì đành lưu ID
           totalSeconds: 0,
           isRunning: false,
           lastActive: entry.startTime,
@@ -99,25 +125,23 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
 
       const record = map.get(userId)!;
 
-      if (typeof record.user === 'string' && typeof entry.user !== 'string') {
-        record.user = entry.user;
+      // Nếu record đang lưu string mà giờ tìm được object xịn hơn thì update
+      if (typeof record.user === 'string' && userObj) {
+        record.user = userObj;
       }
 
-      // Cộng duration
+      // Cộng thời gian
       record.totalSeconds += Math.floor((entry.duration || 0) / 1000);
 
-      // Nếu session này đang chạy
+      // Xử lý đang chạy
       if (!entry.endTime) {
         record.isRunning = true;
-        // Nếu là chính user đang login -> Cộng thêm localTicker
-        if (userId === user?._id) {
+        if (userId === currentUser?._id) {
           record.totalSeconds += localTicker;
         } else {
-          // Người khác -> Tính diff time
           const diffSeconds = Math.floor(
             (Date.now() - new Date(entry.startTime).getTime()) / 1000
           );
-          // 👇 [FIX] Đảm bảo không cộng số âm
           record.totalSeconds += Math.max(0, diffSeconds);
         }
       }
@@ -131,7 +155,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
       (a, b) =>
         new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
     );
-  }, [taskData.timeEntries, localTicker, user?._id]);
+  }, [taskData.timeEntries, localTicker, currentUser?._id, members]);
 
   const totalTaskSeconds = groupedHistory.reduce(
     (sum, item) => sum + item.totalSeconds,
@@ -213,18 +237,25 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
       {groupedHistory.length > 0 && (
         <div className={cx('historyList')}>
           {groupedHistory.map((item, index) => {
+            // Kiểm tra item.user là object hay string
             const isUserObject = typeof item.user !== 'string';
-            const userId = isUserObject ? item.user._id : item.user;
+
+            // Lấy thông tin hiển thị
             const userName = isUserObject ? item.user.username : 'Unknown User';
+            const userAvatar = isUserObject ? item.user.avatar : null;
+            const userId = isUserObject ? item.user._id : item.user;
 
             return (
               <div key={userId || index} className={cx('historyItem')}>
                 <div className={cx('userInfo')}>
                   <div className={cx('avatar')}>
-                    {isUserObject && item.user.avatar ? (
-                      <img src={getImageUrl(item.user.avatar)} alt="avt" />
+                    {userAvatar ? (
+                      <img src={getImageUrl(userAvatar)} alt="avt" />
                     ) : (
-                      userName.charAt(0).toUpperCase()
+                      <div className={cx('placeholderAvatar')}>
+                        {/* Fallback avatar chữ cái */}
+                        {userName.charAt(0).toUpperCase()}
+                      </div>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
