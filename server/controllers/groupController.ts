@@ -5,7 +5,8 @@ import Group from '../models/Group';
 import Task from '../models/Task';
 import User from '../models/User';
 
-// Helper: Xử lý Task khi thành viên rời nhóm
+// Helper: Xử lý Task khi thành viên rời nhóm (Kick hoặc Tự out)
+// Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu
 const processMemberDeparture = async (
   groupId: string,
   userId: string,
@@ -15,28 +16,47 @@ const processMemberDeparture = async (
   session.startTransaction();
 
   try {
-    const tasksAssignedToUser = await Task.find({
+    // TH3: Task do Member A (userId) tạo, giao cho Member B (khác userId).
+    // Nếu Member B (người bị kick) đang giữ task -> Gán lại cho Creator (Member A).
+    // Tìm các task trong nhóm, mà người bị kick đang là Assignee, nhưng không phải Creator
+    const tasksAssignedToLeaver = await Task.find({
       group: groupId,
       assignee: userId,
-      creator: { $ne: new mongoose.Types.ObjectId(userId) },
+      creator: { $ne: userId },
     }).session(session);
 
-    for (const task of tasksAssignedToUser) {
-      task.assignee = task.creator;
+    for (const task of tasksAssignedToLeaver) {
+      task.assignee = task.creator; // Trả về cho người tạo
       await task.save({ session });
     }
 
-    await Task.updateMany(
-      { group: groupId, creator: userId, assignee: userId, isDeleted: false },
-      { $set: { isDeleted: true, deletedAt: new Date() } }
-    ).session(session);
-
+    // TH1: Task do chính người bị kick tạo VÀ tự giao cho mình (hoặc chưa giao ai).
+    // -> Chuyển vào thùng rác của người đó (Soft Delete)
     await Task.updateMany(
       {
         group: groupId,
         creator: userId,
+        assignee: userId,
+        isDeleted: false,
       },
-      { $set: { creator: groupOwnerId } }
+      {
+        $set: { isDeleted: true, deletedAt: new Date() },
+      }
+    ).session(session);
+
+    // TH2: Task do người bị kick tạo, nhưng đang giao cho người khác (Active Task).
+    // -> Chuyển quyền sở hữu (Creator) sang cho Group Owner để giữ task lại nhóm.
+    // -> Nếu sau này Owner xóa, nó sẽ vào trash của Owner.
+    await Task.updateMany(
+      {
+        group: groupId,
+        creator: userId,
+        // assignee: { $ne: userId } // (Không cần thiết phải check assignee vì TH1 đã xử lý case assignee==creator rồi)
+        isDeleted: false, // Chỉ chuyển những task còn sống
+      },
+      {
+        $set: { creator: groupOwnerId },
+      }
     ).session(session);
 
     await session.commitTransaction();
@@ -78,12 +98,29 @@ export const getGroupDetails = async (
 ): Promise<void> => {
   try {
     const { groupId } = req.params;
+    const userId = (req as any).user._id;
+
     const group = await Group.findById(groupId)
       .populate('members', 'username email avatar')
       .populate('owner', 'username email avatar');
 
     if (!group) {
       res.status(404).json({ success: false, message: 'Không tìm thấy nhóm' });
+      return;
+    }
+
+    // Bảo mật: Kiểm tra xem user có phải thành viên không
+    const isMember = group.members.some(
+      (m: any) => m._id.toString() === userId.toString()
+    );
+    const isOwner = group.owner._id.toString() === userId.toString();
+    const isAdmin = (req as any).user.role === 'admin';
+
+    if (!isMember && !isOwner && !isAdmin) {
+      res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thành viên nhóm này',
+      });
       return;
     }
 
@@ -171,6 +208,7 @@ export const removeMember = async (
       return;
     }
 
+    // Xử lý logic chuyển task trước khi xóa member
     await processMemberDeparture(groupId, userId, group.owner.toString());
 
     group.members = group.members.filter((m) => m.toString() !== userId);
@@ -181,6 +219,7 @@ export const removeMember = async (
       message: 'Đã xóa thành viên và xử lý bàn giao công việc',
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: 'Lỗi xóa thành viên' });
   }
 };
@@ -216,6 +255,7 @@ export const leaveGroup = async (
       return;
     }
 
+    // Xử lý task trước khi rời
     await processMemberDeparture(
       groupId,
       currentUserId,
