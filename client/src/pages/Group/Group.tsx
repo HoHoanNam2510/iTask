@@ -13,6 +13,8 @@ import {
   X,
   LogOut,
   Settings,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import classNames from 'classnames/bind';
 import {
@@ -40,7 +42,6 @@ import TaskModal from '~/components/TaskModal/TaskModal';
 import GroupModal from '~/components/Modals/GroupModal/GroupModal';
 import Leaderboard from '~/components/Leaderboard/Leaderboard';
 import { useAuth } from '~/context/AuthContext';
-// Đã xóa import VideoRoom
 import type { IGroupDetail } from '~/types/group';
 
 ChartJS.register(
@@ -74,9 +75,11 @@ const Group: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  // Đã xóa state isMeetingActive
   const [showMembers, setShowMembers] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // 👇 [MỚI] State để toggle description
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   const isOwner = useMemo(
     () => data?.owner?._id === currentUser?._id,
@@ -90,13 +93,32 @@ const Group: React.FC = () => {
       const res = await httpRequest.get(`/api/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.success) setData(res.data.data);
-    } catch (error) {
+      if (res.data.success) {
+        setData(res.data.data);
+      }
+    } catch (error: any) {
       console.error(error);
+      // 👇 [MỚI] Nếu lỗi 403 (bị kick), thông báo và redirect
+      if (error.response?.status === 403) {
+        alert('Bạn không còn là thành viên của nhóm này.');
+        navigate('/');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // 👇 [MỚI] Kiểm tra realtime khi data thay đổi (phòng trường hợp fetch thành công nhưng user ko có trong list)
+  useEffect(() => {
+    if (data && currentUser) {
+      const isMember = data.members.some((m) => m._id === currentUser._id);
+      const isOwner = data.owner._id === currentUser._id;
+      if (!isMember && !isOwner && currentUser.role !== 'admin') {
+        alert('Bạn đã bị xóa khỏi nhóm.');
+        navigate('/');
+      }
+    }
+  }, [data, currentUser, navigate]);
 
   useEffect(() => {
     fetchGroupData();
@@ -216,7 +238,7 @@ const Group: React.FC = () => {
       });
       triggerRefresh();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Lỗi xóa task');
+      alert(error.response?.data?.message || 'Bạn không có quyền xóa task này');
     }
   };
 
@@ -311,13 +333,28 @@ const Group: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* Đã xóa VideoRoom component */}
-
       <header className={cx('header')}>
         <div className={cx('headerLeft')}>
           <div className={cx('info')}>
             <h1>{data.title}</h1>
-            <p>{data.description}</p>
+            {/* 👇 [UI MỚI] Description với Toggle */}
+            <div className={cx('descriptionBox')}>
+              <p className={cx({ expanded: isDescExpanded })}>
+                {data.description || 'Chưa có mô tả nhóm'}
+              </p>
+              {data.description && data.description.length > 50 && (
+                <button
+                  className={cx('toggleDescBtn')}
+                  onClick={() => setIsDescExpanded(!isDescExpanded)}
+                >
+                  {isDescExpanded ? (
+                    <ChevronUp size={14} />
+                  ) : (
+                    <ChevronDown size={14} />
+                  )}
+                </button>
+              )}
+            </div>
           </div>
           <input
             type="date"
@@ -423,8 +460,6 @@ const Group: React.FC = () => {
               <LogOut size={20} />
             </button>
           )}
-
-          {/* Đã xóa nút Meeting */}
 
           <button className={cx('add-task-btn')} onClick={handleAddTask}>
             <Plus size={16} /> New Task
@@ -581,6 +616,7 @@ const Group: React.FC = () => {
   );
 };
 
+// Sub-component TaskColumn
 const TaskColumn = ({
   id,
   title,
@@ -603,10 +639,13 @@ const TaskColumn = ({
           {...provided.droppableProps}
         >
           {tasks.map((task: any, index: number) => {
+            // 👇 [QUAN TRỌNG] Kiểm tra quyền xóa
             const isCreator = task.creator?._id === currentUser?._id;
             const isOwner = groupOwnerId === currentUser?._id;
-            const canDelete =
-              currentUser?.role === 'admin' || isCreator || isOwner;
+            const isAdmin = currentUser?.role === 'admin';
+
+            // Chỉ hiện nút xóa nếu là Creator, Group Owner hoặc Admin
+            const canDelete = isAdmin || isOwner || isCreator;
 
             return (
               <Draggable key={task._id} draggableId={task._id} index={index}>

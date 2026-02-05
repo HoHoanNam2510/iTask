@@ -13,17 +13,10 @@ const deleteCloudImage = async (fileUrl: string | undefined) => {
     const folderIndex = splitUrl.findIndex((part) => part === 'iTask_Uploads');
     if (folderIndex !== -1) {
       const publicIdWithExt = splitUrl.slice(folderIndex).join('/');
-      // Với Cloudinary raw files (attachment), đôi khi id có đuôi, đôi khi không
-      // An toàn nhất là thử xóa luôn publicId gốc, nếu là ảnh thì bỏ extension
       let publicId = publicIdWithExt;
-
-      // Nếu là ảnh (thường nằm trong folder image/upload), cần bỏ extension
-      // Nhưng ở đây ta dùng chung 1 folder, nên ta xử lý:
-      // Thử xóa dạng raw trước (cho attachment)
       await cloudinary.uploader
         .destroy(publicId, { resource_type: 'raw' })
         .catch(() => {});
-      // Thử xóa dạng image (bỏ extension)
       const publicIdNoExt = publicId.replace(/\.[^/.]+$/, '');
       await cloudinary.uploader.destroy(publicIdNoExt).catch(() => {});
     }
@@ -65,6 +58,7 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// 👇 [UPDATED] Kiểm tra quyền xóa chặt chẽ
 export const deleteTask = async (
   req: Request,
   res: Response
@@ -80,9 +74,16 @@ export const deleteTask = async (
     }
 
     let hasPermission = false;
-    if (user.role === 'admin') hasPermission = true;
-    else if (task.creator.toString() === user._id.toString())
+
+    // 1. Admin quyền lực nhất
+    if (user.role === 'admin') {
       hasPermission = true;
+    }
+    // 2. Creator (Người tạo) luôn có quyền xóa task mình tạo
+    else if (task.creator.toString() === user._id.toString()) {
+      hasPermission = true;
+    }
+    // 3. Group Owner (Chủ nhóm) có quyền xóa mọi task trong nhóm
     else if (task.group) {
       const group = await Group.findById(task.group);
       if (group && group.owner.toString() === user._id.toString()) {
@@ -93,7 +94,7 @@ export const deleteTask = async (
     if (!hasPermission) {
       res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xóa task này.',
+        message: 'Bạn chỉ được phép xóa công việc do bạn tạo ra.',
       });
       return;
     }
@@ -208,7 +209,7 @@ export const forceDeleteTask = async (
       return;
     }
 
-    // 👇 [UPDATE] Xóa ảnh trên Cloudinary
+    // Xóa ảnh trên Cloudinary
     if (task.image) await safeDeleteFile(task.image);
     if (task.attachments && task.attachments.length > 0) {
       for (const att of task.attachments) {

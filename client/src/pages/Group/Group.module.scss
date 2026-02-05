@@ -26,12 +26,14 @@
 
   .headerLeft {
     display: flex;
-    align-items: center;
+    align-items: flex-start; // Căn trên để description ko đẩy datepicker
     gap: 24px;
 
     .info {
       display: flex;
-      align-items: center;
+      flex-direction: column; // Xếp dọc title và description
+      align-items: flex-start;
+      max-width: 500px;
 
       h1 {
         margin: 0;
@@ -40,12 +42,47 @@
         color: var(--text-main);
       }
 
-      p {
-        color: var(--text-light);
-        font-size: 1.4rem;
-        margin-left: 12px;
-        padding-left: 12px;
-        border-left: 2px solid #e2e8f0;
+      // 👇 [STYLE MỚI] Description Box
+      .descriptionBox {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 8px;
+
+        p {
+          color: var(--text-light);
+          font-size: 1.4rem;
+          line-height: 1.5;
+          margin: 0;
+          padding-left: 12px;
+          border-left: 2px solid #e2e8f0;
+
+          // Logic cắt dòng
+          display: -webkit-box;
+          line-clamp: 2; // Mặc định hiện 2 dòng
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          transition: all 0.3s;
+
+          &.expanded {
+            line-clamp: unset; // Hiện full khi expand
+          }
+        }
+
+        .toggleDescBtn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--primary);
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          &:hover {
+            background-color: #e2e8f0;
+            border-radius: 4px;
+          }
+        }
       }
     }
 
@@ -57,6 +94,7 @@
       font-weight: 500;
       outline: none;
       cursor: pointer;
+      margin-top: 4px; // Căn chỉnh lại với title
       &:focus {
         border-color: var(--primary);
       }
@@ -70,10 +108,11 @@
   }
 }
 
-// 👇 [UI/UX FIX] Members Dropdown Wrapper
+// ... (Giữ nguyên các style khác của Group.module.scss cũ từ .membersWrapper trở đi)
+// 👇 Copy toàn bộ phần còn lại từ file gốc vào đây
 .membersWrapper {
   position: relative;
-  z-index: 50; // Đảm bảo nằm trên các thành phần khác nhưng dưới Modal
+  z-index: 50;
 }
 
 .members {
@@ -114,17 +153,16 @@
   }
 }
 
-// 👇 [UI/UX FIX] Dropdown Style Mới
 .membersDropdown {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 340px; // Rộng hơn để hiển thị tên dài
+  width: 340px;
   background: white;
   border: 1px solid var(--border-color);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15); // Shadow đậm tạo chiều sâu
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15);
   border-radius: 16px;
-  padding: 0; // Reset padding để header/footer sát viền
+  padding: 0;
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
   transform-origin: top right;
@@ -162,8 +200,8 @@
   }
 
   .memberList {
-    max-height: 350px; // Giới hạn chiều cao
-    overflow-y: auto; // Cho phép cuộn
+    max-height: 350px;
+    overflow-y: auto;
     padding: 8px 0;
 
     &::-webkit-scrollbar {
@@ -190,7 +228,7 @@
         align-items: center;
         gap: 12px;
         flex: 1;
-        overflow: hidden; // Tránh vỡ layout khi tên dài
+        overflow: hidden;
 
         img {
           width: 40px;
@@ -258,7 +296,6 @@
   }
 }
 
-// --- Action Buttons ---
 .actionBtn {
   display: flex;
   align-items: center;
@@ -319,7 +356,6 @@
   }
 }
 
-// --- Stats & Charts ---
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -425,7 +461,6 @@
   margin-bottom: 30px;
 }
 
-// --- Kanban Board ---
 .board-container {
   display: flex;
   gap: 24px;
@@ -523,7 +558,6 @@
     border-color: var(--primary);
   }
 
-  // Border left color based on status
   border-left: 4px solid #cbd5e1;
   &.inprogress {
     border-left-color: #3b82f6;
