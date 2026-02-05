@@ -10,13 +10,13 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Hash, // Icon cho ô nhập Hex
+  Hash,
 } from 'lucide-react';
 
 import styles from './Setting.module.scss';
 import { useAuth } from '~/context/AuthContext';
 import { useTheme, THEMES } from '~/context/ThemeContext';
-import { getImageUrl } from '~/utils/imageHelper'; // 👇 Import helper
+import { getImageUrl } from '~/utils/imageHelper';
 import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
@@ -44,33 +44,29 @@ const Setting = () => {
   // --- STATE CHO MÀU TÙY CHỈNH ---
   const [customColor, setCustomColor] = useState(currentColor);
 
-  // Sync customColor khi theme thay đổi
   useEffect(() => {
     setCustomColor(currentColor);
   }, [currentColor]);
 
-  // Load dữ liệu user ban đầu
   useEffect(() => {
     if (user) {
       setName(user.username || '');
-      // 👇 Dùng helper để lấy URL ảnh chuẩn (Cloudinary hoặc Local)
-      if (user.avatar) {
+      // Nếu chưa chọn file mới thì hiển thị avatar hiện tại từ server
+      if (user.avatar && !avatarFile) {
         setAvatarPreview(getImageUrl(user.avatar));
       }
     }
-  }, [user]);
+  }, [user, avatarFile]); // Chạy lại khi user update (upload thành công) hoặc clear file
 
-  // Xử lý chọn ảnh (Preview local blob)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      setAvatarPreview(url);
+      setAvatarPreview(url); // Preview ảnh blob local
       setAvatarFile(file);
     }
   };
 
-  // Xử lý Lưu thông tin cá nhân
   const handleSaveProfile = async () => {
     if (!name.trim()) return alert('Tên không được để trống');
 
@@ -84,6 +80,8 @@ const Setting = () => {
         formData.append('avatar', avatarFile);
       }
 
+      // Gọi API PUT với FormData.
+      // Axios (sau khi fix httpRequest) sẽ tự động set Content-Type: multipart/form-data
       const res = await httpRequest.put('/api/users/profile', formData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -94,9 +92,15 @@ const Setting = () => {
         alert('Cập nhật thành công!');
         const updatedUser = {
           ...user,
-          ...res.data.user,
+          ...res.data.user, // User mới từ server (chứa link avatar Cloudinary)
         };
+
+        // Cập nhật Context -> Sidebar và Header sẽ tự render lại ảnh mới
         login(token!, updatedUser);
+
+        // Reset file input để chuyển về chế độ hiển thị ảnh từ server
+        setAvatarFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     } catch (error) {
       console.error('Lỗi update:', error);
@@ -106,7 +110,6 @@ const Setting = () => {
     }
   };
 
-  // HÀM ĐỔI MẬT KHẨU
   const handleChangePassword = async () => {
     const { currentPassword, newPassword } = passwordData;
 
@@ -143,7 +146,6 @@ const Setting = () => {
     }
   };
 
-  // XỬ LÝ ĐỔI MÀU TÙY CHỈNH
   const handleCustomColorChange = (newColor: string) => {
     setCustomColor(newColor);
     changeTheme(newColor);
@@ -159,7 +161,6 @@ const Setting = () => {
       </header>
 
       <div className={cx('content')}>
-        {/* SECTION 1: PERSONAL INFORMATION */}
         <div className={cx('card')}>
           <div className={cx('cardHeader')}>
             <User size={20} className={cx('icon')} />
@@ -174,7 +175,6 @@ const Setting = () => {
               >
                 {avatarPreview ? (
                   <img
-                    // 👇 Đã được xử lý bởi getImageUrl ở useEffect hoặc Blob ở handleFileChange
                     src={avatarPreview}
                     alt="Avatar"
                     style={{
@@ -235,7 +235,7 @@ const Setting = () => {
           </div>
         </div>
 
-        {/* SECTION 2: SECURITY / CHANGE PASSWORD */}
+        {/* ... (Các phần Password và Theme giữ nguyên) */}
         <div className={cx('card')}>
           <div className={cx('cardHeader')}>
             <Lock size={20} className={cx('icon')} />
@@ -244,7 +244,6 @@ const Setting = () => {
 
           <div className={cx('cardBody')}>
             <div className={cx('formGrid')}>
-              {/* Mật khẩu hiện tại */}
               <div className={cx('formGroup')}>
                 <label>Mật khẩu hiện tại</label>
                 <div className={cx('inputWithIcon')}>
@@ -269,7 +268,6 @@ const Setting = () => {
                 </div>
               </div>
 
-              {/* Mật khẩu mới */}
               <div className={cx('formGroup')}>
                 <label>Mật khẩu mới</label>
                 <div className={cx('inputWithIcon')}>
@@ -308,7 +306,6 @@ const Setting = () => {
           </div>
         </div>
 
-        {/* SECTION 3: APPEARANCE / THEME */}
         <div className={cx('card')}>
           <div className={cx('cardHeader')}>
             <Palette size={20} className={cx('icon')} />
@@ -335,11 +332,9 @@ const Setting = () => {
               ))}
             </div>
 
-            {/* Khu vực chọn màu tùy chỉnh */}
             <div className={cx('customThemeSection')}>
               <p className={cx('label')}>Hoặc chọn màu tùy chỉnh</p>
               <div className={cx('customColorControl')}>
-                {/* 1. Color Picker Circle */}
                 <div className={cx('colorPickerWrapper')}>
                   <input
                     type="color"
@@ -353,7 +348,6 @@ const Setting = () => {
                   />
                 </div>
 
-                {/* 2. Hex Text Input */}
                 <div className={cx('inputWithIcon')}>
                   <Hash size={16} />
                   <input

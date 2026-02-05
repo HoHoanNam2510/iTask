@@ -8,10 +8,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const httpRequest = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // QUAN TRỌNG: Để gửi cookie/token
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true, // QUAN TRỌNG: Để gửi kèm cookie/token
+  // ❌ [ĐÃ XÓA] headers: { 'Content-Type': 'application/json' }
+  // Để Axios tự động xử lý:
+  // - Nếu gửi Object -> application/json
+  // - Nếu gửi FormData (File) -> multipart/form-data
 });
 
 // (Optional) Interceptor để debug hoặc xử lý token nếu cần
