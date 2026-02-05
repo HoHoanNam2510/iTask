@@ -30,6 +30,7 @@ import styles from './Calendar.module.scss';
 import httpRequest from '~/utils/httpRequest';
 import type { ITaskResponse } from '~/types/task';
 import TaskModal from '~/components/TaskModal/TaskModal';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper xử lý ảnh
 
 const cx = classNames.bind(styles);
 
@@ -98,14 +99,12 @@ const Calendar: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  // 👇 [FIXED] Update text confirm
   const handleDeleteTask = async (id: string) => {
     if (
       window.confirm('Bạn có chắc muốn chuyển công việc này vào thùng rác?')
     ) {
       try {
         const token = localStorage.getItem('token');
-        // Gọi API soft delete (không có /force)
         await httpRequest.delete(`/api/tasks/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -180,9 +179,10 @@ const Calendar: React.FC = () => {
                 {task.description ? 'Có mô tả' : 'Không mô tả'}
               </div>
             </div>
+            {/* 👇 [ĐÃ SỬA] Dùng getImageUrl thay vì hardcode */}
             {task.image && (
               <img
-                src={`/${task.image}`}
+                src={getImageUrl(task.image)}
                 alt="Task"
                 style={{
                   width: 40,
@@ -239,11 +239,18 @@ const Calendar: React.FC = () => {
             <Users size={16} /> Group
           </button>
         </div>
+
+        {/* 👇 [ĐÃ SỬA] Nút hiển thị tên tháng hiện tại thay vì 'Hôm nay' */}
         <div className={cx('navButtons')}>
           <button onClick={prevMonth}>
             <ChevronLeft size={20} />
           </button>
-          <button onClick={() => setCurrentDate(new Date())}>Hôm nay</button>
+          <button
+            onClick={() => setCurrentDate(new Date())}
+            title="Quay về hôm nay"
+          >
+            {format(currentDate, "'Tháng' MM", { locale: vi })}
+          </button>
           <button onClick={nextMonth}>
             <ChevronRight size={20} />
           </button>
