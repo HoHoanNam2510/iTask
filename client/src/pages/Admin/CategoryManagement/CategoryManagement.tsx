@@ -241,19 +241,13 @@ const CategoryManagement = () => {
                         <span className={cx('username')}>
                           {cat.createdBy?.username || 'Unknown'}
                         </span>
-                        <span className={cx('email')}>
-                          {cat.createdBy?.email}
-                        </span>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div className={cx('actionCell')}>
                       <button
-                        style={{
-                          color: '#3b82f6',
-                          borderColor: 'transparent',
-                        }}
+                        className={cx('actionBtn', 'edit')}
                         onClick={() => handleEdit(cat)}
                         title="Sửa danh mục"
                       >

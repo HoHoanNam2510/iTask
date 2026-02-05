@@ -128,8 +128,9 @@
 // Columns Styling
 .taskInfo {
   font-weight: 600;
+  font-size: 1.6rem;
   color: var(--text-main);
-  max-width: 250px;
+  max-width: 180px;
 
   .desc {
     font-size: 1.3rem;
@@ -162,14 +163,15 @@
   }
 
   span {
-    font-size: 1.4rem;
+    font-weight: 600;
+    font-size: 1.6rem;
   }
 }
 
 .statusBadge {
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   font-weight: 600;
   text-transform: capitalize;
 
@@ -188,9 +190,9 @@
 }
 
 .priorityBadge {
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   font-weight: 600;
   text-transform: capitalize;
 
