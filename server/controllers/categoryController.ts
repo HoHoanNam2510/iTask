@@ -1,21 +1,28 @@
+/* server/controllers/categoryController.ts */
 import { Request, Response } from 'express';
-import mongoose from 'mongoose'; // Cần import để dùng ObjectId
+import mongoose from 'mongoose';
 import Category from '../models/Category';
-import Task from '../models/Task'; // Import Task để query
+import Task from '../models/Task';
 
-// 1. Lấy danh sách category + TỰ ĐỘNG ĐẾM TASK
-export const getCategories = async (req: Request, res: Response) => {
+// ==========================================
+// 🟢 USER CONTROLLERS (Logic cho người dùng thường)
+// ==========================================
+
+// 1. Lấy danh sách category của User (kèm số lượng task)
+export const getCategories = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const userId = (req as any).user._id;
 
-    // Sử dụng Aggregate để join với bảng Task và đếm số lượng
     const categories = await Category.aggregate([
       {
-        $match: { createdBy: new mongoose.Types.ObjectId(userId) }, // Lọc category của user
+        $match: { createdBy: new mongoose.Types.ObjectId(userId) },
       },
       {
         $lookup: {
-          from: 'tasks', // Tên collection trong DB (thường là 'tasks' - số nhiều, viết thường)
+          from: 'tasks',
           localField: '_id',
           foreignField: 'category',
           as: 'tasks',
@@ -23,12 +30,12 @@ export const getCategories = async (req: Request, res: Response) => {
       },
       {
         $addFields: {
-          taskCount: { $size: '$tasks' }, // Đếm số phần tử trong mảng tasks vừa join
+          taskCount: { $size: '$tasks' },
         },
       },
       {
         $project: {
-          tasks: 0, // Bỏ mảng tasks đi cho nhẹ response, chỉ lấy số lượng
+          tasks: 0,
         },
       },
     ]);
@@ -40,103 +47,123 @@ export const getCategories = async (req: Request, res: Response) => {
   }
 };
 
-// 2. [MỚI] Lấy Chi tiết Category + Danh sách Task bên trong
+// 2. Lấy chi tiết 1 category (User)
 export const getCategoryDetail = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user._id;
 
-    // Tìm category
-    const category = await Category.findById(id);
+    const category = await Category.findOne({ _id: id, createdBy: userId });
     if (!category) {
       res
         .status(404)
         .json({ success: false, message: 'Không tìm thấy danh mục' });
       return;
     }
-
-    // Tìm tất cả tasks thuộc category này
-    const tasks = await Task.find({ category: id }).sort({ createdAt: -1 });
-
-    res.json({ success: true, category, tasks });
+    res.json({ success: true, category });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi lấy chi tiết danh mục' });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
-// ... Các hàm createCategory, updateCategory, deleteCategory giữ nguyên như cũ ...
-// (Bạn nhớ copy lại các hàm create/update/delete cũ vào đây nhé)
-export const createCategory = async (req: Request, res: Response) => {
-  // ... code cũ ...
+// 3. Tạo mới category (User)
+export const createCategory = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { name, description, color } = req.body;
     const userId = (req as any).user._id;
+
+    // Check trùng tên của chính user đó
+    const existing = await Category.findOne({ name, createdBy: userId });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'Danh mục đã tồn tại' });
+      return;
+    }
+
     const newCategory = new Category({
       name,
       description,
-      color,
+      color: color || '#40a578',
       createdBy: userId,
     });
+
     await newCategory.save();
-    // Trả về taskCount = 0 mặc định cho cái mới tạo
-    res.status(201).json({
-      success: true,
-      category: { ...newCategory.toObject(), taskCount: 0 },
-    });
+    res.status(201).json({ success: true, category: newCategory });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi tạo danh mục' });
   }
 };
 
+// 4. Cập nhật category (User - Phải check createdBy)
 export const updateCategory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  // ... code cũ ...
   try {
     const { id } = req.params;
-    const updatedCategory = await Category.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
-    if (!updatedCategory) {
-      res
-        .status(404)
-        .json({ success: false, message: 'Không tìm thấy danh mục' });
+    const userId = (req as any).user._id;
+    const { name, description, color } = req.body;
+
+    const category = await Category.findOneAndUpdate(
+      { _id: id, createdBy: userId }, // Điều kiện an toàn
+      { name, description, color },
+      { new: true }
+    );
+
+    if (!category) {
+      res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hoặc không có quyền',
+      });
       return;
     }
-    res.json({ success: true, category: updatedCategory });
+
+    res.json({ success: true, category });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi cập nhật' });
   }
 };
 
-// Xóa category
-export const deleteCategory = async (req: Request, res: Response) => {
+// 5. Xóa category (User - Phải check createdBy)
+export const deleteCategory = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user._id;
 
-    // 1. [MỚI] Xóa toàn bộ Task thuộc Category này trước
-    await Task.deleteMany({ category: id });
-
-    // 2. Sau đó mới xóa Category
-    await Category.findByIdAndDelete(id);
-
-    res.json({
-      success: true,
-      message: 'Đã xóa danh mục và các task liên quan',
+    const deleted = await Category.findOneAndDelete({
+      _id: id,
+      createdBy: userId,
     });
+    if (!deleted) {
+      res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hoặc không có quyền',
+      });
+      return;
+    }
+
+    // Set null category cho các task liên quan
+    await Task.updateMany({ category: id }, { $set: { category: null } });
+
+    res.json({ success: true, message: 'Đã xóa danh mục' });
   } catch (error) {
-    console.error('Lỗi xóa danh mục:', error); // Nên log lỗi ra để debug
     res.status(500).json({ success: false, message: 'Lỗi xóa danh mục' });
   }
 };
 
-// ADMIN
-// 👇 [UPDATED] API Admin Get Categories (Pagination + Search + Sort)
+// ==========================================
+// 🔴 ADMIN CONTROLLERS (Logic quyền Admin)
+// ==========================================
+
+// 6. Admin: Lấy tất cả (Phân trang, Search)
 export const getAllCategoriesAdmin = async (
   req: Request,
   res: Response
@@ -149,16 +176,12 @@ export const getAllCategoriesAdmin = async (
     const order = (req.query.order as string) || 'desc';
 
     const skip = (page - 1) * limit;
-
-    // Filter query
     const query: any = {};
     if (search) {
       query.name = { $regex: search, $options: 'i' };
     }
 
-    // Sort option
-    const sortValue = order === 'asc' ? 1 : -1;
-    const sortOption: any = { [sortBy]: sortValue };
+    const sortOption: any = { [sortBy]: order === 'asc' ? 1 : -1 };
 
     const categories = await Category.find(query)
       .populate('createdBy', 'username email avatar')
@@ -170,33 +193,66 @@ export const getAllCategoriesAdmin = async (
 
     res.json({
       success: true,
-      count: categories.length,
       total: totalCategories,
-      currentPage: page,
       totalPages: Math.ceil(totalCategories / limit),
       categories,
     });
   } catch (error) {
-    console.error('Admin Get Categories Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server khi lấy danh sách danh mục',
-    });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
-// 👇 [UPDATED] Admin xóa Category (Giữ nguyên logic nhưng format lại)
+// 7. Admin: Cập nhật category (Không cần check createdBy)
+export const updateCategoryAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, description, color } = req.body;
+
+    // Admin có thể sửa bất kỳ category nào theo ID
+    const category = await Category.findByIdAndUpdate(
+      id,
+      { name, description, color },
+      { new: true }
+    );
+
+    if (!category) {
+      res
+        .status(404)
+        .json({ success: false, message: 'Danh mục không tồn tại' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Cập nhật thành công', category });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: 'Lỗi server khi cập nhật' });
+  }
+};
+
+// 8. Admin: Xóa category (Không cần check createdBy)
 export const deleteCategoryAdmin = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    // Xóa task liên quan để sạch DB
-    await Task.deleteMany({ category: id });
-    await Category.findByIdAndDelete(id);
-    res.json({ success: true, message: 'Đã xóa danh mục thành công' });
+
+    const deleted = await Category.findByIdAndDelete(id);
+    if (!deleted) {
+      res
+        .status(404)
+        .json({ success: false, message: 'Không tìm thấy danh mục' });
+      return;
+    }
+
+    await Task.updateMany({ category: id }, { $set: { category: null } });
+
+    res.json({ success: true, message: 'Admin đã xóa danh mục thành công' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi xóa danh mục' });
+    res.status(500).json({ success: false, message: 'Lỗi server khi xóa' });
   }
 };

@@ -14,7 +14,7 @@ import httpRequest from '~/utils/httpRequest';
 import styles from './CategoryManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
 import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
-import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
+import { getImageUrl } from '~/utils/imageHelper';
 
 const cx = classNames.bind(styles);
 
@@ -56,6 +56,7 @@ const CategoryManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      // Gọi route Admin
       const res = await httpRequest.get('/api/categories/admin/all', {
         headers: { Authorization: `Bearer ${token}` },
         params: {
@@ -106,9 +107,11 @@ const CategoryManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa danh mục này?')) return;
+    if (!window.confirm('Admin: Bạn có chắc chắn muốn xóa danh mục này?'))
+      return;
     try {
       const token = localStorage.getItem('token');
+      // Gọi route Delete Admin
       await httpRequest.delete(`/api/categories/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -127,19 +130,17 @@ const CategoryManagement = () => {
     try {
       const token = localStorage.getItem('token');
       if (categoryToEdit) {
-        // Edit Mode
+        // Gọi route Update Admin (đã khai báo trong routes mới)
         await httpRequest.put(
           `/api/categories/admin/${categoryToEdit._id}`,
           formData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-      } else {
-        // Create Mode (Admin có thể tạo nhưng ở đây tập trung Edit)
-        // await httpRequest.post(...)
       }
       setIsModalOpen(false);
       fetchCategories();
     } catch (error) {
+      console.error(error);
       alert('Lỗi cập nhật danh mục');
     }
   };
@@ -225,7 +226,6 @@ const CategoryManagement = () => {
                   <td>{new Date(cat.createdAt).toLocaleDateString('vi-VN')}</td>
                   <td>
                     <div className={cx('creatorInfo')}>
-                      {/* 👇 [ĐÃ SỬA] Dùng getImageUrl */}
                       {cat.createdBy?.avatar ? (
                         <img
                           src={getImageUrl(cat.createdBy.avatar)}
@@ -281,7 +281,6 @@ const CategoryManagement = () => {
         }}
       />
 
-      {/* Modal cho Admin Edit */}
       <CategoryModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
