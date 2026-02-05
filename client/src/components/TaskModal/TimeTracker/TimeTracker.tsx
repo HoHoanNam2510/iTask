@@ -6,7 +6,7 @@ import httpRequest from '~/utils/httpRequest';
 import styles from './TimeTracker.module.scss';
 import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
-import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper xử lý ảnh
+import { getImageUrl } from '~/utils/imageHelper';
 
 const cx = classNames.bind(styles);
 
@@ -18,9 +18,12 @@ interface TimeTrackerProps {
 
 // Helper: Format giây thành HH:mm:ss
 export const formatDuration = (totalSeconds: number) => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  // Đảm bảo không format số âm
+  const safeSeconds = Math.max(0, totalSeconds);
+
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
 
   const pad = (num: number) => num.toString().padStart(2, '0');
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
@@ -39,7 +42,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
 
   // 1. Tìm xem user hiện tại có đang chạy timer không
   const activeEntry = taskData.timeEntries?.find((entry) => {
-    // 👇 Handle case entry.user could be string ID or Object
     const entryUserId =
       typeof entry.user === 'string' ? entry.user : entry.user._id;
     return !entry.endTime && entryUserId === user?._id;
@@ -49,11 +51,15 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
   useEffect(() => {
     if (activeEntry) {
       const start = new Date(activeEntry.startTime).getTime();
+
       const updateTicker = () => {
         const now = Date.now();
-        setLocalTicker(Math.floor((now - start) / 1000));
+        // 👇 [FIX] Thêm Math.max(0, ...) để tránh số âm khi clock lệch
+        const diff = Math.floor((now - start) / 1000);
+        setLocalTicker(Math.max(0, diff));
       };
-      updateTicker();
+
+      updateTicker(); // Chạy ngay lập tức để tránh delay 1s đầu
       tickerRef.current = setInterval(updateTicker, 1000);
     } else {
       setLocalTicker(0);
@@ -71,7 +77,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     const map = new Map<
       string,
       {
-        user: any; // Allow any to handle string | UserObject
+        user: any;
         totalSeconds: number;
         isRunning: boolean;
         lastActive: string;
@@ -79,14 +85,12 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     >();
 
     taskData.timeEntries.forEach((entry) => {
-      // 👇 [FIX] Lấy userId an toàn
       const userId =
         typeof entry.user === 'string' ? entry.user : entry.user._id;
 
-      // Init nếu chưa có trong map
       if (!map.has(userId)) {
         map.set(userId, {
-          user: entry.user, // Lưu nguyên gốc để hiển thị avatar nếu có
+          user: entry.user,
           totalSeconds: 0,
           isRunning: false,
           lastActive: entry.startTime,
@@ -95,7 +99,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
 
       const record = map.get(userId)!;
 
-      // Update User Info nếu entry sau có data đầy đủ hơn (trường hợp load chậm)
       if (typeof record.user === 'string' && typeof entry.user !== 'string') {
         record.user = entry.user;
       }
@@ -114,11 +117,11 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
           const diffSeconds = Math.floor(
             (Date.now() - new Date(entry.startTime).getTime()) / 1000
           );
-          record.totalSeconds += diffSeconds;
+          // 👇 [FIX] Đảm bảo không cộng số âm
+          record.totalSeconds += Math.max(0, diffSeconds);
         }
       }
 
-      // Update last active
       if (new Date(entry.startTime) > new Date(record.lastActive)) {
         record.lastActive = entry.startTime;
       }
@@ -210,7 +213,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
       {groupedHistory.length > 0 && (
         <div className={cx('historyList')}>
           {groupedHistory.map((item, index) => {
-            // Check nếu user là object hay string ID
             const isUserObject = typeof item.user !== 'string';
             const userId = isUserObject ? item.user._id : item.user;
             const userName = isUserObject ? item.user.username : 'Unknown User';
@@ -220,11 +222,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
                 <div className={cx('userInfo')}>
                   <div className={cx('avatar')}>
                     {isUserObject && item.user.avatar ? (
-                      <img
-                        // 👇 [FIXED] Sử dụng getImageUrl thay vì hardcode localhost
-                        src={getImageUrl(item.user.avatar)}
-                        alt="avt"
-                      />
+                      <img src={getImageUrl(item.user.avatar)} alt="avt" />
                     ) : (
                       userName.charAt(0).toUpperCase()
                     )}
