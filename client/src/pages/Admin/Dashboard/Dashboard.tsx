@@ -29,6 +29,7 @@ import { Bar, Line } from 'react-chartjs-2';
 import { format, subDays, isSameDay } from 'date-fns';
 import styles from './Dashboard.module.scss';
 import httpRequest from '~/utils/httpRequest';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper xử lý ảnh
 
 ChartJS.register(
   CategoryScale,
@@ -385,7 +386,7 @@ const AdminDashboard = () => {
                         }}
                       >
                         <img
-                          src={`/${task.creator?.avatar || ''}`}
+                          src={getImageUrl(task.creator?.avatar) || ''}
                           style={{ width: 20, height: 20, borderRadius: '50%' }}
                           onError={(e: any) =>
                             (e.target.style.display = 'none')
@@ -434,9 +435,10 @@ const AdminDashboard = () => {
                             overflow: 'hidden',
                           }}
                         >
+                          {/* 👇 [ĐÃ SỬA] Dùng getImageUrl cho Audit Logs */}
                           {log.user?.avatar ? (
                             <img
-                              src={`/${log.user.avatar}`}
+                              src={getImageUrl(log.user.avatar)}
                               style={{
                                 width: '100%',
                                 height: '100%',
@@ -618,6 +620,7 @@ const AdminDashboard = () => {
                           fontWeight: 500,
                         }}
                       >
+                        {/* 👇 [ĐÃ SỬA] Hiển thị Avatar đúng cho User List */}
                         {activeTab === 'users' && (
                           <div
                             style={{
@@ -630,9 +633,22 @@ const AdminDashboard = () => {
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 'bold',
+                              overflow: 'hidden', // Bo tròn ảnh
                             }}
                           >
-                            {item.username?.charAt(0).toUpperCase()}
+                            {item.avatar ? (
+                              <img
+                                src={getImageUrl(item.avatar)}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                                alt={item.username}
+                              />
+                            ) : (
+                              item.username?.charAt(0).toUpperCase()
+                            )}
                           </div>
                         )}
                         {activeTab === 'categories' && (
