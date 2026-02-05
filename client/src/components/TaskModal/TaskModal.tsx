@@ -20,7 +20,7 @@ import type { ITaskResponse } from '~/types/task';
 import { useAuth } from '~/context/AuthContext';
 import CommentSection from './CommentSection/CommentSection';
 import TimeTracker from './TimeTracker/TimeTracker';
-import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
+import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper';
 import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
@@ -80,7 +80,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // Media & Subtasks
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isImageDeleted, setIsImageDeleted] = useState(false); // Cờ xóa ảnh
+  const [isImageDeleted, setIsImageDeleted] = useState(false);
 
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [newAttachmentFiles, setNewAttachmentFiles] = useState<File[]>([]);
@@ -94,11 +94,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
+  // Danh sách thành viên (Dùng cho cả assign và lookup TimeTracker)
   const activeMembers = useMemo(() => {
     return groupMembers.length > 0 ? groupMembers : fetchedMembers;
   }, [groupMembers, fetchedMembers]);
 
-  // Logic kiểm tra quyền xóa
   const isEditingGroupTask = useMemo(() => !!taskToEdit?.group, [taskToEdit]);
   const canDelete = useMemo(() => {
     if (!user || !taskToEdit || !taskToEdit.creator) return false;
@@ -184,7 +184,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setCurrentTask(taskToEdit);
       setIsImageDeleted(false);
     } else {
-      // Reset form
       setTitle('');
       setDescription('');
       setPriority('low');
@@ -243,7 +242,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
       }
       if (groupId && assigneeId) data.append('assignee', assigneeId);
 
-      // Logic gửi ảnh hoặc cờ xóa
       if (imageFile) {
         data.append('image', imageFile);
       } else if (isImageDeleted) {
@@ -496,13 +494,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 <FileText size={16} />{' '}
                 <span className={cx('fileName')}>{att.name}</span>
                 <div className={cx('actionGroup')}>
-                  {/* 👇 [UPDATE] Sử dụng getDownloadUrl để buộc tải về */}
                   <a
                     href={getDownloadUrl(att.url)}
                     target="_blank"
                     className={cx('actionBtn', 'download')}
                     rel="noreferrer"
-                    download // Thêm attribute này hỗ trợ local file
+                    download
                   >
                     <Download size={14} />
                   </a>
@@ -625,9 +622,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
               taskId={currentTask._id}
               taskData={currentTask}
               onUpdate={handleReloadTask}
+              members={activeMembers}
             />
           )}
 
+          {/* 👇 [ĐÃ SỬA] Xóa dấu \ thừa */}
           <div className={cx('footerAction')}>
             {taskToEdit && canDelete && (
               <button

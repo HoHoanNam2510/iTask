@@ -27,7 +27,7 @@ import type { ITaskResponse } from '~/types/task';
 import CommentSection from '~/components/TaskModal/CommentSection/CommentSection';
 import { useAuth } from '~/context/AuthContext';
 import TimeTracker from '~/components/TaskModal/TimeTracker/TimeTracker';
-import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper'; // 👇 Import thêm getDownloadUrl
+import { getImageUrl, getDownloadUrl } from '~/utils/imageHelper';
 import httpRequest from '~/utils/httpRequest';
 
 const cx = classNames.bind(styles);
@@ -318,12 +318,11 @@ const MyTask = () => {
                           {selectedTaskDetail.attachments.map((file, i) => (
                             <a
                               key={i}
-                              // 👇 [UPDATE] Dùng getDownloadUrl để force download
                               href={getDownloadUrl(file.url)}
                               target="_blank"
                               rel="noreferrer"
                               className={cx('fileItem')}
-                              download // Attribute hỗ trợ local file
+                              download
                             >
                               <div className={cx('fileIcon')}>
                                 <FileText size={20} />
@@ -349,6 +348,7 @@ const MyTask = () => {
                 taskId={selectedTaskDetail._id}
                 taskData={selectedTaskDetail}
                 onUpdate={handleReloadDetail}
+                // MyTask đã có data populate nên không cần truyền members
               />
 
               <div className={cx('commentWrapper')}>
