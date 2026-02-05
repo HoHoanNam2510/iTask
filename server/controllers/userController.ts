@@ -38,23 +38,23 @@ export const updateUserProfile = async (
       return;
     }
 
-    // 1. Xử lý Avatar mới
-    if (req.file) {
-      // Nếu user đang có avatar cũ trên Cloud -> Xóa đi
-      if (user.avatar && user.avatar.includes('cloudinary')) {
+    user.username = name || user.username;
+
+    // Xử lý upload avatar mới
+    const file = req.file;
+    if (file) {
+      // Xóa ảnh cũ nếu có
+      if (user.avatar) {
         await deleteCloudImage(user.avatar);
       }
-      // Lưu URL mới (đã là link https://res.cloudinary...)
-      user.avatar = req.file.path;
+      user.avatar = file.path; // Lưu URL Cloudinary
     }
-
-    if (name) user.username = name;
 
     await user.save();
 
     res.json({
       success: true,
-      message: 'Cập nhật thông tin thành công',
+      message: 'Cập nhật thành công',
       user: {
         _id: user._id,
         username: user.username,
@@ -65,74 +65,7 @@ export const updateUserProfile = async (
     });
   } catch (error) {
     console.error('Update Profile Error:', error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi cập nhật profile' });
-  }
-};
-
-// 👇 [UPDATED] Lấy tất cả user (Admin) - Có Pagination, Search, Sort
-export const getAllUsers = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = (req.query.search as string) || '';
-    const sortBy = (req.query.sortBy as string) || 'createdAt';
-    const order = (req.query.order as string) || 'desc';
-
-    const skip = (page - 1) * limit;
-
-    // Filter query: Tìm theo username HOẶC email
-    const query: any = {};
-    if (search) {
-      query.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    // Sort option
-    const sortValue = order === 'asc' ? 1 : -1;
-    const sortOption: any = { [sortBy]: sortValue };
-
-    const users = await User.find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit);
-
-    const totalUsers = await User.countDocuments(query);
-
-    res.json({
-      success: true,
-      count: users.length,
-      total: totalUsers,
-      currentPage: page,
-      totalPages: Math.ceil(totalUsers / limit),
-      users,
-    });
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi lấy danh sách user' });
-  }
-};
-
-export const deleteUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    await User.findByIdAndDelete(id);
-    res.json({ success: true, message: 'Đã xóa người dùng thành công' });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi xóa user' });
+    res.status(500).json({ success: false, message: 'Lỗi server khi update' });
   }
 };
 
@@ -143,28 +76,29 @@ export const changePassword = async (
   try {
     const userId = (req as any).user._id;
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      res
-        .status(400)
-        .json({ success: false, message: 'Vui lòng nhập đủ thông tin' });
-      return;
-    }
-    const user = await User.findById(userId);
-    if (!user || !user.password) {
+
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    // 👇 [FIXED] Thêm "|| ''" để đảm bảo luôn là string, tránh lỗi TypeScript
+    const isMatch = await bcrypt.compare(currentPassword, user.password || '');
+
     if (!isMatch) {
       res
         .status(400)
         .json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
       return;
     }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
+
     user.password = hashedPassword;
     await user.save();
+
     res.json({ success: true, message: 'Đổi mật khẩu thành công' });
   } catch (error) {
     console.error('Change Password Error:', error);
@@ -174,7 +108,7 @@ export const changePassword = async (
   }
 };
 
-// 👇 [THÊM MỚI] Admin Update User (Role/Name)
+// Admin Update User (Role/Name)
 export const updateUserAdmin = async (
   req: Request,
   res: Response
@@ -190,13 +124,82 @@ export const updateUserAdmin = async (
     }
 
     if (username) user.username = username;
-    if (role && (role === 'admin' || role === 'user')) user.role = role;
+    if (role) user.role = role;
 
     await user.save();
     res.json({ success: true, message: 'Cập nhật user thành công', user });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Lỗi server khi update user' });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// Hàm cũ (giữ lại để tránh lỗi import ở routes nếu có dùng)
+export const getAllUsers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const users = await User.find().select('-password');
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const deleteUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Hàm lấy danh sách Users cho Admin (Phân trang + Search)
+export const getAllUsersAdmin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = (req.query.search as string) || '';
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const order = (req.query.order as string) || 'desc';
+
+    const skip = (page - 1) * limit;
+
+    // Query tìm kiếm
+    const query: any = {};
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const sortOption: any = { [sortBy]: order === 'asc' ? 1 : -1 };
+
+    const users = await User.find(query)
+      .select('-password -badges') // Không lấy password và badges để nhẹ
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
+
+    const totalUsers = await User.countDocuments(query);
+
+    res.json({
+      success: true,
+      total: totalUsers,
+      totalPages: Math.ceil(totalUsers / limit),
+      currentPage: page,
+      users,
+    });
+  } catch (error) {
+    console.error('Get All Users Error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách user' });
   }
 };

@@ -17,10 +17,11 @@ import httpRequest from '~/utils/httpRequest';
 import type { ITaskResponse } from '~/types/task';
 import styles from './TaskManagement.module.scss';
 import TaskModal from '~/components/TaskModal/TaskModal';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 
 const cx = classNames.bind(styles);
 
-// 👇 [ĐÃ SỬA] Dùng Omit để loại bỏ 'creator' gốc trước khi định nghĩa lại
+// 👇 Dùng Omit để loại bỏ 'creator' gốc trước khi định nghĩa lại
 interface IAdminTask extends Omit<ITaskResponse, 'creator'> {
   creator?: {
     _id: string;
@@ -54,7 +55,7 @@ const TaskManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await httpRequest.get(`/api/tasks/admin/all`, {
+      const res = await httpRequest.get('/api/tasks/admin/all', {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page,
@@ -95,11 +96,11 @@ const TaskManagement = () => {
 
   const renderSortIcon = (key: string) => {
     if (sortConfig.key !== key)
-      return <ArrowUpDown size={14} color="#94a3b8" />;
+      return <ArrowUpDown size={14} color="#BFC9D1" />;
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp size={14} color="#3b82f6" />
+      <ArrowUp size={14} color="#EAEFEF" />
     ) : (
-      <ArrowDown size={14} color="#3b82f6" />
+      <ArrowDown size={14} color="#EAEFEF" />
     );
   };
 
@@ -221,7 +222,7 @@ const TaskManagement = () => {
                 position: 'absolute',
                 left: 10,
                 top: 10,
-                color: '#94a3b8',
+                color: '#BFC9D1',
               }}
             />
             <input
@@ -340,9 +341,10 @@ const TaskManagement = () => {
                   </td>
                   <td>
                     <div className={cx('creatorInfo')}>
+                      {/* 👇 [ĐÃ SỬA] Dùng getImageUrl */}
                       {task.creator?.avatar ? (
                         <img
-                          src={`/${task.creator.avatar.replace(/\\/g, '/')}`}
+                          src={getImageUrl(task.creator.avatar)}
                           alt="avt"
                           className={cx('avatar')}
                         />
@@ -418,10 +420,6 @@ const TaskManagement = () => {
           setTaskToEdit(null);
         }}
         onSuccess={() => fetchTasks()}
-        // TaskToEdit ở đây là IAdminTask nhưng TaskModal nhận ITaskResponse
-        // Vì IAdminTask extends ITaskResponse (dù có sửa creator), nên về cơ bản vẫn pass được nếu TaskModal không strict quá mức.
-        // Tuy nhiên do ta dùng Omit, có thể cần ép kiểu nếu TS vẫn báo lỗi tại đây.
-        // Nếu lỗi xảy ra ở đây: taskToEdit={taskToEdit as unknown as ITaskResponse}
         taskToEdit={taskToEdit as any}
       />
     </div>

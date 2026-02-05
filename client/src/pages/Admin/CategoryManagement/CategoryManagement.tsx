@@ -14,6 +14,7 @@ import httpRequest from '~/utils/httpRequest';
 import styles from './CategoryManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
 import CategoryModal from '~/components/Modals/CategoryModal/CategoryModal';
+import { getImageUrl } from '~/utils/imageHelper'; // 👇 [MỚI] Import helper
 
 const cx = classNames.bind(styles);
 
@@ -44,8 +45,8 @@ const CategoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalCategories, setTotalCategories] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCategories, setTotalCategories] = useState(0);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -65,6 +66,7 @@ const CategoryManagement = () => {
           order: sortConfig.direction,
         },
       });
+
       if (res.data.success) {
         setCategories(res.data.categories);
         setTotalPages(res.data.totalPages);
@@ -78,11 +80,11 @@ const CategoryManagement = () => {
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const delayDebounceFn = setTimeout(() => {
       fetchCategories();
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [page, limit, sortConfig, searchTerm]);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [page, limit, searchTerm, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig((prev) => {
@@ -91,30 +93,28 @@ const CategoryManagement = () => {
       }
       return { key, direction: 'asc' };
     });
-    setPage(1);
   };
 
   const renderSortIcon = (key: string) => {
     if (sortConfig.key !== key)
-      return <ArrowUpDown size={14} color="#94a3b8" />;
+      return <ArrowUpDown size={14} color="#BFC9D1" />;
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp size={14} color="#3b82f6" />
+      <ArrowUp size={14} color="#EAEFEF" />
     ) : (
-      <ArrowDown size={14} color="#3b82f6" />
+      <ArrowDown size={14} color="#EAEFEF" />
     );
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Bạn có chắc muốn xóa Danh mục này?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa danh mục này?')) return;
     try {
       const token = localStorage.getItem('token');
       await httpRequest.delete(`/api/categories/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchCategories();
-      alert('Đã xóa thành công!');
-    } catch (error) {
-      alert('Xóa thất bại');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Xóa thất bại');
     }
   };
 
@@ -123,26 +123,33 @@ const CategoryManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleModalSubmit = async (data: any) => {
-    if (!categoryToEdit) return;
-    const token = localStorage.getItem('token');
+  const handleModalSubmit = async (formData: any) => {
     try {
-      await httpRequest.put(`/api/categories/${categoryToEdit._id}`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const token = localStorage.getItem('token');
+      if (categoryToEdit) {
+        // Edit Mode
+        await httpRequest.put(
+          `/api/categories/admin/${categoryToEdit._id}`,
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } else {
+        // Create Mode (Admin có thể tạo nhưng ở đây tập trung Edit)
+        // await httpRequest.post(...)
+      }
+      setIsModalOpen(false);
       fetchCategories();
-      alert('Cập nhật thành công!');
     } catch (error) {
-      alert('Lỗi cập nhật');
+      alert('Lỗi cập nhật danh mục');
     }
   };
 
   return (
     <div className={cx('wrapper')}>
-      <header className={cx('header')}>
+      <div className={cx('header')}>
         <div className={cx('headerLeft')}>
           <h1 className={cx('title')}>
-            Quản lý Danh mục{' '}
+            Category Management{' '}
             <span className={cx('countBadge')}>{totalCategories}</span>
           </h1>
         </div>
@@ -159,119 +166,96 @@ const CategoryManagement = () => {
             />
             <input
               type="text"
-              placeholder="Search by name..."
+              placeholder="Search category name..."
+              className={cx('searchInput')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className={cx('searchInput')}
             />
           </div>
         </div>
-      </header>
+      </div>
 
       <div className={cx('tableContainer')}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', fontSize: '1.4rem' }}>
-            Loading Categories...
-          </div>
+          <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
         ) : (
           <table className={cx('categoryTable')}>
             <thead>
               <tr>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('name')}
-                >
-                  <div className={cx('headerContent')}>
-                    Category Name {renderSortIcon('name')}
+                <th onClick={() => handleSort('name')}>
+                  <div className={cx('thContent')}>
+                    NAME {renderSortIcon('name')}
                   </div>
                 </th>
-                <th>Color</th>
-                <th>Creator (Owner)</th>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('createdAt')}
-                >
-                  <div className={cx('headerContent')}>
-                    Created At {renderSortIcon('createdAt')}
+                <th>DESCRIPTION</th>
+                <th>COLOR</th>
+                <th onClick={() => handleSort('createdAt')}>
+                  <div className={cx('thContent')}>
+                    CREATED AT {renderSortIcon('createdAt')}
                   </div>
                 </th>
-                <th>Action</th>
+                <th>CREATOR</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {categories.map((cat) => (
                 <tr key={cat._id}>
                   <td>
+                    <div className={cx('catName')}>
+                      <Tag size={16} color={cat.color} />
+                      {cat.name}
+                    </div>
+                  </td>
+                  <td>{cat.description || '-'}</td>
+                  <td>
                     <div
                       style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
+                        width: 24,
+                        height: 24,
+                        background: cat.color,
+                        borderRadius: 6,
+                        border: '1px solid #e2e8f0',
                       }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          fontWeight: 600,
-                        }}
-                      >
-                        <Tag size={16} color={cat.color} />
-                        <span style={{ fontSize: '1.5rem' }}>{cat.name}</span>
-                      </div>
-                      {cat.description && (
-                        <div className={cx('descriptionBadge')}>
-                          {cat.description}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className={cx('colorSwatch')}>
-                      <div
-                        className={cx('circle')}
-                        style={{ backgroundColor: cat.color }}
-                      ></div>
-                      <span className={cx('hexCode')}>{cat.color}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className={cx('creatorInfo')}>
-                      {cat.createdBy?.avatar ? (
-                        <img
-                          src={`/${cat.createdBy.avatar.replace(/\\/g, '/')}`}
-                          alt="avt"
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: '#eee',
-                          }}
-                        />
-                      )}
-                      <span>{cat.createdBy?.username || 'Unknown'}</span>
-                    </div>
+                    ></div>
                   </td>
                   <td>{new Date(cat.createdAt).toLocaleDateString('vi-VN')}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className={cx('creatorInfo')}>
+                      {/* 👇 [ĐÃ SỬA] Dùng getImageUrl */}
+                      {cat.createdBy?.avatar ? (
+                        <img
+                          src={getImageUrl(cat.createdBy.avatar)}
+                          alt="avatar"
+                          className={cx('avatar')}
+                        />
+                      ) : (
+                        <div className={cx('avatarPlaceholder')}>
+                          {cat.createdBy?.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className={cx('textInfo')}>
+                        <span className={cx('username')}>
+                          {cat.createdBy?.username || 'Unknown'}
+                        </span>
+                        <span className={cx('email')}>
+                          {cat.createdBy?.email}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className={cx('actionCell')}>
                       <button
-                        className={cx('actionBtn')} // [FIX] Sử dụng class có sẵn trong CategoryManagement.module.scss nếu bạn đã thêm, hoặc dùng deleteBtn tạm
+                        style={{
+                          color: '#3b82f6',
+                          borderColor: 'transparent',
+                        }}
                         onClick={() => handleEdit(cat)}
                         title="Sửa danh mục"
-                        style={{
-                          // Style inline tạm để giống nút Edit bên Task nếu chưa có class
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                        }}
                       >
                         <Edit2 size={18} color="#3b82f6" />
                       </button>
@@ -308,12 +292,11 @@ const CategoryManagement = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleModalSubmit}
-        // 👇 [FIX] Transform data để khớp với interface CategoryData của Modal
         initialData={
           categoryToEdit
             ? {
                 name: categoryToEdit.name,
-                description: categoryToEdit.description || '', // Fix: Fallback chuỗi rỗng
+                description: categoryToEdit.description || '',
                 color: categoryToEdit.color,
               }
             : null

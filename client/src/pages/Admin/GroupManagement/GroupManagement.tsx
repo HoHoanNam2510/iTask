@@ -13,7 +13,8 @@ import {
 import httpRequest from '~/utils/httpRequest';
 import styles from './GroupManagement.module.scss';
 import Pagination from '~/components/Pagination/Pagination';
-import GroupModal from '~/components/Modals/GroupModal/GroupModal'; // Import Modal
+import GroupModal from '~/components/Modals/GroupModal/GroupModal';
+import { getImageUrl } from '~/utils/imageHelper';
 
 const cx = classNames.bind(styles);
 
@@ -44,15 +45,13 @@ const GroupManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalGroups, setTotalGroups] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-
+  const [totalGroups, setTotalGroups] = useState(0);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
   }>({ key: 'createdAt', direction: 'desc' });
 
-  // Fetch API
   const fetchGroups = async () => {
     setLoading(true);
     try {
@@ -67,6 +66,7 @@ const GroupManagement = () => {
           order: sortConfig.direction,
         },
       });
+
       if (res.data.success) {
         setGroups(res.data.groups);
         setTotalPages(res.data.totalPages);
@@ -80,13 +80,12 @@ const GroupManagement = () => {
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const delayDebounceFn = setTimeout(() => {
       fetchGroups();
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [page, limit, sortConfig, searchTerm]);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [page, limit, searchTerm, sortConfig]);
 
-  // Handle Sort
   const handleSort = (key: string) => {
     setSortConfig((prev) => {
       if (prev.key === key) {
@@ -94,68 +93,62 @@ const GroupManagement = () => {
       }
       return { key, direction: 'asc' };
     });
-    setPage(1);
   };
 
   const renderSortIcon = (key: string) => {
     if (sortConfig.key !== key)
-      return <ArrowUpDown size={14} color="#94a3b8" />;
+      return <ArrowUpDown size={14} color="#BFC9D1" />;
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp size={14} color="#3b82f6" />
+      <ArrowUp size={14} color="#EAEFEF" />
     ) : (
-      <ArrowDown size={14} color="#3b82f6" />
+      <ArrowDown size={14} color="#EAEFEF" />
     );
   };
 
   const handleDelete = async (id: string) => {
-    if (
-      !window.confirm(
-        'CẢNH BÁO: Xóa nhóm sẽ mất toàn bộ chat và task trong nhóm này. Tiếp tục?'
-      )
-    )
-      return;
+    if (!window.confirm('CẢNH BÁO: Giải tán nhóm này?')) return;
     try {
       const token = localStorage.getItem('token');
       await httpRequest.delete(`/api/groups/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchGroups();
-      alert('Đã giải tán nhóm thành công!');
-    } catch (error) {
-      alert('Xóa thất bại');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Xóa thất bại');
     }
   };
 
-  // 👇 Handle Open Edit Modal
   const handleEdit = (group: IGroup) => {
     setGroupToEdit(group);
     setIsModalOpen(true);
   };
 
-  // 👇 Handle Submit Update Group
-  const handleModalSubmit = async (data: any) => {
-    if (!groupToEdit) return;
-    const token = localStorage.getItem('token');
+  const handleModalSubmit = async (formData: any) => {
     try {
-      await httpRequest.put(`/api/groups/admin/${groupToEdit._id}`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const token = localStorage.getItem('token');
+      if (groupToEdit) {
+        await httpRequest.put(
+          `/api/groups/admin/${groupToEdit._id}`,
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+      setIsModalOpen(false);
       fetchGroups();
-      alert('Cập nhật nhóm thành công!');
     } catch (error) {
-      alert('Cập nhật thất bại');
+      alert('Lỗi cập nhật nhóm');
     }
   };
 
   return (
     <div className={cx('wrapper')}>
-      <header className={cx('header')}>
+      <div className={cx('header')}>
         <div className={cx('headerLeft')}>
           <h1 className={cx('title')}>
-            Quản lý Nhóm <span className={cx('countBadge')}>{totalGroups}</span>
+            Group Management{' '}
+            <span className={cx('countBadge')}>{totalGroups}</span>
           </h1>
         </div>
-
         <div className={cx('toolbar')}>
           <div style={{ position: 'relative' }}>
             <Search
@@ -169,134 +162,105 @@ const GroupManagement = () => {
             />
             <input
               type="text"
-              placeholder="Search by group name..."
+              placeholder="Search group name..."
+              className={cx('searchInput')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className={cx('searchInput')}
             />
           </div>
         </div>
-      </header>
+      </div>
 
       <div className={cx('tableContainer')}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', fontSize: '1.4rem' }}>
-            Loading Groups...
-          </div>
+          <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
         ) : (
           <table className={cx('groupTable')}>
             <thead>
               <tr>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('name')}
-                >
-                  <div className={cx('headerContent')}>
-                    Group Name {renderSortIcon('name')}
+                <th onClick={() => handleSort('name')}>
+                  <div className={cx('thContent')}>
+                    GROUP NAME {renderSortIcon('name')}
                   </div>
                 </th>
-                <th>Owner (Leader)</th>
-                <th>Members</th>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('createdAt')}
-                >
-                  <div className={cx('headerContent')}>
-                    Created At {renderSortIcon('createdAt')}
+                <th>DESCRIPTION</th>
+                <th>OWNER (LEADER)</th>
+                <th>MEMBERS</th>
+                <th onClick={() => handleSort('createdAt')}>
+                  <div className={cx('thContent')}>
+                    CREATED AT {renderSortIcon('createdAt')}
                   </div>
                 </th>
-                <th>Action</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {groups.map((group) => (
                 <tr key={group._id}>
                   <td>
-                    <div className={cx('groupInfo')}>
-                      <div className={cx('groupIcon')}>
-                        <LayoutGrid size={20} />
-                      </div>
-                      <div>
-                        <div>{group.name}</div>
-                        <div
-                          style={{
-                            fontSize: '1.2rem',
-                            color: '#94a3b8',
-                            fontWeight: 400,
-                          }}
-                        >
-                          ID: {group._id.slice(-6)}
-                        </div>
-                      </div>
+                    <div className={cx('groupName')}>
+                      <LayoutGrid size={18} color="#3b82f6" />
+                      {group.name}
                     </div>
                   </td>
                   <td>
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-                    >
-                      {group.owner?.avatar ? (
+                    <div className={cx('descCell')}>
+                      {group.description || '-'}
+                    </div>
+                  </td>
+                  <td>
+                    <div className={cx('ownerInfo')}>
+                      {group.owner.avatar ? (
                         <img
-                          src={`/${group.owner.avatar.replace(/\\/g, '/')}`}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                          }}
+                          src={getImageUrl(group.owner.avatar)}
+                          alt="owner"
+                          className={cx('avatar')}
                         />
                       ) : (
-                        <div
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: '#eee',
-                          }}
-                        />
+                        <div className={cx('avatarPlaceholder')}>
+                          {group.owner.username.charAt(0).toUpperCase()}
+                        </div>
                       )}
-                      <span>{group.owner?.username || 'Unknown'}</span>
+                      <span>{group.owner.username}</span>
                     </div>
                   </td>
                   <td>
-                    <div className={cx('membersAvatars')}>
-                      {group.members.slice(0, 5).map((mem) => (
-                        <img
+                    <div className={cx('membersList')}>
+                      {group.members.slice(0, 4).map((mem) => (
+                        <div
                           key={mem._id}
-                          src={
-                            mem.avatar
-                              ? `/${mem.avatar.replace(/\\/g, '/')}`
-                              : 'https://via.placeholder.com/30'
-                          }
+                          className={cx('memberAvatarWrapper')}
                           title={mem.username}
-                        />
+                        >
+                          {mem.avatar ? (
+                            <img
+                              src={getImageUrl(mem.avatar)}
+                              className={cx('memberAvatar')}
+                              alt={mem.username}
+                            />
+                          ) : (
+                            <div className={cx('memberPlaceholder')}>
+                              {mem.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
                       ))}
-                      {group.members.length > 5 && (
-                        <div className={cx('moreCount')}>
-                          +{group.members.length - 5}
+                      {group.members.length > 4 && (
+                        <div className={cx('moreMembers')}>
+                          +{group.members.length - 4}
                         </div>
                       )}
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          fontSize: '1.3rem',
-                          color: '#64748b',
-                        }}
-                      >
-                        ({group.members.length} users)
-                      </span>
                     </div>
                   </td>
                   <td>
                     {new Date(group.createdAt).toLocaleDateString('vi-VN')}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {/* 👇 Button Edit Group */}
+                    <div className={cx('actionCell')}>
                       <button
-                        className={cx('deleteBtn')}
                         style={{ color: '#3b82f6', borderColor: 'transparent' }}
                         onClick={() => handleEdit(group)}
                         title="Sửa nhóm"
@@ -331,7 +295,6 @@ const GroupManagement = () => {
         }}
       />
 
-      {/* 👇 Modal Edit cho Admin */}
       <GroupModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

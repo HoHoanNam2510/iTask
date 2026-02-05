@@ -14,7 +14,8 @@ import styles from './UserManagement.module.scss';
 import httpRequest from '~/utils/httpRequest';
 import { useAuth } from '~/context/AuthContext';
 import Pagination from '~/components/Pagination/Pagination';
-import UserModal from '~/components/Modals/UserModal/UserModal'; // Import Modal
+import UserModal from '~/components/Modals/UserModal/UserModal';
+import { getImageUrl } from '~/utils/imageHelper';
 
 const cx = classNames.bind(styles);
 
@@ -41,8 +42,8 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -52,7 +53,8 @@ const UserManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await httpRequest.get('/api/users', {
+      // 👇 [QUAN TRỌNG] Gọi đúng endpoint đã khai báo trong Routes
+      const res = await httpRequest.get('/api/users/admin/all', {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page,
@@ -62,24 +64,25 @@ const UserManagement = () => {
           order: sortConfig.direction,
         },
       });
+
       if (res.data.success) {
         setUsers(res.data.users);
         setTotalPages(res.data.totalPages);
         setTotalUsers(res.data.total);
       }
     } catch (error) {
-      console.error('Lỗi tải danh sách users:', error);
+      console.error('Lỗi tải users:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const delayDebounceFn = setTimeout(() => {
       fetchUsers();
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [page, limit, sortConfig, searchTerm]);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [page, limit, searchTerm, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig((prev) => {
@@ -88,53 +91,43 @@ const UserManagement = () => {
       }
       return { key, direction: 'asc' };
     });
-    setPage(1);
   };
 
   const renderSortIcon = (key: string) => {
     if (sortConfig.key !== key)
-      return <ArrowUpDown size={14} color="#94a3b8" />;
+      return <ArrowUpDown size={14} color="#BFC9D1" />;
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp size={14} color="#3b82f6" />
+      <ArrowUp size={14} color="#EAEFEF" />
     ) : (
-      <ArrowDown size={14} color="#3b82f6" />
+      <ArrowDown size={14} color="#EAEFEF" />
     );
   };
 
-  const handleDelete = async (userId: string) => {
-    if (userId === currentUser?._id) {
-      alert('Bạn không thể tự xóa chính mình!');
-      return;
-    }
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return;
     try {
       const token = localStorage.getItem('token');
-      await httpRequest.delete(`/api/users/${userId}`, {
+      await httpRequest.delete(`/api/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchUsers();
-      alert('Đã xóa thành công!');
-    } catch (error) {
-      alert('Xóa thất bại.');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Xóa thất bại');
     }
   };
 
   const handleEdit = (user: IUser) => {
-    if (user._id === currentUser?._id) {
-      // Tùy chọn: Có cho phép admin tự sửa quyền mình không? Thường là không nên ở đây.
-      alert('Vui lòng vào trang Settings để sửa thông tin cá nhân.');
-      return;
-    }
     setUserToEdit(user);
     setIsModalOpen(true);
   };
 
   return (
     <div className={cx('wrapper')}>
-      <header className={cx('header')}>
+      <div className={cx('header')}>
         <div className={cx('headerLeft')}>
           <h1 className={cx('title')}>
-            Quản lý Users <span className={cx('countBadge')}>{totalUsers}</span>
+            User Management{' '}
+            <span className={cx('countBadge')}>{totalUsers}</span>
           </h1>
         </div>
         <div className={cx('toolbar')}>
@@ -145,66 +138,52 @@ const UserManagement = () => {
                 position: 'absolute',
                 left: 10,
                 top: 10,
-                color: '#94a3b8',
+                color: '#BFC9D1',
               }}
             />
             <input
               type="text"
-              placeholder="Search by name or email..."
+              placeholder="Search by username or email..."
+              className={cx('searchInput')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className={cx('searchInput')}
             />
           </div>
         </div>
-      </header>
+      </div>
 
       <div className={cx('tableContainer')}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', fontSize: '1.4rem' }}>
-            Loading Users...
-          </div>
+          <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
         ) : (
           <table className={cx('userTable')}>
             <thead>
               <tr>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('username')}
-                >
-                  <div className={cx('headerContent')}>
-                    Username {renderSortIcon('username')}
+                <th onClick={() => handleSort('username')}>
+                  <div className={cx('thContent')}>
+                    USERNAME {renderSortIcon('username')}
                   </div>
                 </th>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('email')}
-                >
-                  <div className={cx('headerContent')}>
-                    Email {renderSortIcon('email')}
+                <th onClick={() => handleSort('email')}>
+                  <div className={cx('thContent')}>
+                    EMAIL {renderSortIcon('email')}
                   </div>
                 </th>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('role')}
-                >
-                  <div className={cx('headerContent')}>
-                    Role {renderSortIcon('role')}
+                <th onClick={() => handleSort('role')}>
+                  <div className={cx('thContent')}>
+                    ROLE {renderSortIcon('role')}
                   </div>
                 </th>
-                <th>Password</th>
-                <th
-                  className={cx('thSortable')}
-                  onClick={() => handleSort('createdAt')}
-                >
-                  <div className={cx('headerContent')}>
-                    Created At {renderSortIcon('createdAt')}
+                <th>PASSWORD (HASHED)</th>
+                <th onClick={() => handleSort('createdAt')}>
+                  <div className={cx('thContent')}>
+                    JOINED DATE {renderSortIcon('createdAt')}
                   </div>
                 </th>
-                <th>Actions</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -214,13 +193,9 @@ const UserManagement = () => {
                     <div className={cx('userInfo')}>
                       {u.avatar ? (
                         <img
-                          src={`/${u.avatar.replace(/\\/g, '/')}`}
-                          alt="avatar"
-                          className={cx('avatar')}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              'none';
-                          }}
+                          src={getImageUrl(u.avatar)}
+                          alt={u.username}
+                          className={cx('avatarImage')}
                         />
                       ) : (
                         <div className={cx('avatarPlaceholder')}>
@@ -235,17 +210,14 @@ const UserManagement = () => {
                     <span className={cx('roleBadge', u.role)}>{u.role}</span>
                   </td>
                   <td>
-                    <div className={cx('passwordCell')} title={u.password}>
-                      {u.password || 'N/A'}
-                    </div>
+                    <span className={cx('passwordCell')}>••••••••</span>
                   </td>
                   <td>{new Date(u.createdAt).toLocaleDateString('vi-VN')}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className={cx('actionCell')}>
                       {u._id !== currentUser?._id && (
                         <>
                           <button
-                            className={cx('deleteBtn')}
                             style={{
                               color: '#3b82f6',
                               borderColor: 'transparent',
@@ -285,13 +257,10 @@ const UserManagement = () => {
         }}
       />
 
-      {/* Modal Admin Edit User */}
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          fetchUsers();
-        }}
+        onSuccess={() => fetchUsers()}
         user={userToEdit}
       />
     </div>

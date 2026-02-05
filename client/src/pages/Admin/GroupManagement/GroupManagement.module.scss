@@ -5,6 +5,7 @@
   margin: 0 auto;
 }
 
+// --- HEADER & TOOLBAR ---
 .header {
   margin-bottom: 24px;
   display: flex;
@@ -32,7 +33,7 @@
     font-size: 1.4rem;
     font-weight: 700;
     margin-left: 12px;
-    box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.3);
+    box-shadow: 0 2px 4px rgba(64, 165, 120, 0.3);
   }
 }
 
@@ -45,32 +46,31 @@
 .searchInput {
   padding: 10px 10px 10px 36px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
+  width: 250px;
   outline: none;
-  min-width: 250px;
-  font-size: 1.4rem;
   transition: all 0.2s;
 
   &:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    box-shadow: 0 0 0 3px rgba(64, 165, 120, 0.1);
   }
 }
 
+// --- TABLE STYLES ---
 .tableContainer {
   background: var(--white);
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden; // Bo tròn góc bảng
   border: 1px solid var(--border-color);
-  overflow: hidden;
-  overflow-x: auto;
+  overflow-x: auto; // Scroll ngang nếu bảng quá rộng
 }
 
 .groupTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 1.5rem;
-  text-align: left;
+  min-width: 900px; // Đảm bảo bảng không bị co quá nhỏ
 
   thead {
     th {
@@ -86,12 +86,14 @@
       display: table-cell;
       vertical-align: middle;
 
-      &.thSortable {
-        cursor: pointer;
-        transition: background-color 0.2s;
-        &:hover {
-          background-color: var(--primary-light);
-        }
+      &:hover {
+        background-color: var(--primary-light);
+      }
+
+      .thContent {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
     }
   }
@@ -99,94 +101,166 @@
   tbody {
     tr {
       border-bottom: 1px solid var(--border-color);
-      transition: background-color 0.2s;
-
-      &:last-child {
-        border-bottom: none;
-      }
+      transition: background 0.15s;
 
       &:hover {
-        background-color: var(--bg-hover);
+        background-color: #f8fafc;
+      }
+      &:last-child {
+        border-bottom: none;
       }
     }
 
     td {
       padding: 16px 24px;
       color: var(--text-main);
+      font-size: 1.4rem;
       vertical-align: middle;
     }
   }
 }
 
-.headerContent {
+// --- COLUMN SPECIFIC STYLES ---
+
+// 1. Group Name
+.groupName {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-// Custom Columns
-.groupInfo {
+  gap: 10px;
   font-weight: 600;
   color: var(--text-main);
+
+  svg {
+    flex-shrink: 0; // Không bị méo icon
+  }
+}
+
+// 2. Description (Cắt chữ nếu quá dài)
+.descCell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-light);
+}
+
+// 3. Owner Info (Fix vỡ layout avatar)
+.ownerInfo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 
-  .groupIcon {
-    width: 40px;
-    height: 40px;
-    background: var(--primary);
-    color: var(--white);
-    border-radius: 8px;
+  .avatar,
+  .avatarPlaceholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0; // Quan trọng: Không bị méo khi tên dài
+  }
+
+  .avatar {
+    border: 1px solid var(--border-color);
+  }
+
+  .avatarPlaceholder {
+    background-color: #e0f2fe;
+    color: #0284c7;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+
+  span {
+    font-weight: 500;
+    white-space: nowrap;
   }
 }
 
-.membersAvatars {
+// 4. Members List (Avatar chồng lên nhau)
+.membersList {
   display: flex;
   align-items: center;
+  padding-left: 8px; // Để avatar đầu tiên không bị cắt nếu có margin âm
 
-  img {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 2px solid white;
-    margin-left: -10px;
-    object-fit: cover;
-    &:first-child {
-      margin-left: 0;
+  .memberAvatarWrapper {
+    margin-left: -8px; // Tạo hiệu ứng chồng
+    transition: transform 0.2s;
+    position: relative;
+
+    &:hover {
+      transform: translateY(-4px);
+      z-index: 10;
     }
   }
 
-  .moreCount {
-    width: 30px;
-    height: 30px;
+  .memberAvatar,
+  .memberPlaceholder {
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: #e2e8f0;
-    border: 2px solid white;
-    margin-left: -10px;
+    border: 2px solid var(--white); // Viền trắng để tách biệt
+    object-fit: cover;
+    display: block;
+  }
+
+  .memberPlaceholder {
+    background-color: #f1f5f9;
+    color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1rem;
     font-weight: 600;
+  }
+
+  .moreMembers {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: #f1f5f9;
     color: #64748b;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--white);
+    margin-left: -8px;
+    z-index: 5;
   }
 }
 
-.deleteBtn {
-  padding: 8px;
-  border-radius: 6px;
-  color: var(--text-light);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
+// 5. Actions
+.actionCell {
+  display: flex;
+  gap: 8px;
 
-  &:hover {
-    background-color: #fee2e2;
-    color: var(--danger);
+  button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .deleteBtn {
+    color: #ef4444;
+    border-color: #fca5a5;
+    &:hover {
+      background-color: #fee2e2;
+    }
   }
 }
