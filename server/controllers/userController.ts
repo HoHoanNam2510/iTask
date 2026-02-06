@@ -22,43 +22,49 @@ const deleteCloudImage = async (fileUrl: string) => {
   }
 };
 
-// Helper: Gửi Email (Cấu hình chuẩn cho Port 587 & 465)
+// ==========================================
+// EMAIL HELPER FUNCTION (Cấu hình chuẩn Production)
+// ==========================================
 const sendEmail = async (options: {
   email: string;
   subject: string;
   message: string;
 }) => {
-  // 1. Lấy config từ Env
-  const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
-  // Mặc định fallback về 587 nếu không tìm thấy biến môi trường
-  const port = Number(process.env.EMAIL_PORT) || 587;
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  // 1. Sanitize & Parse Environment Variables
+  const host = (process.env.EMAIL_HOST || 'smtp.gmail.com').trim();
+  const port = parseInt(process.env.EMAIL_PORT || '587', 10); // Ép kiểu số
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').trim();
+
+  // Log debug để xem Server nhận biến môi trường ra sao (Che mật khẩu)
+  console.log('📧 [SMTP DEBUG] Configuration:', {
+    host,
+    port,
+    user: user ? `${user.substring(0, 3)}***@***` : 'MISSING',
+    pass: pass ? '****** (OK)' : 'MISSING',
+    secure: port === 465,
+  });
 
   if (!user || !pass) {
-    throw new Error('Thiếu cấu hình EMAIL_USER hoặc EMAIL_PASS trong .env');
+    throw new Error('Thiếu cấu hình EMAIL_USER hoặc EMAIL_PASS');
   }
 
-  console.log(`📧 Đang kết nối SMTP: ${host}:${port} (User: ${user})`);
-
-  // 2. Cấu hình Transporter
-  // 👇 [FIXED] Thêm "as any" để tránh lỗi TypeScript checking
+  // 2. Create Transporter
+  // Dùng 'as any' để tránh lỗi TypeScript checking property 'host'
   const transporter = nodemailer.createTransport({
     host: host,
     port: port,
-    // - Port 465: secure = true (SSL)
-    // - Port 587: secure = false (STARTTLS - Nodemailer tự động upgrade)
-    secure: port === 465,
+    secure: port === 465, // true for 465, false for other ports
     auth: {
       user: user,
       pass: pass,
     },
-    // Fix lỗi chứng chỉ SSL trên Render/Vercel (Self-signed certs)
     tls: {
+      // Quan trọng cho Render/Vercel: Chấp nhận chứng chỉ self-signed nếu cần
       rejectUnauthorized: false,
-      ciphers: 'SSLv3',
     },
-    family: 4, // Ép buộc dùng IPv4 để tránh lỗi Network trên Cloud
+    // Ép buộc dùng IPv4 để tránh lỗi network trên một số cloud provider
+    family: 4,
   } as any);
 
   const mailOptions = {
@@ -68,18 +74,23 @@ const sendEmail = async (options: {
     html: options.message,
   };
 
-  // Verify kết nối trước khi gửi (Debug lỗi connection)
-  await transporter.verify().catch((err) => {
-    console.error('❌ Lỗi kết nối SMTP:', err);
-    throw err;
-  });
+  // 3. Verify Connection & Send
+  try {
+    // Kiểm tra kết nối trước
+    await transporter.verify();
+    console.log('✅ SMTP Connection Verified');
 
-  await transporter.sendMail(mailOptions);
-  console.log('✅ Email sent successfully');
+    // Gửi mail
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully to ${options.email}`);
+  } catch (err) {
+    console.error('❌ SMTP Error Detail:', err);
+    throw err; // Ném lỗi ra để Controller xử lý
+  }
 };
 
 // ==========================================
-// CÁC HÀM QUẢN LÝ USER (USER PROFILE & PASSWORD)
+// USER CONTROLLERS
 // ==========================================
 
 export const updateUserProfile = async (
@@ -163,7 +174,7 @@ export const changePassword = async (
 };
 
 // ==========================================
-// CÁC HÀM QUẢN LÝ USER (ADMIN)
+// ADMIN CONTROLLERS
 // ==========================================
 
 export const updateUserAdmin = async (
@@ -278,57 +289,50 @@ export const forgotPassword = async (
       return;
     }
 
-    // 1. Tạo Token ngẫu nhiên
+    // 1. Tạo Token & Expiry
     const resetToken = crypto.randomBytes(20).toString('hex');
-
-    // 2. Lưu vào DB (10 phút hết hạn)
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
     await user.save();
 
-    // 3. Tạo URL Reset Password
-    // Lấy Client URL từ biến môi trường, fallback về localhost cho dev
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    // Đảm bảo không bị double slash (ví dụ: clientUrl kết thúc bằng /)
-    const cleanClientUrl = clientUrl.replace(/\/$/, '');
-    const resetUrl = `${cleanClientUrl}/reset-password/${resetToken}`;
+    // 2. Tạo Link Reset
+    const clientUrl = (
+      process.env.CLIENT_URL || 'http://localhost:5173'
+    ).replace(/\/$/, '');
+    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
-    console.log(`🔗 Link Reset Link (Server Generated): ${resetUrl}`);
+    console.log(`🔗 Link Reset generated: ${resetUrl}`);
 
-    // 4. Nội dung Email HTML
+    // 3. Nội dung Email
     const message = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
-        <h2 style="color: #40a578; text-align: center;">Yêu Cầu Đặt Lại Mật Khẩu</h2>
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+        <h2 style="color: #40a578;">Đặt lại mật khẩu iTask</h2>
         <p>Xin chào <strong>${user.username}</strong>,</p>
-        <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản iTask của bạn.</p>
-        <p style="text-align: center;">
-          <a href="${resetUrl}" style="display: inline-block; background-color: #40a578; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Đặt Lại Mật Khẩu Ngay</a>
-        </p>
-        <p>⚠️ Link này sẽ hết hạn sau <strong>10 phút</strong>.</p>
-        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
-        <p style="font-size: 13px; color: #666;">Nếu nút trên không hoạt động, hãy copy đường dẫn sau vào trình duyệt:</p>
-        <p style="font-size: 12px; color: #007bff; word-break: break-all;">${resetUrl}</p>
-        <p style="font-size: 12px; color: #999; margin-top: 10px;">Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này. Tài khoản của bạn vẫn an toàn.</p>
+        <p>Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu cho tài khoản này.</p>
+        <p>Vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu (Link hết hạn sau 10 phút):</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #40a578; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Đặt Lại Mật Khẩu</a>
+        </div>
+        <p>Hoặc copy link này: ${resetUrl}</p>
       </div>
     `;
 
+    // 4. Gửi Email
     try {
       await sendEmail({
         email: user.email,
-        subject: 'iTask - Hướng dẫn đặt lại mật khẩu',
+        subject: 'iTask - Yêu cầu đặt lại mật khẩu',
         message,
       });
 
       res.json({ success: true, message: 'Email đã được gửi thành công.' });
     } catch (err: any) {
-      // Rollback nếu gửi mail thất bại để user có thể thử lại ngay
+      // Rollback DB nếu gửi mail lỗi
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
       await user.save();
 
-      console.error('❌ Send Email FAILED:', err);
-
-      // Trả về thông báo lỗi chi tiết hơn nếu ở môi trường Dev
+      // Trả lỗi chi tiết để Frontend hiển thị (hoặc debug)
       res.status(500).json({
         success: false,
         message: 'Lỗi kết nối SMTP. Vui lòng kiểm tra server mail.',
@@ -349,7 +353,6 @@ export const resetPassword = async (
     const { token } = req.params;
     const { password } = req.body;
 
-    // Tìm user có token khớp và thời gian chưa hết hạn
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() },
@@ -358,16 +361,15 @@ export const resetPassword = async (
     if (!user) {
       res.status(400).json({
         success: false,
-        message: 'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+        message: 'Link không hợp lệ hoặc đã hết hạn.',
       });
       return;
     }
 
-    // Hash mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
-    // Xóa token để không dùng lại được
+    // Clear token
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
