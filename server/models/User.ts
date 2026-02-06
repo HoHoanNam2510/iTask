@@ -37,7 +37,7 @@ const UserSchema: Schema = new Schema(
         awardedAt: { type: Date, default: Date.now },
       },
     ],
-    // Token reset pass
+    // Reset Password Fields
     resetPasswordToken: { type: String, default: undefined },
     resetPasswordExpires: { type: Date, default: undefined },
   },

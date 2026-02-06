@@ -25,7 +25,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // 👇 [FIXED] Gọi đúng route /api/users/forgot-password
+      // Gọi đúng endpoint đã khai báo trong userRoutes
       const res = await httpRequest.post('/api/users/forgot-password', {
         email,
       });
@@ -63,7 +63,7 @@ const ForgotPassword: React.FC = () => {
                 <div className={cx('inputGroup')}>
                   <label className={cx('label')}>Email Address</label>
                   <div className={cx('inputWithIcon')}>
-                    <Mail size={26} className={cx('icon')} />
+                    <Mail size={20} className={cx('icon')} />
                     <input
                       type="email"
                       placeholder="Enter your email"

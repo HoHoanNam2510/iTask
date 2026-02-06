@@ -12,7 +12,7 @@ const bgImage = images.general.todolist;
 const cx = classNames.bind(styles);
 
 const ResetPassword: React.FC = () => {
-  const { token } = useParams(); // Lấy token từ URL
+  const { token } = useParams();
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
@@ -34,7 +34,7 @@ const ResetPassword: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // 👇 [FIXED] Gọi đúng route /api/users/reset-password
+      // Gọi đúng endpoint API reset password
       const res = await httpRequest.put(`/api/users/reset-password/${token}`, {
         password,
       });
@@ -70,6 +70,7 @@ const ResetPassword: React.FC = () => {
             <div className={cx('inputGroup')}>
               <label className={cx('label')}>New Password</label>
               <div className={cx('inputWithIcon')}>
+                {/* 👇 [ĐÃ FIX] Xóa dấu \ thừa ở dòng dưới */}
                 <input
                   type="password"
                   placeholder="Enter new password"
@@ -84,7 +85,6 @@ const ResetPassword: React.FC = () => {
             <div className={cx('inputGroup')}>
               <label className={cx('label')}>Confirm Password</label>
               <div className={cx('inputWithIcon')}>
-                {/* 👇 [FIXED] Đã xóa dấu \ thừa ở dòng dưới */}
                 <input
                   type="password"
                   placeholder="Confirm new password"
