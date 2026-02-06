@@ -30,7 +30,7 @@ const sendEmail = async (options: {
 }) => {
   // 1. Lấy config từ Env
   const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
-  // 👇 [UPDATED] Mặc định fallback về 587 nếu không tìm thấy biến môi trường
+  // Mặc định fallback về 587 nếu không tìm thấy biến môi trường
   const port = Number(process.env.EMAIL_PORT) || 587;
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
@@ -42,10 +42,10 @@ const sendEmail = async (options: {
   console.log(`📧 Đang kết nối SMTP: ${host}:${port} (User: ${user})`);
 
   // 2. Cấu hình Transporter
+  // 👇 [FIXED] Thêm "as any" để tránh lỗi TypeScript checking
   const transporter = nodemailer.createTransport({
     host: host,
     port: port,
-    // 👇 [QUAN TRỌNG] Logic secure:
     // - Port 465: secure = true (SSL)
     // - Port 587: secure = false (STARTTLS - Nodemailer tự động upgrade)
     secure: port === 465,
@@ -56,8 +56,10 @@ const sendEmail = async (options: {
     // Fix lỗi chứng chỉ SSL trên Render/Vercel (Self-signed certs)
     tls: {
       rejectUnauthorized: false,
+      ciphers: 'SSLv3',
     },
-  });
+    family: 4, // Ép buộc dùng IPv4 để tránh lỗi Network trên Cloud
+  } as any);
 
   const mailOptions = {
     from: `"iTask Support" <${user}>`,
@@ -291,7 +293,7 @@ export const forgotPassword = async (
     const cleanClientUrl = clientUrl.replace(/\/$/, '');
     const resetUrl = `${cleanClientUrl}/reset-password/${resetToken}`;
 
-    console.log(`🔗 Link Reset tạo cho ${user.email}: ${resetUrl}`);
+    console.log(`🔗 Link Reset Link (Server Generated): ${resetUrl}`);
 
     // 4. Nội dung Email HTML
     const message = `
