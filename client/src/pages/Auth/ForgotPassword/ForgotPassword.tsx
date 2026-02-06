@@ -8,7 +8,6 @@ import images from '~/assets/images';
 import styles from '../Auth.module.scss';
 import httpRequest from '~/utils/httpRequest';
 
-// Tái sử dụng hình nền giống Login/Register
 const bgImage = images.general.todolist;
 const cx = classNames.bind(styles);
 
@@ -26,8 +25,8 @@ const ForgotPassword: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // Gọi API Backend (Logic này sẽ được viết ở bước sau)
-      const res = await httpRequest.post('/api/auth/forgot-password', {
+      // 👇 [FIXED] Gọi đúng route /api/users/forgot-password
+      const res = await httpRequest.post('/api/users/forgot-password', {
         email,
       });
 
@@ -46,34 +45,34 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <div className={cx('wrapper')}>
-      {/* Cột trái: Form */}
       <div className={cx('leftColumn')}>
-        <div className={cx('formCard')}>
-          {/* Nút quay lại */}
-          <Link to="/login" className={cx('backToLogin')}>
-            <ArrowLeft size={18} />
-            <span>Back to Login</span>
+        <div className={cx('contentBox')}>
+          <Link to="/login" className={cx('backLink')}>
+            <ArrowLeft size={20} /> Back to Login
           </Link>
 
           {!isSuccess ? (
             <>
-              <h1 className={cx('title')}>Forgot Password?</h1>
+              <h2 className={cx('title')}>Forgot Password?</h2>
               <p className={cx('subtitle')}>
-                Don't worry! It happens. Please enter the email associated with
-                your account.
+                Enter your email address and we'll send you a link to reset your
+                password.
               </p>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} className={cx('form')}>
                 <div className={cx('inputGroup')}>
-                  <label className={cx('label')}>Email address</label>
-                  <input
-                    type="email"
-                    placeholder="Enter your email"
-                    className={cx('input')}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+                  <label className={cx('label')}>Email Address</label>
+                  <div className={cx('inputWithIcon')}>
+                    <Mail size={20} className={cx('icon')} />
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      className={cx('input')}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <button
@@ -81,16 +80,21 @@ const ForgotPassword: React.FC = () => {
                   className={cx('submitBtn')}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Sending...' : 'Send Code'}
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
                 </button>
               </form>
             </>
           ) : (
-            // Giao diện khi gửi thành công
-            <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <div
                 style={{
-                  margin: '0 auto 2rem',
                   width: '60px',
                   height: '60px',
                   borderRadius: '50%',
@@ -128,7 +132,6 @@ const ForgotPassword: React.FC = () => {
         </div>
       </div>
 
-      {/* Cột phải: Hình ảnh */}
       <div className={cx('rightColumn')}>
         <img src={bgImage} alt="Background" className={cx('authImage')} />
       </div>

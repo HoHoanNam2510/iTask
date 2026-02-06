@@ -14,7 +14,6 @@ export interface IUser extends Document {
     icon: string;
     awardedAt: Date;
   }>;
-  // 👇 [MỚI] Fields cho Reset Password
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
 }
@@ -38,7 +37,7 @@ const UserSchema: Schema = new Schema(
         awardedAt: { type: Date, default: Date.now },
       },
     ],
-    // 👇 [MỚI] Lưu token reset và thời gian hết hạn
+    // Token reset pass
     resetPasswordToken: { type: String, default: undefined },
     resetPasswordExpires: { type: Date, default: undefined },
   },
