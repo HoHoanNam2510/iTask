@@ -63,7 +63,7 @@ const ForgotPassword: React.FC = () => {
                 <div className={cx('inputGroup')}>
                   <label className={cx('label')}>Email Address</label>
                   <div className={cx('inputWithIcon')}>
-                    <Mail size={20} className={cx('icon')} />
+                    <Mail size={26} className={cx('icon')} />
                     <input
                       type="email"
                       placeholder="Enter your email"
