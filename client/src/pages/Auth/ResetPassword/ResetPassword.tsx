@@ -34,18 +34,19 @@ const ResetPassword: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const res = await httpRequest.put(`/api/auth/resetpassword/${token}`, {
+      // 👇 [FIXED] Gọi đúng route /api/users/reset-password
+      const res = await httpRequest.put(`/api/users/reset-password/${token}`, {
         password,
       });
 
       if (res.data.success) {
-        alert('Đổi mật khẩu thành công! Hãy đăng nhập lại.');
+        alert('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
         navigate('/login');
       }
     } catch (error: any) {
-      console.error('Reset Error:', error);
+      console.error('Reset Password Error:', error);
       const msg =
-        error.response?.data?.message || 'Link đã hết hạn hoặc không hợp lệ.';
+        error.response?.data?.message || 'Liên kết hết hạn hoặc không hợp lệ.';
       alert(msg);
     } finally {
       setIsLoading(false);
@@ -55,18 +56,17 @@ const ResetPassword: React.FC = () => {
   return (
     <div className={cx('wrapper')}>
       <div className={cx('leftColumn')}>
-        <div className={cx('formCard')}>
-          <Link to="/login" className={cx('backToLogin')}>
-            <ArrowLeft size={18} />
-            <span>Back to Login</span>
+        <div className={cx('contentBox')}>
+          <Link to="/login" className={cx('backLink')}>
+            <ArrowLeft size={20} /> Back to Login
           </Link>
 
-          <h1 className={cx('title')}>Set new password</h1>
+          <h2 className={cx('title')}>Set new password</h2>
           <p className={cx('subtitle')}>
             Your new password must be different to previously used passwords.
           </p>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className={cx('form')}>
             <div className={cx('inputGroup')}>
               <label className={cx('label')}>New Password</label>
               <div className={cx('inputWithIcon')}>
@@ -84,6 +84,7 @@ const ResetPassword: React.FC = () => {
             <div className={cx('inputGroup')}>
               <label className={cx('label')}>Confirm Password</label>
               <div className={cx('inputWithIcon')}>
+                {/* 👇 [FIXED] Đã xóa dấu \ thừa ở dòng dưới */}
                 <input
                   type="password"
                   placeholder="Confirm new password"
